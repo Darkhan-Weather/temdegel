@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ажлын тэмдэглэл</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;min-height:100vh}
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
+.login-card{background:white;border-radius:16px;border:1px solid #e0e7ef;padding:2.5rem;width:100%;max-width:380px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.08)}
+.login-logo{width:64px;height:64px;border-radius:16px;background:#1a3a5c;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:28px;color:white}
+.login-title{font-size:20px;font-weight:600;margin-bottom:6px}
+.login-sub{font-size:13px;color:#6b7a8d;margin-bottom:1.75rem;line-height:1.6}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:11px 16px;border-radius:10px;border:1px solid #dde3ec;background:white;font-size:14px;font-weight:500;cursor:pointer;color:#1a2332}
+.google-btn:hover{background:#f8fafc}
+.google-icon{width:18px;height:18px}
+.main-app{display:none;min-height:100vh;flex-direction:column}
+.topbar{background:#1a3a5c;color:white;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:54px}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar-title{font-size:15px;font-weight:600}
+.user-info{display:flex;align-items:center;gap:10px;font-size:13px}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;overflow:hidden}
+.user-avatar img{width:100%;height:100%;object-fit:cover}
+.sync-badge{font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(46,204,113,0.2);color:#2ecc71;display:inline-flex;align-items:center;gap:4px}
+.logout-btn{background:rgba(255,255,255,0.1);border:none;color:white;padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer}
+.nav{background:#1e4976;display:flex;padding:0 24px}
+.nav button{background:none;border:none;color:rgba(255,255,255,0.6);padding:12px 16px;font-size:13px;cursor:pointer;border-bottom:2.5px solid transparent;transition:all 0.2s;display:flex;align-items:center;gap:6px;font-family:inherit}
+.nav button.active{color:white;border-bottom-color:#4db6ff}
+.nav button:hover{color:white}
+.content{padding:20px;max-width:980px;margin:0 auto;width:100%;flex:1}
+.card{background:white;border-radius:14px;border:1px solid #e8edf3;padding:1.25rem;margin-bottom:14px}
+.card-title{font-size:14px;font-weight:600;color:#1a3a5c;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+label{font-size:12px;color:#6b7a8d;margin-bottom:4px;display:block}
+.req{color:#e74c3c}
+input,select,textarea{width:100%;border:1.5px solid #dde3ec;border-radius:8px;padding:8px 11px;font-size:13px;color:#1a2332;background:#fafbfc;outline:none;font-family:inherit;transition:border 0.15s}
+input:focus,select:focus,textarea:focus{border-color:#1a3a5c;background:white}
+textarea{resize:vertical;min-height:80px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.btn{padding:9px 18px;border-radius:9px;border:1.5px solid #dde3ec;font-size:13px;cursor:pointer;font-weight:500;background:white;color:#1a2332;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:#f0f4f8}
+.btn-primary{background:#1a3a5c;color:white;border-color:#1a3a5c}
+.btn-primary:hover{background:#1e4976}
+.btn-sm{padding:4px 10px;font-size:12px;border-radius:6px}
+.btn-danger{color:#e74c3c;border-color:#ffd0d0;background:#fff5f5}
+.btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.date-nav input{flex:1}
+details summary{font-size:12px;color:#8a97a8;cursor:pointer;margin-bottom:8px;user-select:none}
+.entry-item{border:1.5px solid #e8edf3;border-radius:10px;padding:13px 15px;margin-bottom:8px;background:white}
+.entry-item:hover{border-color:#b8c8d8}
+.entry-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.entry-date{font-size:11px;color:#8a97a8}
+.entry-tag{background:#e8f0fe;color:#1a3a5c;font-size:11px;padding:2px 8px;border-radius:5px;font-weight:500}
+.entry-work{font-size:13px;line-height:1.5;margin-bottom:4px}
+.entry-result{font-size:12px;color:#27ae60}
+.entry-meta{font-size:11px;color:#a0aab4;margin-top:4px}
+.entry-actions{display:flex;gap:6px;margin-top:8px;justify-content:flex-end}
+.filter-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+.empty{text-align:center;padding:40px 20px;color:#a0aab4}
+.empty i{font-size:40px;display:block;margin-bottom:10px}
+.alert{padding:10px 14px;border-radius:9px;font-size:13px;margin-bottom:12px}
+.alert-success{background:#e8f8f0;color:#27ae60;border:1px solid #b0e8c8}
+.alert-info{background:#e8f0fe;color:#1a3a5c;border:1px solid #b8d0f4}
+.alert-error{background:#fff0f0;color:#e74c3c;border:1px solid #ffd0d0}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.report-section{margin-bottom:14px}
+.report-zaalt{font-size:12px;font-weight:600;color:#1a3a5c;margin-bottom:6px;display:flex;justify-content:space-between}
+.report-count{font-size:11px;color:#a0aab4;font-weight:400}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}.filter-row{grid-template-columns:1fr}.nav button span{display:none}}
+</style>
+</head>
+<body>
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo"><i class="ti ti-notebook"></i></div>
+    <div class="login-title">Ажлын тэмдэглэл</div>
+    <div class="login-sub">ХСТИ М.Төмөрчөдөр — 2026 он<br>Google акаунтаараа нэвтэрнэ үү</div>
+    <button class="google-btn" onclick="signIn()">
+      <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Google-ээр нэвтрэх
+    </button>
+    <p style="font-size:11px;color:#a0aab4;margin-top:1rem">Өгөгдөл таны Google Drive-д хадгалагдана</p>
+  </div>
+</div>
+
+<div id="main-app" class="main-app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <i class="ti ti-notebook" style="font-size:20px"></i>
+      <span class="topbar-title">Ажлын тэмдэглэл — 2026</span>
+    </div>
+    <div class="user-info">
+      <span class="sync-badge" id="sync-badge"><i class="ti ti-cloud-check" style="font-size:12px"></i> Синктэй</span>
+      <div class="user-avatar" id="user-avatar"></div>
+      <span id="user-name"></span>
+      <button class="logout-btn" onclick="signOut()">Гарах</button>
+    </div>
+  </div>
+  <div class="nav">
+    <button class="active" onclick="showTab('add',this)"><i class="ti ti-plus"></i><span>Ажил нэмэх</span></button>
+    <button onclick="showTab('list',this)"><i class="ti ti-list"></i><span>Тэмдэглэлүүд</span></button>
+    <button onclick="showTab('report',this)"><i class="ti ti-file-text"></i><span>Тайлан</span></button>
+    <button onclick="showTab('settings',this)"><i class="ti ti-settings"></i><span>Тохиргоо</span></button>
+  </div>
+  <div class="content">
+
+    <div id="tab-add" class="tab-content active">
+      <div id="alert-area"></div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-calendar"></i> Огноо</div>
+        <div class="date-nav">
+          <button class="btn" onclick="changeDate(-1)"><i class="ti ti-chevron-left"></i></button>
+          <input type="date" id="entry-date">
+          <button class="btn" onclick="changeDate(1)"><i class="ti ti-chevron-right"></i></button>
+          <button class="btn" onclick="setToday()">Өнөөдөр</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-pencil"></i> Ажлын мэдээлэл</div>
+        <div style="margin-bottom:12px">
+          <label><span class="req">*</span> Төлөвлөгөөний заалт</label>
+          <select id="zaalt-select" onchange="onZaaltChange()">
+            <option value="">-- Жагсаалтаас сонгох --</option>
+            <optgroup label="Стратеги"><option value="1.1">1.1 Интернэтийн хурд нэмэгдүүлэх</option></optgroup>
+            <optgroup label="ХАБ"><option value="2.1">2.1 ХАБ зааварчилгаа мөрдөх</option></optgroup>
+            <optgroup label="1.2.1 Сүлжээ"><option value="1.2.1.1">1.2.1.1 Интернэтийн сүлжээ хянах</option></optgroup>
+            <optgroup label="1.2.2 Тоног төхөөрөмж">
+              <option value="1.2.2.1">1.2.2.1 Өртөө харуулын мэдээ хяналт</option>
+              <option value="1.2.2.2">1.2.2.2 Автомат станцын мэдээ хяналт</option>
+              <option value="1.2.2.3">1.2.2.3 AWS310, 310R станцын хяналт</option>
+              <option value="1.2.2.4">1.2.2.4 Компьютер, принтер үзлэг</option>
+              <option value="1.2.2.5">1.2.2.5 Киоск, камер паспортжуулах</option>
+            </optgroup>
+            <optgroup label="1.2.3 Мэдээллийн аюулгүй байдал">
+              <option value="1.2.3.1">1.2.3.1 Цахим хуудасны хяналт</option>
+              <option value="1.2.3.2">1.2.3.2 Мэдээллийн нууцлал</option>
+              <option value="1.2.3.3">1.2.3.3 Microsoft Office лиценз</option>
+            </optgroup>
+            <optgroup label="1.2.4 Салбарын ажиллагаа">
+              <option value="1.2.4.1">1.2.4.1 Дархан бороо экспедиц</option>
+              <option value="1.2.4.2">1.2.4.2 Хур тунадас нэмэгдүүлэх</option>
+              <option value="1.2.4.3">1.2.4.3 Шарын гол гулдрилын зураглал</option>
+            </optgroup>
+            <optgroup label="1.3 Төрийн үйлчилгээ">
+              <option value="1.3.1">1.3.1 Мэдээллийн технологи нэвтрүүлэх</option>
+              <option value="1.3.2">1.3.2 Нээлттэй хаалганы өдөр</option>
+            </optgroup>
+            <optgroup label="1.4 Төрийн албан хаагчийн үүрэг">
+              <option value="1.4.1">1.4.1 Жилийн төлөвлөгөөний хэрэгжилт</option>
+              <option value="1.4.2">1.4.2 Сургалтанд оролцох</option>
+              <option value="1.4.3">1.4.3 Үүрэг даалгавар хэрэгжүүлэх</option>
+              <option value="1.4.4">1.4.4 Цэвэрлэгээ, арга хэмжээ</option>
+              <option value="1.4.5">1.4.5 Аймгийн арга хэмжээ</option>
+              <option value="1.4.6">1.4.6 Ёс зүй, авлигагүй ажиллах</option>
+              <option value="1.4.7">1.4.7 Тэрбум мод тарих</option>
+              <option value="1.4.8">1.4.8 Архивт баримт хүлээлгэн өгөх</option>
+              <option value="1.4.9">1.4.9 ӨХБЗ үйл ажиллагаа</option>
+              <option value="1.4.10">1.4.10 Гамшгийн эрсдэлийн үнэлгээ</option>
+              <option value="1.4.11">1.4.11 Удирдлагын нэгдсэн систем</option>
+              <option value="1.4.12">1.4.12 Ахмадуудын дурсамж видео</option>
+            </optgroup>
+            <option value="nemel">Нэмэлт үүрэг даалгавар</option>
+            <option value="medleg">Мэдлэг чадвар дээшлүүлэх</option>
+            <option value="eelje">Ээлж хүлээлцэх</option>
+            <option value="custom">Өөр (гараар бичих)</option>
+          </select>
+          <div id="custom-zaalt-row" style="display:none;margin-top:6px">
+            <input type="text" id="custom-zaalt" placeholder="Заалтыг гараар бичнэ үү...">
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label><span class="req">*</span> Хийсэн ажил</label>
+          <textarea id="entry-work" placeholder="Өнөөдөр хийсэн ажлаа дэлгэрэнгүй бичнэ үү..."></textarea>
+        </div>
+        <div style="margin-bottom:12px">
+          <label><span class="req">*</span> Үр дүн</label>
+          <select id="entry-result" onchange="onResultChange()">
+            <option value="">-- Үр дүн сонгох --</option>
+            <option value="Хэвийн ажиллагаанд оруулсан">Хэвийн ажиллагаанд оруулсан</option>
+            <option value="Гэмтэл арилгагдсан">Гэмтэл арилгагдсан</option>
+            <option value="Стандартын шаардлага хангагдсан">Стандартын шаардлага хангагдсан</option>
+            <option value="100% биелэгдсэн">100% биелэгдсэн</option>
+            <option value="100% хамрагдсан">100% хамрагдсан</option>
+            <option value="Батлагдсан, хүргүүлсэн">Батлагдсан, хүргүүлсэн</option>
+            <option value="Архивт хүлээлгэн өгсөн">Архивт хүлээлгэн өгсөн</option>
+            <option value="Албан хаагчдад хүргэгдсэн">Албан хаагчдад хүргэгдсэн</option>
+            <option value="Мэдлэг дээшилсэн">Мэдлэг дээшилсэн</option>
+            <option value="100% оролцсон">100% оролцсон</option>
+            <option value="Хийгдсэн">Хийгдсэн</option>
+            <option value="custom-result">Өөр (гараар бичих)</option>
+          </select>
+          <div id="custom-result-row" style="display:none;margin-top:6px">
+            <input type="text" id="custom-result" placeholder="Үр дүнг бичнэ үү...">
+          </div>
+        </div>
+        <details>
+          <summary>+ Нэмэлт мэдээлэл (сонголтоор)</summary>
+          <div class="form-grid" style="margin-top:10px">
+            <div><label>Байршил</label><input type="text" id="entry-location" placeholder="Дархан өртөө..."></div>
+            <div><label>Хамтарсан хүн</label><input type="text" id="entry-partner" placeholder="Э.Ариунболд..."></div>
+            <div><label>Ашигласан багаж/программ</label><input type="text" id="entry-tool" placeholder="HABOTEST HT2302..."></div>
+            <div><label>Үргэлжилсэн хоног</label><input type="number" id="entry-days" placeholder="Хэдэн хоног?" min="1"></div>
+          </div>
+        </details>
+        <div class="btn-row">
+          <button class="btn" onclick="clearForm()"><i class="ti ti-x"></i> Арилгах</button>
+          <button class="btn btn-primary" onclick="saveEntry()"><i class="ti ti-device-floppy"></i> Хадгалах</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-list" class="tab-content">
+      <div class="card">
+        <div class="filter-row">
+          <div><label>Сар</label><select id="filter-month" onchange="renderList()"><option value="">Бүгд</option></select></div>
+          <div><label>Заалт</label><select id="filter-zaalt" onchange="renderList()"><option value="">Бүгд</option></select></div>
+          <div><label>Хайх</label><input type="text" id="filter-search" placeholder="Үг хайх..." oninput="renderList()"></div>
+        </div>
+        <div id="entries-count" style="font-size:12px;color:#8a97a8"></div>
+      </div>
+      <div id="entries-list"></div>
+    </div>
+
+    <div id="tab-report" class="tab-content">
+      <div class="card">
+        <div class="card-title"><i class="ti ti-file-text"></i> Тайлан гаргах</div>
+        <div class="alert alert-info">Тэмдэглэлүүдийг заалт бүрээр нэгтгэн "Хүрсэн түвшин / биелэлт" баганд орох текст бэлтгэнэ. Та засварлаж болно.</div>
+        <div class="form-grid">
+          <div><label>Эхний сар</label>
+            <select id="report-from">
+              <option value="01">1-р сар</option><option value="02">2-р сар</option><option value="03">3-р сар</option>
+              <option value="04">4-р сар</option><option value="05">5-р сар</option><option value="06">6-р сар</option>
+              <option value="07">7-р сар</option><option value="08">8-р сар</option><option value="09">9-р сар</option>
+              <option value="10">10-р сар</option><option value="11">11-р сар</option><option value="12">12-р сар</option>
+            </select>
+          </div>
+          <div><label>Дуусах сар</label>
+            <select id="report-to">
+              <option value="01">1-р сар</option><option value="02">2-р сар</option><option value="03">3-р сар</option>
+              <option value="04">4-р сар</option><option value="05" selected>5-р сар</option><option value="06">6-р сар</option>
+              <option value="07">7-р сар</option><option value="08">8-р сар</option><option value="09">9-р сар</option>
+              <option value="10">10-р сар</option><option value="11">11-р сар</option><option value="12">12-р сар</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="generateReport()"><i class="ti ti-chart-bar"></i> Тайлан үүсгэх</button>
+        </div>
+      </div>
+      <div id="report-output"></div>
+    </div>
+
+    <div id="tab-settings" class="tab-content">
+      <div class="card">
+        <div class="card-title"><i class="ti ti-cloud"></i> Google Drive синк</div>
+        <p style="font-size:13px;color:#6b7a8d;margin-bottom:12px;line-height:1.6">Өгөгдөл таны Google Drive-д <b>ajliin_temdegel_2026.json</b> нэртэй файлд хадгалагдана.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="syncToDrive()"><i class="ti ti-cloud-upload"></i> Drive-д хадгалах</button>
+          <button class="btn" onclick="loadFromDrive()"><i class="ti ti-cloud-download"></i> Drive-аас уншах</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-info-circle"></i> Мэдээлэл</div>
+        <p style="font-size:13px;color:#6b7a8d">Нийт тэмдэглэл: <b id="total-count">0</b></p>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-trash"></i> Өгөгдөл устгах</div>
+        <button class="btn btn-danger" onclick="clearAll()"><i class="ti ti-trash"></i> Бүх тэмдэглэл устгах</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+const CLIENT_ID='318160635801-6970fmqoqafpp6j9nm216skqe0945fvm.apps.googleusercontent.com';
+const SCOPES='https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile';
+const FILE_NAME='ajliin_temdegel_2026.json';
+let entries=[],accessToken=null,driveFileId=null,currentUser=null,editingId=null,tokenClient=null;
+
+function init(){
+  document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];
+  const saved=localStorage.getItem('hsti_v3');
+  if(saved)try{entries=JSON.parse(saved)}catch(e){}
+  const tok=localStorage.getItem('hsti_tok'),usr=localStorage.getItem('hsti_usr');
+  if(tok&&usr){accessToken=tok;currentUser=JSON.parse(usr);showMain();setTimeout(loadFromDrive,1000);}
+}
+
+function initGSI(){
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,scope:SCOPES,
+    callback:async(resp)=>{
+      if(resp.error){alert('Нэвтрэх алдаа: '+resp.error);return;}
+      accessToken=resp.access_token;
+      localStorage.setItem('hsti_tok',accessToken);
+      try{const info=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+        currentUser=info;localStorage.setItem('hsti_usr',JSON.stringify(info));}
+      catch(e){currentUser={name:'Хэрэглэгч'}}
+      showMain();await loadFromDrive();
+    }
+  });
+}
+
+function signIn(){
+  if(!window.google){alert('Google нэвтрэлт ачааллаж байна, хэсэг хүлээгээд дахин оролдоно уу');return;}
+  if(!tokenClient)initGSI();
+  tokenClient.requestAccessToken();
+}
+
+function signOut(){
+  if(!confirm('Гарах уу?'))return;
+  accessToken=null;currentUser=null;driveFileId=null;
+  localStorage.removeItem('hsti_tok');localStorage.removeItem('hsti_usr');
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('main-app').style.display='none';
+}
+
+function showMain(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-app').style.display='flex';
+  const av=document.getElementById('user-avatar');
+  if(currentUser?.picture)av.innerHTML=`<img src="${currentUser.picture}" alt="">`;
+  else av.textContent=(currentUser?.name||'U').charAt(0);
+  document.getElementById('user-name').textContent=currentUser?.given_name||currentUser?.name||'';
+  document.getElementById('total-count').textContent=entries.length;
+  populateFilters();
+}
+
+async function syncToDrive(){
+  if(!accessToken){showAlert('Нэвтэрнэ үү','error');return;}
+  setSyncBadge('Хадгалж байна...','#f39c12');
+  try{
+    const data=JSON.stringify({entries,updated:new Date().toISOString()});
+    const blob=new Blob([data],{type:'application/json'});
+    if(!driveFileId){
+      const meta=await fetch('https://www.googleapis.com/drive/v3/files',{
+        method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+        body:JSON.stringify({name:FILE_NAME,mimeType:'application/json'})
+      }).then(r=>r.json());
+      driveFileId=meta.id;
+    }
+    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,{
+      method:'PATCH',headers:{Authorization:'Bearer '+accessToken},body:blob
+    });
+    setSyncBadge('Drive-д хадгалагдсан','#27ae60');
+    showAlert('Drive-д хадгалагдлаа!','success');
+  }catch(e){setSyncBadge('Алдаа','#e74c3c');showAlert('Drive алдаа','error');}
+}
+
+async function loadFromDrive(){
+  if(!accessToken)return;
+  setSyncBadge('Уншиж байна...','#f39c12');
+  try{
+    const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}'&spaces=drive`,{
+      headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+    if(res.files&&res.files.length>0){
+      driveFileId=res.files[0].id;
+      const content=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
+        headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+      if(content.entries){
+        entries=content.entries;
+        localStorage.setItem('hsti_v3',JSON.stringify(entries));
+        document.getElementById('total-count').textContent=entries.length;
+        populateFilters();
+        setSyncBadge('Синктэй','#27ae60');
+        showAlert('Drive-аас уншлаа — '+entries.length+' бүртгэл','success');
+      }else setSyncBadge('Синктэй','#27ae60');
+    }else setSyncBadge('Шинэ файл','#27ae60');
+  }catch(e){setSyncBadge('Алдаа','#e74c3c');}
+}
+
+function setSyncBadge(txt,color){
+  const b=document.getElementById('sync-badge');
+  b.innerHTML=`<i class="ti ti-cloud" style="font-size:12px"></i> ${txt}`;
+  b.style.color=color;b.style.background=color+'22';
+}
+
+function saveEntry(){
+  const date=document.getElementById('entry-date').value;
+  const zaalt=getZaalt(),work=document.getElementById('entry-work').value.trim(),result=getResult();
+  if(!date||!zaalt||!work||!result){showAlert('Огноо, заалт, хийсэн ажил, үр дүнг заавал бөглөнө үү!','error');return;}
+  const entry={
+    id:editingId||Date.now(),date,zaalt,work,result,
+    location:document.getElementById('entry-location').value.trim(),
+    partner:document.getElementById('entry-partner').value.trim(),
+    tool:document.getElementById('entry-tool').value.trim(),
+    days:document.getElementById('entry-days').value||''
+  };
+  if(editingId){entries=entries.map(e=>e.id===editingId?entry:e);editingId=null;}
+  else entries.push(entry);
+  localStorage.setItem('hsti_v3',JSON.stringify(entries));
+  document.getElementById('total-count').textContent=entries.length;
+  clearForm();populateFilters();
+  showAlert('Хадгалагдлаа!','success');
+  if(accessToken)syncToDrive();
+}
+
+function editEntry(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  editingId=id;
+  document.getElementById('entry-date').value=e.date;
+  document.getElementById('entry-work').value=e.work;
+  document.getElementById('entry-location').value=e.location||'';
+  document.getElementById('entry-partner').value=e.partner||'';
+  document.getElementById('entry-tool').value=e.tool||'';
+  document.getElementById('entry-days').value=e.days||'';
+  const sel=document.getElementById('zaalt-select');
+  const opt=[...sel.options].find(o=>o.value===e.zaalt);
+  if(opt)sel.value=e.zaalt;else{sel.value='custom';document.getElementById('custom-zaalt').value=e.zaalt;document.getElementById('custom-zaalt-row').style.display='block';}
+  const rsel=document.getElementById('entry-result');
+  const ropt=[...rsel.options].find(o=>o.value===e.result);
+  if(ropt)rsel.value=e.result;else{rsel.value='custom-result';document.getElementById('custom-result').value=e.result;document.getElementById('custom-result-row').style.display='block';}
+  showTab('add',document.querySelector('.nav button'));
+  showAlert('Засварлаж байна — хадгалахад шинэчлэгдэнэ','info');
+}
+
+function deleteEntry(id){
+  if(!confirm('Устгах уу?'))return;
+  entries=entries.filter(e=>e.id!==id);
+  localStorage.setItem('hsti_v3',JSON.stringify(entries));
+  document.getElementById('total-count').textContent=entries.length;
+  if(accessToken)syncToDrive();
+  renderList();populateFilters();
+}
+
+function clearAll(){
+  if(!confirm('Бүх тэмдэглэлийг устгах уу?'))return;
+  entries=[];driveFileId=null;
+  localStorage.setItem('hsti_v3',JSON.stringify(entries));
+  document.getElementById('total-count').textContent=0;
+  renderList();populateFilters();
+}
+
+function getZaalt(){const v=document.getElementById('zaalt-select').value;return v==='custom'?document.getElementById('custom-zaalt').value.trim():v;}
+function getResult(){const v=document.getElementById('entry-result').value;return v==='custom-result'?document.getElementById('custom-result').value.trim():v;}
+function onZaaltChange(){document.getElementById('custom-zaalt-row').style.display=document.getElementById('zaalt-select').value==='custom'?'block':'none';}
+function onResultChange(){document.getElementById('custom-result-row').style.display=document.getElementById('entry-result').value==='custom-result'?'block':'none';}
+function clearForm(){
+  editingId=null;
+  ['zaalt-select','entry-work','entry-location','entry-partner','entry-tool','entry-days'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('entry-result').value='';
+  document.getElementById('custom-zaalt').value='';document.getElementById('custom-result').value='';
+  document.getElementById('custom-zaalt-row').style.display='none';document.getElementById('custom-result-row').style.display='none';
+}
+function changeDate(d){const inp=document.getElementById('entry-date');const dt=new Date(inp.value);dt.setDate(dt.getDate()+d);inp.value=dt.toISOString().split('T')[0];}
+function setToday(){document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];}
+
+function populateFilters(){
+  const mNames=['','1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
+  const months=[...new Set(entries.map(e=>e.date.slice(5,7)))].sort();
+  const msel=document.getElementById('filter-month');const mv=msel.value;
+  msel.innerHTML='<option value="">Бүгд</option>';
+  months.forEach(m=>msel.innerHTML+=`<option value="${m}"${m===mv?' selected':''}>${mNames[parseInt(m)]}</option>`);
+  const zaalt=[...new Set(entries.map(e=>e.zaalt))].filter(Boolean).sort();
+  const zsel=document.getElementById('filter-zaalt');const zv=zsel.value;
+  zsel.innerHTML='<option value="">Бүгд</option>';
+  zaalt.forEach(z=>zsel.innerHTML+=`<option value="${z}"${z===zv?' selected':''}>${z}</option>`);
+}
+
+function renderList(){
+  const month=document.getElementById('filter-month').value;
+  const zaalt=document.getElementById('filter-zaalt').value;
+  const search=document.getElementById('filter-search').value.toLowerCase();
+  let filtered=entries.filter(e=>{
+    if(month&&e.date.slice(5,7)!==month)return false;
+    if(zaalt&&e.zaalt!==zaalt)return false;
+    if(search&&!e.work.toLowerCase().includes(search)&&!e.result.toLowerCase().includes(search))return false;
+    return true;
+  }).sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('entries-count').textContent=`Нийт ${filtered.length} бүртгэл`;
+  const el=document.getElementById('entries-list');
+  if(!filtered.length){el.innerHTML='<div class="empty"><i class="ti ti-inbox"></i><div>Тэмдэглэл олдсонгүй</div></div>';return;}
+  el.innerHTML=filtered.map(e=>`
+    <div class="entry-item">
+      <div class="entry-header">
+        <span class="entry-date"><i class="ti ti-calendar" style="font-size:11px"></i> ${e.date}</span>
+        <span class="entry-tag">${e.zaalt}</span>
+      </div>
+      <div class="entry-work">${e.work}</div>
+      <div class="entry-result"><i class="ti ti-check" style="font-size:11px"></i> ${e.result}${e.days?' — '+e.days+' хоног':''}</div>
+      ${e.location||e.partner||e.tool?`<div class="entry-meta">${[e.location&&'📍'+e.location,e.partner&&'👤'+e.partner,e.tool&&'🔧'+e.tool].filter(Boolean).join(' · ')}</div>`:''}
+      <div class="entry-actions">
+        <button class="btn btn-sm" onclick="editEntry(${e.id})"><i class="ti ti-edit"></i> Засах</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteEntry(${e.id})"><i class="ti ti-trash"></i> Устгах</button>
+      </div>
+    </div>`).join('');
+}
+
+function generateReport(){
+  const from=document.getElementById('report-from').value;
+  const to=document.getElementById('report-to').value;
+  const filtered=entries.filter(e=>{const m=e.date.slice(5,7);return m>=from&&m<=to;});
+  if(!filtered.length){document.getElementById('report-output').innerHTML='<div class="card"><div class="empty"><i class="ti ti-inbox"></i><div>Тэмдэглэл байхгүй байна</div></div></div>';return;}
+  const groups={};
+  filtered.forEach(e=>{if(!groups[e.zaalt])groups[e.zaalt]=[];groups[e.zaalt].push(e);});
+  let html='<div class="card"><div class="card-title"><i class="ti ti-list-details"></i> Заалт бүрийн нэгтгэл</div>';
+  Object.keys(groups).sort().forEach(zaalt=>{
+    const items=groups[zaalt].sort((a,b)=>a.date.localeCompare(b.date));
+    const text=items.map(e=>{
+      const p=e.date.split('-');
+      return `${parseInt(p[1])} дугаар сарын ${parseInt(p[2])}-нд ${e.work}${e.days?' ('+e.days+' хоног)':''} — ${e.result}`;
+    }).join(' ');
+    html+=`<div class="report-section"><div class="report-zaalt"><span>${zaalt}</span><span class="report-count">${items.length} бүртгэл</span></div><textarea style="width:100%;border:1.5px solid #e8edf3;border-radius:8px;padding:8px;font-size:12px;min-height:80px;background:#fafbfc;color:#1a2332;font-family:inherit">${text}</textarea></div>`;
+  });
+  html+='<div class="btn-row"><button class="btn" onclick="copyReport()"><i class="ti ti-copy"></i> Бүгдийг хуулах</button></div></div>';
+  document.getElementById('report-output').innerHTML=html;
+}
+
+function copyReport(){
+  const texts=[...document.querySelectorAll('#report-output textarea')].map(t=>t.value).join('\n\n');
+  navigator.clipboard.writeText(texts).then(()=>showAlert('Хуулагдлаа!','success'));
+}
+
+function showAlert(msg,type){
+  const a=document.getElementById('alert-area');if(!a)return;
+  a.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(()=>{if(a)a.innerHTML='';},3000);
+}
+
+function showTab(name,btn){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(name==='list'){renderList();populateFilters();}
+}
+
+window.addEventListener('load',init);
+</script>
+</body>
+</html>
