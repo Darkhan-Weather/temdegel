@@ -49,7 +49,18 @@ textarea{resize:vertical;min-height:80px}
 .btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 .date-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
 .date-nav input{flex:1}
-details summary{font-size:12px;color:#8a97a8;cursor:pointer;margin-bottom:8px;user-select:none}
+details summary{font-size:13px;color:var(--color-text-primary,#1a2332);cursor:pointer;margin-bottom:8px;user-select:none;display:flex;align-items:center;gap:6px;padding:8px 0;font-weight:500}
+details summary .chevron{transition:transform 0.2s;font-size:14px}
+details[open] summary .chevron{transform:rotate(90deg)}
+.field-error{font-size:12px;color:#e74c3c;margin-top:4px;display:flex;align-items:center;gap:4px}
+.field-error i{font-size:13px}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tag-chip{font-size:12px;padding:5px 12px;border-radius:20px;border:1.5px solid #dde3ec;background:white;cursor:pointer;color:#6b7a8d;transition:all 0.15s}
+.tag-chip.active{background:#1a3a5c;color:white;border-color:#1a3a5c}
+.tag-chip:hover{border-color:#1a3a5c}
+.template-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.template-btn{font-size:12px;padding:7px 14px;border-radius:9px;border:1.5px dashed #c9d4e0;background:#fafbfc;cursor:pointer;color:#1a3a5c;display:inline-flex;align-items:center;gap:5px}
+.template-btn:hover{border-color:#1a3a5c;background:#f0f4f8}
 .entry-item{border:1.5px solid #e8edf3;border-radius:10px;padding:13px 15px;margin-bottom:8px;background:white}
 .entry-item:hover{border-color:#b8c8d8}
 .entry-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
@@ -128,84 +139,108 @@ details summary{font-size:12px;color:#8a97a8;cursor:pointer;margin-bottom:8px;us
       </div>
       <div class="card">
         <div class="card-title"><i class="ti ti-pencil"></i> Ажлын мэдээлэл</div>
-        <div style="margin-bottom:12px">
-          <label><span class="req">*</span> Төлөвлөгөөний заалт</label>
-          <select id="zaalt-select" onchange="onZaaltChange()">
-            <option value="">-- Жагсаалтаас сонгох --</option>
-            <optgroup label="Стратеги"><option value="1.1">1.1 Интернэтийн хурд нэмэгдүүлэх</option></optgroup>
-            <optgroup label="ХАБ"><option value="2.1">2.1 ХАБ зааварчилгаа мөрдөх</option></optgroup>
-            <optgroup label="1.2.1 Сүлжээ"><option value="1.2.1.1">1.2.1.1 Интернэтийн сүлжээ хянах</option></optgroup>
-            <optgroup label="1.2.2 Тоног төхөөрөмж">
-              <option value="1.2.2.1">1.2.2.1 Өртөө харуулын мэдээ хяналт</option>
-              <option value="1.2.2.2">1.2.2.2 Автомат станцын мэдээ хяналт</option>
-              <option value="1.2.2.3">1.2.2.3 AWS310, 310R станцын хяналт</option>
-              <option value="1.2.2.4">1.2.2.4 Компьютер, принтер үзлэг</option>
-              <option value="1.2.2.5">1.2.2.5 Киоск, камер паспортжуулах</option>
-            </optgroup>
-            <optgroup label="1.2.3 Мэдээллийн аюулгүй байдал">
-              <option value="1.2.3.1">1.2.3.1 Цахим хуудасны хяналт</option>
-              <option value="1.2.3.2">1.2.3.2 Мэдээллийн нууцлал</option>
-              <option value="1.2.3.3">1.2.3.3 Microsoft Office лиценз</option>
-            </optgroup>
-            <optgroup label="1.2.4 Салбарын ажиллагаа">
-              <option value="1.2.4.1">1.2.4.1 Дархан бороо экспедиц</option>
-              <option value="1.2.4.2">1.2.4.2 Хур тунадас нэмэгдүүлэх</option>
-              <option value="1.2.4.3">1.2.4.3 Шарын гол гулдрилын зураглал</option>
-            </optgroup>
-            <optgroup label="1.3 Төрийн үйлчилгээ">
-              <option value="1.3.1">1.3.1 Мэдээллийн технологи нэвтрүүлэх</option>
-              <option value="1.3.2">1.3.2 Нээлттэй хаалганы өдөр</option>
-            </optgroup>
-            <optgroup label="1.4 Төрийн албан хаагчийн үүрэг">
-              <option value="1.4.1">1.4.1 Жилийн төлөвлөгөөний хэрэгжилт</option>
-              <option value="1.4.2">1.4.2 Сургалтанд оролцох</option>
-              <option value="1.4.3">1.4.3 Үүрэг даалгавар хэрэгжүүлэх</option>
-              <option value="1.4.4">1.4.4 Цэвэрлэгээ, арга хэмжээ</option>
-              <option value="1.4.5">1.4.5 Аймгийн арга хэмжээ</option>
-              <option value="1.4.6">1.4.6 Ёс зүй, авлигагүй ажиллах</option>
-              <option value="1.4.7">1.4.7 Тэрбум мод тарих</option>
-              <option value="1.4.8">1.4.8 Архивт баримт хүлээлгэн өгөх</option>
-              <option value="1.4.9">1.4.9 ӨХБЗ үйл ажиллагаа</option>
-              <option value="1.4.10">1.4.10 Гамшгийн эрсдэлийн үнэлгээ</option>
-              <option value="1.4.11">1.4.11 Удирдлагын нэгдсэн систем</option>
-              <option value="1.4.12">1.4.12 Ахмадуудын дурсамж видео</option>
-            </optgroup>
-            <option value="nemel">Нэмэлт үүрэг даалгавар</option>
-            <option value="medleg">Мэдлэг чадвар дээшлүүлэх</option>
-            <option value="eelje">Ээлж хүлээлцэх</option>
-            <option value="custom">Өөр (гараар бичих)</option>
-          </select>
-          <div id="custom-zaalt-row" style="display:none;margin-top:6px">
-            <input type="text" id="custom-zaalt" placeholder="Заалтыг гараар бичнэ үү...">
+
+        <div class="template-row">
+          <button class="template-btn" onclick="applyTemplate('komp')"><i class="ti ti-bolt" style="font-size:13px"></i> Компьютер засвар</button>
+          <button class="template-btn" onclick="applyTemplate('surgalt')"><i class="ti ti-bolt" style="font-size:13px"></i> Сургалт</button>
+          <button class="template-btn" onclick="applyTemplate('huralt')"><i class="ti ti-bolt" style="font-size:13px"></i> Хурал, уулзалт</button>
+          <button class="template-btn" onclick="applyTemplate('tsevеr')"><i class="ti ti-bolt" style="font-size:13px"></i> Цэвэрлэгээ</button>
+        </div>
+
+        <div class="form-grid" style="margin-bottom:0">
+          <div style="margin-bottom:12px">
+            <label><span class="req">*</span> Төлөвлөгөөний заалт</label>
+            <select id="zaalt-select" onchange="onZaaltChange()">
+              <option value="">-- Жагсаалтаас сонгох --</option>
+              <optgroup label="Стратеги"><option value="1.1">1.1 Интернэтийн хурд нэмэгдүүлэх</option></optgroup>
+              <optgroup label="ХАБ"><option value="2.1">2.1 ХАБ зааварчилгаа мөрдөх</option></optgroup>
+              <optgroup label="1.2.1 Сүлжээ"><option value="1.2.1.1">1.2.1.1 Интернэтийн сүлжээ хянах</option></optgroup>
+              <optgroup label="1.2.2 Тоног төхөөрөмж">
+                <option value="1.2.2.1">1.2.2.1 Өртөө харуулын мэдээ хяналт</option>
+                <option value="1.2.2.2">1.2.2.2 Автомат станцын мэдээ хяналт</option>
+                <option value="1.2.2.3">1.2.2.3 AWS310, 310R станцын хяналт</option>
+                <option value="1.2.2.4">1.2.2.4 Компьютер, принтер үзлэг</option>
+                <option value="1.2.2.5">1.2.2.5 Киоск, камер паспортжуулах</option>
+              </optgroup>
+              <optgroup label="1.2.3 Мэдээллийн аюулгүй байдал">
+                <option value="1.2.3.1">1.2.3.1 Цахим хуудасны хяналт</option>
+                <option value="1.2.3.2">1.2.3.2 Мэдээллийн нууцлал</option>
+                <option value="1.2.3.3">1.2.3.3 Microsoft Office лиценз</option>
+              </optgroup>
+              <optgroup label="1.2.4 Салбарын ажиллагаа">
+                <option value="1.2.4.1">1.2.4.1 Дархан бороо экспедиц</option>
+                <option value="1.2.4.2">1.2.4.2 Хур тунадас нэмэгдүүлэх</option>
+                <option value="1.2.4.3">1.2.4.3 Шарын гол гулдрилын зураглал</option>
+              </optgroup>
+              <optgroup label="1.3 Төрийн үйлчилгээ">
+                <option value="1.3.1">1.3.1 Мэдээллийн технологи нэвтрүүлэх</option>
+                <option value="1.3.2">1.3.2 Нээлттэй хаалганы өдөр</option>
+              </optgroup>
+              <optgroup label="1.4 Төрийн албан хаагчийн үүрэг">
+                <option value="1.4.1">1.4.1 Жилийн төлөвлөгөөний хэрэгжилт</option>
+                <option value="1.4.2">1.4.2 Сургалтанд оролцох</option>
+                <option value="1.4.3">1.4.3 Үүрэг даалгавар хэрэгжүүлэх</option>
+                <option value="1.4.4">1.4.4 Цэвэрлэгээ, арга хэмжээ</option>
+                <option value="1.4.5">1.4.5 Аймгийн арга хэмжээ</option>
+                <option value="1.4.6">1.4.6 Ёс зүй, авлигагүй ажиллах</option>
+                <option value="1.4.7">1.4.7 Тэрбум мод тарих</option>
+                <option value="1.4.8">1.4.8 Архивт баримт хүлээлгэн өгөх</option>
+                <option value="1.4.9">1.4.9 ӨХБЗ үйл ажиллагаа</option>
+                <option value="1.4.10">1.4.10 Гамшгийн эрсдэлийн үнэлгээ</option>
+                <option value="1.4.11">1.4.11 Удирдлагын нэгдсэн систем</option>
+                <option value="1.4.12">1.4.12 Ахмадуудын дурсамж видео</option>
+              </optgroup>
+              <option value="nemel">Нэмэлт үүрэг даалгавар</option>
+              <option value="medleg">Мэдлэг чадвар дээшлүүлэх</option>
+              <option value="eelje">Ээлж хүлээлцэх</option>
+              <option value="custom">Өөр (гараар бичих)</option>
+            </select>
+            <div id="custom-zaalt-row" style="display:none;margin-top:6px">
+              <input type="text" id="custom-zaalt" placeholder="Заалтыг гараар бичнэ үү...">
+            </div>
+            <div id="err-zaalt" class="field-error" style="display:none"><i class="ti ti-alert-circle"></i> Заалт сонгоно уу</div>
+          </div>
+
+          <div style="margin-bottom:12px">
+            <label><span class="req">*</span> Үр дүн</label>
+            <select id="entry-result" onchange="onResultChange()">
+              <option value="">-- Үр дүн сонгох --</option>
+              <option value="Хэвийн ажиллагаанд оруулсан">Хэвийн ажиллагаанд оруулсан</option>
+              <option value="Гэмтэл арилгагдсан">Гэмтэл арилгагдсан</option>
+              <option value="Стандартын шаардлага хангагдсан">Стандартын шаардлага хангагдсан</option>
+              <option value="100% биелэгдсэн">100% биелэгдсэн</option>
+              <option value="100% хамрагдсан">100% хамрагдсан</option>
+              <option value="Батлагдсан, хүргүүлсэн">Батлагдсан, хүргүүлсэн</option>
+              <option value="Архивт хүлээлгэн өгсөн">Архивт хүлээлгэн өгсөн</option>
+              <option value="Албан хаагчдад хүргэгдсэн">Албан хаагчдад хүргэгдсэн</option>
+              <option value="Мэдлэг дээшилсэн">Мэдлэг дээшилсэн</option>
+              <option value="100% оролцсон">100% оролцсон</option>
+              <option value="Хийгдсэн">Хийгдсэн</option>
+              <option value="custom-result">Өөр (гараар бичих)</option>
+            </select>
+            <div id="custom-result-row" style="display:none;margin-top:6px">
+              <input type="text" id="custom-result" placeholder="Үр дүнг бичнэ үү...">
+            </div>
+            <div id="err-result" class="field-error" style="display:none"><i class="ti ti-alert-circle"></i> Үр дүн сонгоно уу</div>
           </div>
         </div>
+
         <div style="margin-bottom:12px">
           <label><span class="req">*</span> Хийсэн ажил</label>
           <textarea id="entry-work" placeholder="Өнөөдөр хийсэн ажлаа дэлгэрэнгүй бичнэ үү..."></textarea>
-        </div>
-        <div style="margin-bottom:12px">
-          <label><span class="req">*</span> Үр дүн</label>
-          <select id="entry-result" onchange="onResultChange()">
-            <option value="">-- Үр дүн сонгох --</option>
-            <option value="Хэвийн ажиллагаанд оруулсан">Хэвийн ажиллагаанд оруулсан</option>
-            <option value="Гэмтэл арилгагдсан">Гэмтэл арилгагдсан</option>
-            <option value="Стандартын шаардлага хангагдсан">Стандартын шаардлага хангагдсан</option>
-            <option value="100% биелэгдсэн">100% биелэгдсэн</option>
-            <option value="100% хамрагдсан">100% хамрагдсан</option>
-            <option value="Батлагдсан, хүргүүлсэн">Батлагдсан, хүргүүлсэн</option>
-            <option value="Архивт хүлээлгэн өгсөн">Архивт хүлээлгэн өгсөн</option>
-            <option value="Албан хаагчдад хүргэгдсэн">Албан хаагчдад хүргэгдсэн</option>
-            <option value="Мэдлэг дээшилсэн">Мэдлэг дээшилсэн</option>
-            <option value="100% оролцсон">100% оролцсон</option>
-            <option value="Хийгдсэн">Хийгдсэн</option>
-            <option value="custom-result">Өөр (гараар бичих)</option>
-          </select>
-          <div id="custom-result-row" style="display:none;margin-top:6px">
-            <input type="text" id="custom-result" placeholder="Үр дүнг бичнэ үү...">
+          <div class="tag-row" id="tag-row">
+            <button type="button" class="tag-chip" data-tag="Уулзалт" onclick="toggleTag(this)">Уулзалт</button>
+            <button type="button" class="tag-chip" data-tag="Баримт бичиг" onclick="toggleTag(this)">Баримт бичиг</button>
+            <button type="button" class="tag-chip" data-tag="Засвар" onclick="toggleTag(this)">Засвар</button>
+            <button type="button" class="tag-chip" data-tag="Сургалт" onclick="toggleTag(this)">Сургалт</button>
+            <button type="button" class="tag-chip" data-tag="Хяналт" onclick="toggleTag(this)">Хяналт</button>
+            <button type="button" class="tag-chip" data-tag="Цэвэрлэгээ" onclick="toggleTag(this)">Цэвэрлэгээ</button>
           </div>
+          <div id="err-work" class="field-error" style="display:none"><i class="ti ti-alert-circle"></i> Хийсэн ажлыг бичнэ үү</div>
         </div>
+
         <details>
-          <summary>+ Нэмэлт мэдээлэл (сонголтоор)</summary>
+          <summary><i class="ti ti-chevron-right chevron"></i> Нэмэлт мэдээлэл (сонголтоор)</summary>
           <div class="form-grid" style="margin-top:10px">
             <div><label>Байршил</label><input type="text" id="entry-location" placeholder="Дархан өртөө..."></div>
             <div><label>Хамтарсан хүн</label><input type="text" id="entry-partner" placeholder="Э.Ариунболд..."></div>
@@ -387,12 +422,20 @@ function setSyncBadge(txt,color){
   b.style.color=color;b.style.background=color+'22';
 }
 
+function clearFieldErrors(){['err-zaalt','err-result','err-work'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});}
+
 function saveEntry(){
+  clearFieldErrors();
   const date=document.getElementById('entry-date').value;
   const zaalt=getZaalt(),work=document.getElementById('entry-work').value.trim(),result=getResult();
-  if(!date||!zaalt||!work||!result){showAlert('Огноо, заалт, хийсэн ажил, үр дүнг заавал бөглөнө үү!','error');return;}
+  let hasError=false;
+  if(!zaalt){document.getElementById('err-zaalt').style.display='flex';hasError=true;}
+  if(!work){document.getElementById('err-work').style.display='flex';hasError=true;}
+  if(!result){document.getElementById('err-result').style.display='flex';hasError=true;}
+  if(hasError){showAlert('Доор тодруулсан талбаруудыг бөглөнө үү','error');return;}
+  const tags=[...document.querySelectorAll('.tag-chip.active')].map(t=>t.dataset.tag);
   const entry={
-    id:editingId||Date.now(),date,zaalt,work,result,
+    id:editingId||Date.now(),date,zaalt,work,result,tags,
     location:document.getElementById('entry-location').value.trim(),
     partner:document.getElementById('entry-partner').value.trim(),
     tool:document.getElementById('entry-tool').value.trim(),
@@ -405,6 +448,28 @@ function saveEntry(){
   clearForm();populateFilters();
   showAlert('Хадгалагдлаа!','success');
   if(accessToken)syncToDrive();
+}
+
+function toggleTag(btn){btn.classList.toggle('active');}
+
+const TEMPLATES={
+  komp:{zaalt:'1.2.2.4',work:'',result:'Хэвийн ажиллагаанд оруулсан',tags:['Засвар']},
+  surgalt:{zaalt:'1.4.2',work:'',result:'Мэдлэг дээшилсэн',tags:['Сургалт']},
+  huralt:{zaalt:'1.4.9',work:'',result:'Хийгдсэн',tags:['Уулзалт']},
+  'tsevеr':{zaalt:'1.4.4',work:'',result:'100% оролцсон',tags:['Цэвэрлэгээ']}
+};
+
+function applyTemplate(key){
+  const t=TEMPLATES[key];if(!t)return;
+  const sel=document.getElementById('zaalt-select');
+  const opt=[...sel.options].find(o=>o.value===t.zaalt);
+  if(opt)sel.value=t.zaalt;
+  document.getElementById('entry-result').value=t.result;
+  document.querySelectorAll('.tag-chip').forEach(chip=>{
+    chip.classList.toggle('active',t.tags.includes(chip.dataset.tag));
+  });
+  document.getElementById('entry-work').focus();
+  showAlert('Шаблон оруулагдлаа — хийсэн ажлын дэлгэрэнгүйг бичнэ үү','info');
 }
 
 function editEntry(id){
@@ -422,6 +487,9 @@ function editEntry(id){
   const rsel=document.getElementById('entry-result');
   const ropt=[...rsel.options].find(o=>o.value===e.result);
   if(ropt)rsel.value=e.result;else{rsel.value='custom-result';document.getElementById('custom-result').value=e.result;document.getElementById('custom-result-row').style.display='block';}
+  document.querySelectorAll('.tag-chip').forEach(chip=>{
+    chip.classList.toggle('active',(e.tags||[]).includes(chip.dataset.tag));
+  });
   showTab('add',document.querySelector('.nav button'));
   showAlert('Засварлаж байна — хадгалахад шинэчлэгдэнэ','info');
 }
@@ -453,6 +521,8 @@ function clearForm(){
   document.getElementById('entry-result').value='';
   document.getElementById('custom-zaalt').value='';document.getElementById('custom-result').value='';
   document.getElementById('custom-zaalt-row').style.display='none';document.getElementById('custom-result-row').style.display='none';
+  document.querySelectorAll('.tag-chip.active').forEach(c=>c.classList.remove('active'));
+  clearFieldErrors();
 }
 function changeDate(d){const inp=document.getElementById('entry-date');const dt=new Date(inp.value);dt.setDate(dt.getDate()+d);inp.value=dt.toISOString().split('T')[0];}
 function setToday(){document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];}
@@ -490,6 +560,7 @@ function renderList(){
       </div>
       <div class="entry-work">${e.work}</div>
       <div class="entry-result"><i class="ti ti-check" style="font-size:11px"></i> ${e.result}${e.days?' — '+e.days+' хоног':''}</div>
+      ${e.tags&&e.tags.length?`<div class="tag-row" style="margin-top:6px">${e.tags.map(t=>`<span class="tag-chip active" style="cursor:default;padding:2px 9px;font-size:11px">${t}</span>`).join('')}</div>`:''}
       ${e.location||e.partner||e.tool?`<div class="entry-meta">${[e.location&&'📍'+e.location,e.partner&&'👤'+e.partner,e.tool&&'🔧'+e.tool].filter(Boolean).join(' · ')}</div>`:''}
       <div class="entry-actions">
         <button class="btn btn-sm" onclick="editEntry(${e.id})"><i class="ti ti-edit"></i> Засах</button>
