@@ -10,7 +10,8 @@
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;min-height:100vh}
 .login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background-image:url('bg-login.jpg.jpg');background-size:cover;background-position:center}
 .login-card{background:rgba(255,255,255,0.85);backdrop-filter:blur(10px);border-radius:16px;border:0.5px solid rgba(212,175,106,0.35);padding:2.5rem;width:100%;max-width:380px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.1)}
-.login-logo{width:64px;height:64px;border-radius:16px;background:#1a3a5c;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:28px;color:#d4af6a}
+.login-logo{width:64px;height:64px;border-radius:16px;background:white;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+.login-logo img{width:100%;height:100%;object-fit:contain;padding:4px}
 .login-title{font-size:20px;font-weight:600;margin-bottom:6px}
 .login-sub{font-size:13px;color:#6b7a8d;margin-bottom:1.75rem;line-height:1.6}
 .google-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:11px 16px;border-radius:10px;border:1px solid #dde3ec;background:white;font-size:14px;font-weight:500;cursor:pointer;color:#1a2332}
@@ -75,7 +76,7 @@ details summary{font-size:12px;color:#8a97a8;cursor:pointer;margin-bottom:8px;us
 <body>
 <div id="login-screen" class="login-screen">
   <div class="login-card">
-    <div class="login-logo"><i class="ti ti-star-filled"></i></div>
+    <div class="login-logo"><img src="logo.png" alt="УЦУОШТ лого"></div>
     <div class="login-title">ХСТИ Гүйцэтгэлийн систем</div>
     <div class="login-sub">М.Төмөрчөдөр — 2026 он<br>Google акаунтаараа нэвтэрнэ үү</div>
     <button class="google-btn" onclick="signIn()">
@@ -89,7 +90,7 @@ details summary{font-size:12px;color:#8a97a8;cursor:pointer;margin-bottom:8px;us
 <div id="main-app" class="main-app">
   <div class="topbar">
     <div class="topbar-left">
-      <i class="ti ti-notebook" style="font-size:20px"></i>
+      <img src="logo.png" alt="УЦУОШТ лого" style="width:28px;height:28px;object-fit:contain;border-radius:6px;background:white;padding:2px">
       <span class="topbar-title">ХСТИ Гүйцэтгэлийн систем</span>
     </div>
     <div class="user-info">
