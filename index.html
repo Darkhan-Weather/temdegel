@@ -82,7 +82,21 @@ details[open] summary .chevron{transform:rotate(90deg)}
 .report-section{margin-bottom:14px}
 .report-zaalt{font-size:12px;font-weight:600;color:#1a3a5c;margin-bottom:6px;display:flex;justify-content:space-between}
 .report-count{font-size:11px;color:#a0aab4;font-weight:400}
-@media(max-width:600px){.form-grid{grid-template-columns:1fr}.filter-row{grid-template-columns:1fr}.nav button span{display:none}}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat-card{background:#fafbfc;border-radius:10px;padding:14px;border:1px solid #e8edf3}
+.stat-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.stat-label{font-size:12px;color:#8a97a8}
+.stat-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;color:white}
+.stat-value{font-size:22px;font-weight:600}
+.chart-bars{display:flex;align-items:flex-end;gap:8px;height:120px;margin-bottom:6px}
+.chart-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.chart-bar{width:100%;max-width:36px;background:#1a3a5c;border-radius:4px 4px 0 0;transition:height 0.3s}
+.chart-labels{display:flex;gap:8px}
+.chart-label{flex:1;text-align:center;font-size:11px;color:#8a97a8}
+.recent-item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f0f4f8;font-size:13px}
+.recent-item:last-child{border-bottom:none}
+.recent-date{font-size:11px;color:#8a97a8;min-width:70px}
+@media(max-width:600px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -119,14 +133,31 @@ details[open] summary .chevron{transform:rotate(90deg)}
     </div>
   </div>
   <div class="nav">
-    <button class="active" onclick="showTab('add',this)"><i class="ti ti-plus"></i><span>Ажил нэмэх</span></button>
+    <button class="active" onclick="showTab('dashboard',this)"><i class="ti ti-layout-dashboard"></i><span>Хяналтын самбар</span></button>
+    <button onclick="showTab('add',this)"><i class="ti ti-plus"></i><span>Ажил нэмэх</span></button>
     <button onclick="showTab('list',this)"><i class="ti ti-list"></i><span>Тэмдэглэлүүд</span></button>
     <button onclick="showTab('report',this)"><i class="ti ti-file-text"></i><span>Тайлан</span></button>
     <button onclick="showTab('settings',this)"><i class="ti ti-settings"></i><span>Тохиргоо</span></button>
   </div>
   <div class="content">
 
-    <div id="tab-add" class="tab-content active">
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="card">
+        <div class="card-title"><i class="ti ti-layout-dashboard"></i> Хяналтын самбар</div>
+        <div class="stats-grid" id="stats-grid"></div>
+      </div>
+      <div class="card">
+        <p style="font-size:13px;font-weight:600;margin-bottom:4px">Сарын тэмдэглэлийн тоо</p>
+        <p style="font-size:12px;color:#8a97a8;margin-bottom:14px">2026 он</p>
+        <div id="month-chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-clock"></i> Энэ долоо хоногт нэмсэн ажлууд</div>
+        <div id="recent-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-add" class="tab-content">
       <div id="alert-area"></div>
       <div class="card">
         <div class="card-title"><i class="ti ti-calendar"></i> Огноо</div>
@@ -371,6 +402,7 @@ function showMain(){
   document.getElementById('user-name').textContent=currentUser?.given_name||currentUser?.name||'';
   document.getElementById('total-count').textContent=entries.length;
   populateFilters();
+  renderDashboard();
 }
 
 async function syncToDrive(){
@@ -606,6 +638,57 @@ function showTab(name,btn){
   document.getElementById('tab-'+name).classList.add('active');
   if(btn)btn.classList.add('active');
   if(name==='list'){renderList();populateFilters();}
+  if(name==='dashboard'){renderDashboard();}
+}
+
+function renderDashboard(){
+  const total=entries.length;
+  const now=new Date();
+  const curMonth=String(now.getMonth()+1).padStart(2,'0');
+  const thisMonthCount=entries.filter(e=>e.date.slice(5,7)===curMonth).length;
+  const zaaltCovered=new Set(entries.map(e=>e.zaalt).filter(Boolean)).size;
+  const totalZaalt=28;
+  const completed=entries.filter(e=>e.result&&(e.result.includes('100%')||e.result.includes('Хийгдсэн')||e.result.includes('биелэгдсэн')||e.result.includes('хамрагдсан')||e.result.includes('оруулсан')||e.result.includes('гдсэн'))).length;
+  const completionRate=total?Math.round(completed/total*100):0;
+
+  const stats=[
+    {label:'Нийт тэмдэглэл',value:total,icon:'ti-notebook',color:'#1D9E75'},
+    {label:'Энэ сар',value:thisMonthCount,icon:'ti-calendar',color:'#378ADD'},
+    {label:'Заалт хамрагдсан',value:zaaltCovered+'/'+totalZaalt,icon:'ti-list-check',color:'#D85A30'},
+    {label:'Биелэлт',value:completionRate+'%',icon:'ti-chart-bar',color:'#BA7517'}
+  ];
+  document.getElementById('stats-grid').innerHTML=stats.map(s=>`
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <span class="stat-label">${s.label}</span>
+        <div class="stat-icon" style="background:${s.color}"><i class="ti ${s.icon}"></i></div>
+      </div>
+      <div class="stat-value">${s.value}</div>
+    </div>`).join('');
+
+  const months=['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
+  const counts=Array(12).fill(0);
+  entries.forEach(e=>{const m=parseInt(e.date.slice(5,7))-1;if(m>=0&&m<12)counts[m]++;});
+  const maxCount=Math.max(...counts,1);
+  const activeMonths=counts.map((c,i)=>({c,i})).filter(x=>x.c>0||x.i<=now.getMonth());
+  const showMonths=activeMonths.length?activeMonths:[{c:0,i:now.getMonth()}];
+  document.getElementById('month-chart').innerHTML=`
+    <div class="chart-bars">${showMonths.map(x=>`<div class="chart-bar-col"><div class="chart-bar" style="height:${Math.max(x.c/maxCount*100,3)}%"></div></div>`).join('')}</div>
+    <div class="chart-labels">${showMonths.map(x=>`<span class="chart-label">${months[x.i]}</span>`).join('')}</div>`;
+
+  const weekAgo=new Date(now);weekAgo.setDate(now.getDate()-7);
+  const recent=entries.filter(e=>new Date(e.date)>=weekAgo).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+  const recentEl=document.getElementById('recent-list');
+  if(!recent.length){
+    recentEl.innerHTML='<div class="empty"><i class="ti ti-inbox"></i><div>Энэ долоо хоногт тэмдэглэл нэмэгдээгүй байна</div></div>';
+  }else{
+    recentEl.innerHTML=recent.map(e=>`
+      <div class="recent-item">
+        <span class="recent-date">${e.date}</span>
+        <span style="flex:1;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.work}</span>
+        <span class="entry-tag">${e.zaalt}</span>
+      </div>`).join('');
+  }
 }
 
 window.addEventListener('load',init);
