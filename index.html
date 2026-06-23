@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;min-height:100vh}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;min-height:100vh;overflow-x:hidden}
 
 /* LOGIN */
 .login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background-image:url('bg-login.jpg.jpg');background-size:cover;background-position:center}
@@ -22,7 +22,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .google-icon{width:18px;height:18px}
 
 /* MAIN APP */
-.main-app{display:none;min-height:100vh;flex-direction:row}
+.main-app{display:none;min-height:100vh;flex-direction:row;width:100vw;overflow-x:hidden}
 
 /* SIDEBAR */
 .sidebar{width:210px;min-height:100vh;background:linear-gradient(to top,#9E5E3D,#EBAD7C);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100}
@@ -47,15 +47,15 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .sidebar-logout:hover{background:rgba(255,255,255,0.25)}
 
 /* MAIN CONTENT */
-.main-content{margin-left:210px;flex:1;min-height:100vh;display:flex;flex-direction:column;max-width:calc(100vw - 210px);overflow-x:hidden}
+.main-content{margin-left:210px;width:calc(100vw - 210px);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
 .content-header{background:white;border-bottom:0.5px solid #e8edf3;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
 .content-header-title{font-size:20px;font-weight:600;color:#1a2332}
 .content-header-sub{font-size:12px;color:#8a97a8}
 .sync-badge{font-size:11px;padding:4px 10px;border-radius:20px;background:#E1F5EE;color:#0F6E56;display:inline-flex;align-items:center;gap:4px}
 
 /* CONTENT AREA */
-.content{padding:20px 24px;flex:1;width:100%;box-sizing:border-box}
-.card{background:white;border-radius:14px;border:1px solid #e8edf3;padding:1.25rem;margin-bottom:14px}
+.content{padding:20px 24px;flex:1;width:100%;box-sizing:border-box;overflow-x:hidden}
+.card{background:white;border-radius:14px;border:1px solid #e8edf3;padding:1.25rem;margin-bottom:14px;width:100%;box-sizing:border-box}
 .card-title{font-size:14px;font-weight:600;color:#1a3a5c;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 
 /* STAT CARDS */
@@ -94,7 +94,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 /* FORM */
 label{font-size:12px;color:#6b7a8d;margin-bottom:4px;display:block}
 .req{color:#e74c3c}
-input,select,textarea{width:100%;border:1.5px solid #dde3ec;border-radius:8px;padding:8px 11px;font-size:13px;color:#1a2332;background:#fafbfc;outline:none;font-family:inherit;transition:border 0.15s}
+input,select,textarea{width:100%;border:1.5px solid #dde3ec;border-radius:8px;padding:8px 11px;font-size:13px;color:#1a2332;background:#fafbfc;outline:none;font-family:inherit;transition:border 0.15s;box-sizing:border-box}
 input:focus,select:focus,textarea:focus{border-color:#EBAD7C;background:white}
 textarea{resize:vertical;min-height:80px}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
