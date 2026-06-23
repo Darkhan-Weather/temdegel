@@ -27,8 +27,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 /* SIDEBAR */
 .sidebar{width:210px;min-height:100vh;background:linear-gradient(to top,#9E5E3D,#EBAD7C);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100}
 .sidebar-header{padding:16px;border-bottom:0.5px solid rgba(255,255,255,0.15);display:flex;align-items:center;gap:10px}
-.sidebar-logo{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
-.sidebar-logo img{width:100%;height:100%;object-fit:contain;padding:2px}
+.sidebar-logo{width:38px;height:38px;border-radius:10px;background:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.15)}
+.sidebar-logo img{width:100%;height:100%;object-fit:contain;padding:3px}
 .sidebar-title{color:white;font-size:12px;font-weight:500;line-height:1.35}
 .sidebar-nav{padding:10px 8px;flex:1;display:flex;flex-direction:column;gap:3px}
 .nav-item{padding:9px 12px;display:flex;align-items:center;gap:10px;border-radius:10px;border-left:3px solid transparent;cursor:pointer;transition:all 0.2s;text-decoration:none}
@@ -47,19 +47,19 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .sidebar-logout:hover{background:rgba(255,255,255,0.25)}
 
 /* MAIN CONTENT */
-.main-content{margin-left:210px;flex:1;min-height:100vh;display:flex;flex-direction:column}
+.main-content{margin-left:210px;flex:1;min-height:100vh;display:flex;flex-direction:column;max-width:calc(100vw - 210px);overflow-x:hidden}
 .content-header{background:white;border-bottom:0.5px solid #e8edf3;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
-.content-header-title{font-size:15px;font-weight:500;color:#1a2332}
+.content-header-title{font-size:20px;font-weight:600;color:#1a2332}
 .content-header-sub{font-size:12px;color:#8a97a8}
 .sync-badge{font-size:11px;padding:4px 10px;border-radius:20px;background:#E1F5EE;color:#0F6E56;display:inline-flex;align-items:center;gap:4px}
 
 /* CONTENT AREA */
-.content{padding:20px 24px;flex:1}
+.content{padding:20px 24px;flex:1;width:100%;box-sizing:border-box}
 .card{background:white;border-radius:14px;border:1px solid #e8edf3;padding:1.25rem;margin-bottom:14px}
 .card-title{font-size:14px;font-weight:600;color:#1a3a5c;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 
 /* STAT CARDS */
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;width:100%}
 .stat-card{border-radius:14px;padding:16px;color:white}
 .stat-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
 .stat-label{font-size:12px;opacity:0.88}
@@ -68,16 +68,16 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .stat-sub{font-size:11px;opacity:0.7}
 
 /* CHART */
-.chart-wrap{background:white;border-radius:14px;border:1px solid #e8edf3;padding:16px;margin-bottom:14px}
+.chart-wrap{background:white;border-radius:14px;border:1px solid #e8edf3;padding:16px;margin-bottom:14px;overflow:hidden;width:100%}
 .chart-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
 .chart-title{font-size:13px;font-weight:600;color:#1a2332;margin-bottom:2px}
 .chart-sub{font-size:11px;color:#8a97a8}
 .chart-badge{font-size:11px;padding:3px 10px;border-radius:20px;background:#E1F5EE;color:#0F6E56}
 .chart-area{position:relative;height:130px;margin-bottom:8px}
-.chart-bars-row{display:flex;align-items:flex-end;gap:8px;height:110px;padding:0 4px}
-.chart-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
-.chart-bar{width:100%;border-radius:5px 5px 0 0;transition:height 0.4s}
-.chart-line{position:absolute;top:0;left:0;right:0;bottom:20px;pointer-events:none}
+.chart-bars-row{display:flex;align-items:flex-end;gap:6px;height:110px;padding:0 4px;width:100%}
+.chart-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.chart-bar{width:80%;max-width:44px;border-radius:5px 5px 0 0;transition:height 0.4s}
+.chart-line{position:absolute;top:0;left:0;right:0;bottom:20px;pointer-events:none;width:100%;height:calc(100% - 20px)}
 .chart-labels{display:flex;gap:8px;padding:0 4px}
 .chart-label{flex:1;text-align:center;font-size:10px;color:#8a97a8}
 .chart-label.cur{color:#1D9E75;font-weight:500}
@@ -89,7 +89,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .recent-tag{font-size:11px;padding:2px 8px;border-radius:5px;flex-shrink:0}
 
 /* DASHBOARD GRID */
-.dashboard-bottom{display:grid;grid-template-columns:1.6fr 1fr;gap:14px}
+.dashboard-bottom{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;width:100%}
 
 /* FORM */
 label{font-size:12px;color:#6b7a8d;margin-bottom:4px;display:block}
@@ -610,7 +610,7 @@ function renderDashboard(){
   const barColors=showCounts.map((_,i)=>i===maxM?'#EBAD7C':'#1a3a5c');
   document.getElementById('chart-bars').innerHTML=showCounts.map((c,i)=>`
     <div class="chart-bar-col">
-      <div class="chart-bar" style="height:${Math.max(c/maxC*100,3)}%;background:${barColors[i]}"></div>
+      <div class="chart-bar" style="height:${Math.max(c/maxC*100,8)}%;background:${barColors[i]}"></div>
     </div>`).join('');
   document.getElementById('chart-labels').innerHTML=showCounts.map((_,i)=>`
     <span class="chart-label${i===maxM?' cur':''}">${MONTH_NAMES[i]}</span>`).join('');
