@@ -6,6 +6,7 @@
 <title>ХСТИ Гүйцэтгэлийн систем</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
+html{overflow-x:hidden}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;min-height:100vh;overflow-x:hidden}
 
@@ -22,7 +23,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .google-icon{width:18px;height:18px}
 
 /* MAIN APP */
-.main-app{display:none;min-height:100vh;flex-direction:row;width:100vw;overflow-x:hidden}
+.main-app{display:none;min-height:100vh;flex-direction:row;position:relative}
 
 /* SIDEBAR */
 .sidebar{width:210px;min-height:100vh;background:linear-gradient(to top,#9E5E3D,#EBAD7C);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100}
@@ -47,7 +48,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .sidebar-logout:hover{background:rgba(255,255,255,0.25)}
 
 /* MAIN CONTENT */
-.main-content{margin-left:210px;width:calc(100vw - 210px);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+.main-content{margin-left:210px;min-height:100vh;display:flex;flex-direction:column;overflow:hidden}
 .content-header{background:white;border-bottom:0.5px solid #e8edf3;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
 .content-header-title{font-size:20px;font-weight:600;color:#1a2332}
 .content-header-sub{font-size:12px;color:#8a97a8}
