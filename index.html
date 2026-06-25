@@ -145,6 +145,28 @@ details[open] summary .chevron{transform:rotate(90deg)}
 .report-zaalt{font-size:12px;font-weight:600;color:#1a3a5c;margin-bottom:6px;display:flex;justify-content:space-between}
 .report-count{font-size:11px;color:#a0aab4;font-weight:400}
 
+/* STICKY NOTES */
+.sticky-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.sticky-color-btn{width:22px;height:22px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:all 0.15s;flex-shrink:0}
+.sticky-color-btn.selected{border-color:#1a2332;transform:scale(1.2)}
+.sticky-color-label{font-size:12px;color:#6b7a8d;margin-right:4px}
+.sticky-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.sticky-note{border-radius:12px;padding:14px;position:relative;min-height:130px;display:flex;flex-direction:column;box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:box-shadow 0.2s,transform 0.2s}
+.sticky-note:hover{box-shadow:0 4px 16px rgba(0,0,0,0.13);transform:translateY(-2px)}
+.sticky-note-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.sticky-note-date{font-size:10px;opacity:0.55}
+.sticky-note-actions{display:flex;gap:4px;opacity:0;transition:opacity 0.15s}
+.sticky-note:hover .sticky-note-actions{opacity:1}
+.sticky-note-btn{background:rgba(0,0,0,0.1);border:none;border-radius:5px;width:22px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:inherit}
+.sticky-note-btn:hover{background:rgba(0,0,0,0.2)}
+.sticky-note-text{flex:1;font-size:13px;line-height:1.55;word-break:break-word;white-space:pre-wrap;outline:none;background:transparent;border:none;resize:none;width:100%;font-family:inherit;color:inherit;min-height:70px}
+.sticky-note-text:focus{outline:none}
+.sticky-add-btn{border-radius:12px;padding:14px;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px dashed #c9d4e0;background:#fafbfc;cursor:pointer;color:#a0aab4;font-size:13px;transition:all 0.15s}
+.sticky-add-btn:hover{border-color:#EBAD7C;color:#9E5E3D;background:#fff8f3}
+.sticky-add-btn i{font-size:28px}
+.sticky-empty{text-align:center;padding:60px 20px;color:#a0aab4;grid-column:1/-1}
+.sticky-empty i{font-size:48px;display:block;margin-bottom:12px;opacity:0.4}
+
 @media(max-width:768px){
   .sidebar{width:60px}
   .sidebar-title,.nav-item span,.sidebar-user-name,.sidebar-user-role{display:none}
@@ -199,6 +221,9 @@ details[open] summary .chevron{transform:rotate(90deg)}
       </div>
       <div class="nav-item" onclick="showTab('report',this)">
         <i class="ti ti-file-text"></i><span>Тайлан</span>
+      </div>
+      <div class="nav-item" onclick="showTab('sticky',this)">
+        <i class="ti ti-notes"></i><span>Sticky notes</span>
       </div>
       <div class="nav-item" onclick="showTab('settings',this)">
         <i class="ti ti-settings"></i><span>Тохиргоо</span>
@@ -419,6 +444,25 @@ details[open] summary .chevron{transform:rotate(90deg)}
         <div id="report-output"></div>
       </div>
 
+      <!-- STICKY NOTES TAB -->
+      <div id="tab-sticky" class="tab-content">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div class="sticky-toolbar">
+              <span class="sticky-color-label">Өнгө:</span>
+              <div class="sticky-color-btn selected" style="background:#FFF9C4" data-color="#FFF9C4" onclick="selectStickyColor(this)" title="Шар"></div>
+              <div class="sticky-color-btn" style="background:#C8F7C5" data-color="#C8F7C5" onclick="selectStickyColor(this)" title="Ногоон"></div>
+              <div class="sticky-color-btn" style="background:#C5E3F7" data-color="#C5E3F7" onclick="selectStickyColor(this)" title="Цэнхэр"></div>
+              <div class="sticky-color-btn" style="background:#F7C5C5" data-color="#F7C5C5" onclick="selectStickyColor(this)" title="Улаан"></div>
+              <div class="sticky-color-btn" style="background:#E8C5F7" data-color="#E8C5F7" onclick="selectStickyColor(this)" title="Нил ягаан"></div>
+              <div class="sticky-color-btn" style="background:#FFE0B2" data-color="#FFE0B2" onclick="selectStickyColor(this)" title="Улбар шар"></div>
+            </div>
+            <button class="btn btn-primary" onclick="addStickyNote()"><i class="ti ti-plus"></i> Нэмэх</button>
+          </div>
+        </div>
+        <div class="sticky-grid" id="sticky-grid"></div>
+      </div>
+
       <!-- SETTINGS TAB -->
       <div id="tab-settings" class="tab-content">
         <div class="card">
@@ -448,7 +492,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
 const CLIENT_ID='318160635801-6970fmqoqafpp6j9nm216skqe0945fvm.apps.googleusercontent.com';
 const SCOPES='https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile';
 const FILE_NAME='ajliin_temdegel_2026.json';
-const PAGE_TITLES={dashboard:'Хяналтын самбар',add:'Ажил нэмэх',list:'Тэмдэглэлүүд',report:'Тайлан',settings:'Тохиргоо'};
+const PAGE_TITLES={dashboard:'Хяналтын самбар',add:'Ажил нэмэх',list:'Тэмдэглэлүүд',report:'Тайлан',sticky:'Sticky notes',settings:'Тохиргоо'};
 const MONTH_NAMES=['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
 const TAG_COLORS=['#E1F5EE:#0F6E56','#E6F1FB:#185FA5','#FAECE7:#993C1D','#FFF3E8:#9E5E3D','#F0F0FF:#4A3F9E','#FEFCE8:#7A6200'];
 
@@ -851,6 +895,67 @@ function showTab(name,el){
   document.getElementById('page-title').textContent=PAGE_TITLES[name]||'';
   if(name==='list'){renderList();populateFilters();}
   if(name==='dashboard'){renderDashboard();}
+  if(name==='sticky'){renderStickyNotes();}
+}
+
+// ── STICKY NOTES ──────────────────────────────────────────
+let stickyNotes=[];
+let selectedStickyColor='#FFF9C4';
+
+function loadStickyNotes(){
+  try{const s=localStorage.getItem('sticky_notes_hsti');if(s)stickyNotes=JSON.parse(s);}catch(e){stickyNotes=[];}
+}
+function saveStickyNotes(){
+  try{localStorage.setItem('sticky_notes_hsti',JSON.stringify(stickyNotes));}catch(e){}
+}
+function selectStickyColor(btn){
+  document.querySelectorAll('.sticky-color-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedStickyColor=btn.dataset.color;
+}
+function addStickyNote(){
+  const note={id:Date.now(),text:'',color:selectedStickyColor,date:new Date().toLocaleDateString('mn-MN')};
+  stickyNotes.unshift(note);
+  saveStickyNotes();
+  renderStickyNotes();
+  // focus the new note text
+  setTimeout(()=>{const el=document.querySelector('.sticky-note-text');if(el)el.focus();},50);
+}
+function deleteStickyNote(id){
+  stickyNotes=stickyNotes.filter(n=>n.id!==id);
+  saveStickyNotes();
+  renderStickyNotes();
+}
+function updateStickyText(id,text){
+  const n=stickyNotes.find(n=>n.id===id);if(n){n.text=text;saveStickyNotes();}
+}
+function changeStickyColor(id){
+  const colors=['#FFF9C4','#C8F7C5','#C5E3F7','#F7C5C5','#E8C5F7','#FFE0B2'];
+  const n=stickyNotes.find(n=>n.id===id);if(!n)return;
+  const idx=(colors.indexOf(n.color)+1)%colors.length;
+  n.color=colors[idx];
+  saveStickyNotes();
+  renderStickyNotes();
+}
+function renderStickyNotes(){
+  loadStickyNotes();
+  const grid=document.getElementById('sticky-grid');
+  if(!grid)return;
+  if(!stickyNotes.length){
+    grid.innerHTML='<div class="sticky-empty"><i class="ti ti-notes"></i><div>Sticky note байхгүй байна<br><small>Дээрх "Нэмэх" товчийг дарж эхэлнэ үү</small></div></div>';
+    return;
+  }
+  grid.innerHTML=stickyNotes.map(n=>`
+    <div class="sticky-note" style="background:${n.color}">
+      <div class="sticky-note-header">
+        <span class="sticky-note-date">${n.date}</span>
+        <div class="sticky-note-actions">
+          <button class="sticky-note-btn" onclick="changeStickyColor(${n.id})" title="Өнгө солих"><i class="ti ti-palette"></i></button>
+          <button class="sticky-note-btn" onclick="deleteStickyNote(${n.id})" title="Устгах"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+      <textarea class="sticky-note-text" placeholder="Энд бичнэ үү..." oninput="updateStickyText(${n.id},this.value)">${n.text}</textarea>
+    </div>`).join('');
 }
 
 window.addEventListener('load',init);
