@@ -23,7 +23,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .google-icon{width:18px;height:18px}
 
 /* MAIN APP */
-.main-app{display:none;min-height:100vh;flex-direction:row;position:relative}
+.main-app{display:none;min-height:100vh;flex-direction:row;position:relative;width:100%}
 
 /* SIDEBAR */
 .sidebar{width:210px;min-height:100vh;background:linear-gradient(to top,#9E5E3D,#EBAD7C);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100}
@@ -48,14 +48,14 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .sidebar-logout:hover{background:rgba(255,255,255,0.25)}
 
 /* MAIN CONTENT */
-.main-content{margin-left:210px;min-height:100vh;display:flex;flex-direction:column;overflow:hidden}
-.content-header{background:white;border-bottom:0.5px solid #e8edf3;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;width:100%;box-sizing:border-box}
+.main-content{margin-left:210px;min-height:100vh;display:flex;flex-direction:column;width:calc(100% - 210px);overflow-x:hidden}
+.content-header{background:white;border-bottom:0.5px solid #e8edf3;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;width:100%;box-sizing:border-box;flex-shrink:0}
 .content-header-title{font-size:20px;font-weight:600;color:#1a2332}
 .content-header-sub{font-size:12px;color:#8a97a8}
 .sync-badge{font-size:11px;padding:4px 10px;border-radius:20px;background:#E1F5EE;color:#0F6E56;display:inline-flex;align-items:center;gap:4px}
 
 /* CONTENT AREA */
-.content{padding:20px 24px;flex:1;width:100%;box-sizing:border-box;overflow-x:hidden}
+.content{padding:20px 24px;flex:1;width:100%;box-sizing:border-box;overflow-x:hidden;min-width:0}
 .card{background:white;border-radius:14px;border:1px solid #e8edf3;padding:1.25rem;margin-bottom:14px;width:100%;box-sizing:border-box}
 .card-title{font-size:14px;font-weight:600;color:#1a3a5c;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 
@@ -148,7 +148,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
 @media(max-width:768px){
   .sidebar{width:60px}
   .sidebar-title,.nav-item span,.sidebar-user-name,.sidebar-user-role{display:none}
-  .main-content{margin-left:60px}
+  .main-content{margin-left:60px;width:calc(100% - 60px)}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
   .dashboard-bottom{grid-template-columns:1fr}
   .form-grid{grid-template-columns:1fr}
