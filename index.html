@@ -519,8 +519,8 @@ details[open] summary .chevron{transform:rotate(90deg)}
 
       <!-- STICKY NOTES TAB -->
       <div id="tab-sticky" class="tab-content">
-        <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div class="card" style="margin-bottom:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
             <div class="sticky-toolbar">
               <span class="sticky-color-label">Өнгө:</span>
               <div class="sticky-color-btn selected" style="background:#FFF9C4" data-color="#FFF9C4" onclick="selectStickyColor(this)" title="Шар"></div>
@@ -532,8 +532,49 @@ details[open] summary .chevron{transform:rotate(90deg)}
             </div>
             <button class="btn btn-primary" onclick="addStickyNote()"><i class="ti ti-plus"></i> Нэмэх</button>
           </div>
+          <!-- Шошго шүүлтүүр -->
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="sticky-color-label">Шошго:</span>
+            <div id="sticky-label-filters" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></div>
+            <button class="btn btn-sm" onclick="openLabelManager()" title="Шошго удирдах"><i class="ti ti-tag"></i> Удирдах</button>
+          </div>
         </div>
         <div class="sticky-grid" id="sticky-grid"></div>
+
+        <!-- Шошго удирдах modal -->
+        <div id="label-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:999;align-items:center;justify-content:center">
+          <div style="background:white;border-radius:16px;padding:20px;width:320px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <div style="font-size:14px;font-weight:600;color:#1a2332"><i class="ti ti-tag"></i> Шошго удирдах</div>
+              <button onclick="closeLabelManager()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#8a97a8">✕</button>
+            </div>
+            <div id="label-list" style="margin-bottom:12px;max-height:220px;overflow-y:auto"></div>
+            <div style="display:flex;gap:8px">
+              <input id="new-label-input" placeholder="Шинэ шошго нэр..." style="flex:1;padding:7px 10px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none">
+              <select id="new-label-color" style="padding:6px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none">
+                <option value="#E74C3C">🔴 Улаан</option>
+                <option value="#E67E22">🟠 Улбар</option>
+                <option value="#F1C40F">🟡 Шар</option>
+                <option value="#27AE60">🟢 Ногоон</option>
+                <option value="#2980B9">🔵 Цэнхэр</option>
+                <option value="#8E44AD">🟣 Нил</option>
+                <option value="#7F8C8D">⚫ Саарал</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="addNewLabel()"><i class="ti ti-plus"></i> Нэмэх</button>
+          </div>
+        </div>
+
+        <!-- Note дээр шошго нэмэх modal -->
+        <div id="note-label-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:999;align-items:center;justify-content:center">
+          <div style="background:white;border-radius:16px;padding:20px;width:280px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <div style="font-size:14px;font-weight:600;color:#1a2332">Шошго сонгох</div>
+              <button onclick="closeNoteLabelModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#8a97a8">✕</button>
+            </div>
+            <div id="note-label-list" style="display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto"></div>
+          </div>
+        </div>
       </div>
 
       <!-- SETTINGS TAB -->
@@ -975,12 +1016,22 @@ function showTab(name,el){
 // ── STICKY NOTES ──────────────────────────────────────────
 let stickyNotes=[];
 let selectedStickyColor='#FFF9C4';
+let stickyLabels=[
+  {id:'l1',name:'Яаралтай',color:'#E74C3C'},
+  {id:'l2',name:'Ажил',color:'#2980B9'},
+  {id:'l3',name:'Санаа',color:'#F1C40F'},
+  {id:'l4',name:'Хувийн',color:'#27AE60'},
+  {id:'l5',name:'Тайлан',color:'#8E44AD'},
+];
+let activeFilterLabel=null;
 
 function loadStickyNotes(){
   try{const s=localStorage.getItem('sticky_notes_hsti');if(s)stickyNotes=JSON.parse(s);}catch(e){stickyNotes=[];}
+  try{const l=localStorage.getItem('sticky_labels_hsti');if(l)stickyLabels=JSON.parse(l);}catch(e){}
 }
 function saveStickyNotes(){
   try{localStorage.setItem('sticky_notes_hsti',JSON.stringify(stickyNotes));}catch(e){}
+  try{localStorage.setItem('sticky_labels_hsti',JSON.stringify(stickyLabels));}catch(e){}
 }
 function selectStickyColor(btn){
   document.querySelectorAll('.sticky-color-btn').forEach(b=>b.classList.remove('selected'));
@@ -988,11 +1039,10 @@ function selectStickyColor(btn){
   selectedStickyColor=btn.dataset.color;
 }
 function addStickyNote(){
-  const note={id:Date.now(),text:'',color:selectedStickyColor,date:new Date().toLocaleDateString('mn-MN')};
+  const note={id:Date.now(),text:'',color:selectedStickyColor,date:new Date().toLocaleDateString('mn-MN'),labels:[]};
   stickyNotes.unshift(note);
   saveStickyNotes();
   renderStickyNotes();
-  // focus the new note text
   setTimeout(()=>{const el=document.querySelector('.sticky-note-text');if(el)el.focus();},50);
 }
 function deleteStickyNote(id){
@@ -1007,29 +1057,120 @@ function changeStickyColor(id){
   const colors=['#FFF9C4','#C8F7C5','#C5E3F7','#F7C5C5','#E8C5F7','#FFE0B2'];
   const n=stickyNotes.find(n=>n.id===id);if(!n)return;
   const idx=(colors.indexOf(n.color)+1)%colors.length;
-  n.color=colors[idx];
-  saveStickyNotes();
+  n.color=colors[idx];saveStickyNotes();renderStickyNotes();
+}
+
+// Шошго удирдах modal
+function openLabelManager(){
+  loadStickyNotes();renderLabelList();
+  document.getElementById('label-modal').style.display='flex';
+}
+function closeLabelManager(){
+  document.getElementById('label-modal').style.display='none';
   renderStickyNotes();
 }
+function renderLabelList(){
+  const el=document.getElementById('label-list');if(!el)return;
+  if(!stickyLabels.length){el.innerHTML='<p style="font-size:12px;color:#a0aab4;text-align:center">Шошго байхгүй</p>';return;}
+  el.innerHTML=stickyLabels.map(l=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:#fafbfc;margin-bottom:6px">
+      <span style="width:12px;height:12px;border-radius:50%;background:${l.color};flex-shrink:0;display:inline-block"></span>
+      <span style="flex:1;font-size:13px">${l.name}</span>
+      <button onclick="deleteLabel('${l.id}')" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:13px"><i class="ti ti-trash"></i></button>
+    </div>`).join('');
+}
+function addNewLabel(){
+  const inp=document.getElementById('new-label-input');
+  const col=document.getElementById('new-label-color');
+  const name=inp.value.trim();if(!name)return;
+  stickyLabels.push({id:'l'+Date.now(),name,color:col.value});
+  saveStickyNotes();inp.value='';
+  renderLabelList();renderLabelFilters();
+}
+function deleteLabel(id){
+  stickyLabels=stickyLabels.filter(l=>l.id!==id);
+  stickyNotes.forEach(n=>{n.labels=(n.labels||[]).filter(lid=>lid!==id);});
+  if(activeFilterLabel===id)activeFilterLabel=null;
+  saveStickyNotes();renderLabelList();renderLabelFilters();
+}
+
+// Note дээр шошго нэмэх
+function openNoteLabelModal(noteId){
+  const note=stickyNotes.find(n=>n.id===noteId);
+  const el=document.getElementById('note-label-list');if(!el)return;
+  el.dataset.noteId=noteId;
+  el.innerHTML=stickyLabels.map(l=>{
+    const has=(note?.labels||[]).includes(l.id);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;background:${has?'#f0f4f8':'white'};border:1.5px solid ${has?'#EBAD7C':'#e8edf3'}" onclick="toggleNoteLabel(${noteId},'${l.id}',this)">
+      <span style="width:12px;height:12px;border-radius:50%;background:${l.color};flex-shrink:0;display:inline-block"></span>
+      <span style="flex:1;font-size:13px">${l.name}</span>
+      ${has?'<i class="ti ti-check" style="color:#EBAD7C"></i>':''}
+    </div>`;
+  }).join('')||'<p style="font-size:12px;color:#a0aab4;text-align:center">Шошго байхгүй<br><small>Удирдах товчоор нэмнэ үү</small></p>';
+  document.getElementById('note-label-modal').style.display='flex';
+}
+function closeNoteLabelModal(){
+  document.getElementById('note-label-modal').style.display='none';
+  renderStickyNotes();
+}
+function toggleNoteLabel(noteId,labelId,el){
+  const note=stickyNotes.find(n=>n.id==noteId);if(!note)return;
+  if(!note.labels)note.labels=[];
+  const idx=note.labels.indexOf(labelId);
+  if(idx>=0){
+    note.labels.splice(idx,1);
+    el.style.background='white';el.style.borderColor='#e8edf3';
+    el.querySelector('.ti-check')?.remove();
+  } else {
+    note.labels.push(labelId);
+    el.style.background='#f0f4f8';el.style.borderColor='#EBAD7C';
+    if(!el.querySelector('.ti-check'))el.insertAdjacentHTML('beforeend','<i class="ti ti-check" style="color:#EBAD7C"></i>');
+  }
+  saveStickyNotes();
+}
+
+// Шошго шүүлтүүр
+function renderLabelFilters(){
+  const el=document.getElementById('sticky-label-filters');if(!el)return;
+  let html=`<span class="tag-chip${activeFilterLabel===null?' active':''}" onclick="filterByLabel(null)">Бүгд</span>`;
+  stickyLabels.forEach(l=>{
+    html+=`<span class="tag-chip${activeFilterLabel===l.id?' active':''}" onclick="filterByLabel('${l.id}')">
+      <span style="width:8px;height:8px;border-radius:50%;background:${l.color};display:inline-block;margin-right:4px;vertical-align:middle"></span>${l.name}
+    </span>`;
+  });
+  el.innerHTML=html;
+}
+function filterByLabel(id){
+  activeFilterLabel=id;renderLabelFilters();renderStickyNotes();
+}
+
 function renderStickyNotes(){
-  loadStickyNotes();
-  const grid=document.getElementById('sticky-grid');
-  if(!grid)return;
-  if(!stickyNotes.length){
-    grid.innerHTML='<div class="sticky-empty"><i class="ti ti-notes"></i><div>Sticky note байхгүй байна<br><small>Дээрх "Нэмэх" товчийг дарж эхэлнэ үү</small></div></div>';
+  loadStickyNotes();renderLabelFilters();
+  const grid=document.getElementById('sticky-grid');if(!grid)return;
+  let notes=stickyNotes;
+  if(activeFilterLabel)notes=notes.filter(n=>(n.labels||[]).includes(activeFilterLabel));
+  if(!notes.length){
+    grid.innerHTML=`<div class="sticky-empty"><i class="ti ti-notes"></i><div>${activeFilterLabel?'Энэ шошготой note байхгүй':'Sticky note байхгүй байна'}<br><small>Дээрх "Нэмэх" товчийг дарж эхэлнэ үү</small></div></div>`;
     return;
   }
-  grid.innerHTML=stickyNotes.map(n=>`
-    <div class="sticky-note" style="background:${n.color}">
+  grid.innerHTML=notes.map(n=>{
+    const noteLabels=(n.labels||[]).map(lid=>{
+      const l=stickyLabels.find(x=>x.id===lid);
+      return l?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${l.color}22;color:${l.color};border:1px solid ${l.color}55;font-weight:500">${l.name}</span>`:'';
+    }).join('');
+    return `<div class="sticky-note" style="background:${n.color}">
       <div class="sticky-note-header">
         <span class="sticky-note-date">${n.date}</span>
         <div class="sticky-note-actions">
+          <button class="sticky-note-btn" onclick="openNoteLabelModal(${n.id})" title="Шошго"><i class="ti ti-tag"></i></button>
           <button class="sticky-note-btn" onclick="changeStickyColor(${n.id})" title="Өнгө солих"><i class="ti ti-palette"></i></button>
           <button class="sticky-note-btn" onclick="deleteStickyNote(${n.id})" title="Устгах"><i class="ti ti-trash"></i></button>
         </div>
       </div>
+      ${noteLabels?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${noteLabels}</div>`:''}
       <textarea class="sticky-note-text" placeholder="Энд бичнэ үү..." oninput="updateStickyText(${n.id},this.value)">${n.text}</textarea>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── GOOGLE CALENDAR ───────────────────────────────────────
