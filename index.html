@@ -289,6 +289,16 @@ details[open] summary .chevron{transform:rotate(90deg)}
       <!-- DASHBOARD TAB -->
       <div id="tab-dashboard" class="tab-content active">
         <div class="stats-grid" id="stats-grid"></div>
+
+        <!-- ӨНӨӨДРИЙН ТЭМДЭГЛЭЛ -->
+        <div class="card" id="today-card" style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="card-title" style="margin:0"><i class="ti ti-calendar-check"></i> Өнөөдрийн тэмдэглэл <span id="today-date-label" style="font-size:12px;font-weight:400;color:#8a97a8;margin-left:6px"></span></div>
+            <button class="btn btn-sm btn-primary" onclick="showTab('add',document.querySelectorAll('.nav-item')[1])"><i class="ti ti-plus"></i> Нэмэх</button>
+          </div>
+          <div id="today-list"></div>
+        </div>
+
         <div class="chart-wrap">
           <div class="chart-header">
             <div>
@@ -744,7 +754,39 @@ function setSyncBadge(txt,color){
 function renderDashboard(){
   const total=entries.length;
   const now=new Date();
+  const todayStr=now.toISOString().slice(0,10); // "2026-06-26"
   const curM=String(now.getMonth()+1).padStart(2,'0');
+
+  // Өнөөдрийн тэмдэглэлүүд
+  const todayEntries=entries.filter(e=>{
+    const p=e.date.split('-');
+    const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
+    return norm===todayStr;
+  }).sort((a,b)=>a.zaalt.localeCompare(b.zaalt));
+
+  const mN=['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
+  const lbl=document.getElementById('today-date-label');
+  if(lbl)lbl.textContent=`${now.getFullYear()} оны ${mN[now.getMonth()]} ${now.getDate()}-ний өдөр`;
+
+  const todayEl=document.getElementById('today-list');
+  if(todayEl){
+    if(!todayEntries.length){
+      todayEl.innerHTML=`<div style="text-align:center;padding:16px;color:#a0aab4;font-size:13px">
+        <i class="ti ti-notes" style="font-size:22px;display:block;margin-bottom:6px;opacity:0.4"></i>
+        Өнөөдрийн тэмдэглэл байхгүй байна
+      </div>`;
+    } else {
+      todayEl.innerHTML=todayEntries.map(e=>`
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-radius:9px;background:#fafbfc;border:1.5px solid #f0f2f5;margin-bottom:7px">
+          <span style="background:#FFF3E8;color:#9E5E3D;font-size:10px;padding:2px 7px;border-radius:8px;white-space:nowrap;flex-shrink:0;margin-top:2px">${e.zaalt}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:#1a2332;line-height:1.5">${e.work}</div>
+            ${e.result?`<div style="font-size:11px;color:#27ae60;margin-top:2px"><i class="ti ti-check" style="font-size:10px"></i> ${e.result}</div>`:''}
+          </div>
+          <button onclick="editEntry(${e.id})" style="background:none;border:none;cursor:pointer;color:#c9d4e0;font-size:13px;flex-shrink:0;padding:2px"><i class="ti ti-edit"></i></button>
+        </div>`).join('');
+    }
+  }
   const thisM=entries.filter(e=>e.date.slice(5,7)===curM).length;
   const zaaltSet=new Set(entries.map(e=>e.zaalt).filter(v=>v&&v!=='custom'&&v!=='nemel'&&v!=='medleg'&&v!=='eelje'));
   const covered=zaaltSet.size;
