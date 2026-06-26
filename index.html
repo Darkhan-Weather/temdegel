@@ -1435,7 +1435,11 @@ function renderCalGrid(){
     const isToday=today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d;
     const isSel=calSelectedDate===ds;
     const dayEv=calEvents.filter(e=>(e.start?.dateTime||e.start?.date||'').slice(0,10)===ds);
-    const wCount=entries.filter(e=>e.date===ds).length;
+    const wCount=entries.filter(e=>{
+      const p=e.date.split('-');
+      const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
+      return norm===ds;
+    }).length;
     let dots='';
     dayEv.slice(0,2).forEach(e=>{dots+=`<div class="cal-event-dot gcal">${e.summary||'Event'}</div>`;});
     if(wCount>0)dots+=`<div class="cal-event-dot work">Ажил: ${wCount}</div>`;
@@ -1459,11 +1463,19 @@ function calSelectDay(ds){
 }
 
 function renderDayEvents(ds){
+  // Огнооны формат нормчлох: "2026-6-2" → "2026-06-02"
+  function normDate(d){
+    if(!d)return '';
+    const p=d.split('-');
+    if(p.length!==3)return d;
+    return `${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`;
+  }
+  const dsNorm=normDate(ds);
   const[y,m,d]=ds.split('-');
   const titleEl=document.getElementById('cal-detail-date');
   if(titleEl)titleEl.textContent=`${y} оны ${parseInt(m)}-р сарын ${parseInt(d)}-ний өдөр`;
-  const dayEv=calEvents.filter(e=>(e.start?.dateTime||e.start?.date||'').slice(0,10)===ds);
-  const workItems=entries.filter(e=>e.date===ds);
+  const dayEv=calEvents.filter(e=>(e.start?.dateTime||e.start?.date||'').slice(0,10)===dsNorm);
+  const workItems=entries.filter(e=>normDate(e.date)===dsNorm);
   let html='';
   if(!dayEv.length&&!workItems.length){
     html='<p style="font-size:13px;color:#a0aab4;text-align:center;padding:20px">Энэ өдөрт event байхгүй</p>';
