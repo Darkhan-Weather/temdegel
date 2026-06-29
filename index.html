@@ -62,6 +62,28 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 
 /* STAT CARDS */
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;width:100%}
+.dashboard-top-row{display:grid;grid-template-columns:1fr 1.5fr;gap:14px;margin-bottom:14px;align-items:start}
+
+/* НУУЦ ҮГ САН */
+.vault-lock{text-align:center;padding:40px 20px}
+.vault-lock i{font-size:48px;color:#EBAD7C;display:block;margin-bottom:12px}
+.vault-lock input{width:100%;max-width:280px;padding:10px 14px;border:1.5px solid #dde3ec;border-radius:10px;font-size:14px;outline:none;text-align:center;letter-spacing:2px;margin-bottom:10px}
+.vault-lock input:focus{border-color:#EBAD7C}
+.vault-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:14px}
+.vault-card{background:white;border:1.5px solid #e8edf3;border-radius:12px;padding:14px;transition:box-shadow 0.2s}
+.vault-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);border-color:#EBAD7C}
+.vault-card-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.vault-favicon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#EBAD7C,#9E5E3D);display:flex;align-items:center;justify-content:center;color:white;font-size:14px;flex-shrink:0}
+.vault-name{font-size:13px;font-weight:600;color:#1a2332;flex:1}
+.vault-url{font-size:11px;color:#8a97a8;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vault-field{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.vault-field-label{font-size:10px;color:#a0aab4;width:55px;flex-shrink:0}
+.vault-field-val{font-size:12px;color:#1a2332;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vault-copy-btn{background:none;border:none;cursor:pointer;color:#c9d4e0;font-size:12px;padding:2px 4px;border-radius:4px}
+.vault-copy-btn:hover{color:#9E5E3D;background:#FFF3E8}
+.vault-pw{font-family:monospace;letter-spacing:1px;font-size:12px}
+.vault-add-form{background:#f8fafc;border-radius:12px;border:1.5px dashed #c9d4e0;padding:16px;margin-top:14px}
+.vault-add-title{font-size:13px;font-weight:600;color:#1a3a5c;margin-bottom:12px}
 .stat-card{border-radius:14px;padding:16px;color:white}
 .stat-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
 .stat-label{font-size:12px;opacity:0.88}
@@ -203,9 +225,14 @@ details[open] summary .chevron{transform:rotate(90deg)}
   .sidebar-title,.nav-item span,.sidebar-user-name,.sidebar-user-role{display:none}
   .main-content{margin-left:60px;width:calc(100% - 60px)}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .dashboard-top-row{grid-template-columns:1fr}
   .dashboard-bottom{grid-template-columns:1fr}
   .form-grid{grid-template-columns:1fr}
   .filter-row{grid-template-columns:1fr}
+  .vault-grid{grid-template-columns:1fr}
+  .cal-grid{grid-template-columns:repeat(7,1fr)}
+  .cal-day{min-height:48px;padding:3px}
+  .cal-event-dot{display:none}
 }
 </style>
 </head>
@@ -259,6 +286,9 @@ details[open] summary .chevron{transform:rotate(90deg)}
       <div class="nav-item" onclick="showTab('calendar',this)">
         <i class="ti ti-calendar"></i><span>Calendar</span>
       </div>
+      <div class="nav-item" onclick="showTab('vault',this)">
+        <i class="ti ti-lock"></i><span>Нууц үгийн сан</span>
+      </div>
       <div class="nav-item" onclick="showTab('settings',this)">
         <i class="ti ti-settings"></i><span>Тохиргоо</span>
       </div>
@@ -290,28 +320,32 @@ details[open] summary .chevron{transform:rotate(90deg)}
       <div id="tab-dashboard" class="tab-content active">
         <div class="stats-grid" id="stats-grid"></div>
 
-        <!-- ӨНӨӨДРИЙН ТЭМДЭГЛЭЛ -->
-        <div class="card" id="today-card" style="margin-bottom:14px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div class="card-title" style="margin:0"><i class="ti ti-calendar-check"></i> Өнөөдрийн тэмдэглэл <span id="today-date-label" style="font-size:12px;font-weight:400;color:#8a97a8;margin-left:6px"></span></div>
-            <button class="btn btn-sm btn-primary" onclick="showTab('add',document.querySelectorAll('.nav-item')[1])"><i class="ti ti-plus"></i> Нэмэх</button>
-          </div>
-          <div id="today-list"></div>
-        </div>
-
-        <div class="chart-wrap">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">Сарын тэмдэглэлийн тоо</div>
-              <div class="chart-sub">2026 он</div>
+        <!-- ӨНӨӨДРИЙН ТЭМДЭГЛЭЛ + CHART хажуу хажуугаар -->
+        <div class="dashboard-top-row">
+          <!-- Өнөөдрийн тэмдэглэл -->
+          <div class="card" id="today-card" style="margin-bottom:0;display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div class="card-title" style="margin:0"><i class="ti ti-calendar-check"></i> Өнөөдрийн тэмдэглэл <span id="today-date-label" style="font-size:12px;font-weight:400;color:#8a97a8;margin-left:6px"></span></div>
+              <button class="btn btn-sm btn-primary" onclick="showTab('add',document.querySelectorAll('.nav-item')[1])"><i class="ti ti-plus"></i> Нэмэх</button>
             </div>
-            <span class="chart-badge" id="chart-badge"></span>
+            <div id="today-list" style="flex:1;overflow-y:auto;max-height:240px"></div>
           </div>
-          <div class="chart-area">
-            <div class="chart-bars-row" id="chart-bars"></div>
-            <svg class="chart-line" id="chart-line" viewBox="0 0 560 110" preserveAspectRatio="none"></svg>
+
+          <!-- Сарын тэмдэглэлийн тоо -->
+          <div class="chart-wrap" style="margin-bottom:0">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Сарын тэмдэглэлийн тоо</div>
+                <div class="chart-sub">2026 он</div>
+              </div>
+              <span class="chart-badge" id="chart-badge"></span>
+            </div>
+            <div class="chart-area">
+              <div class="chart-bars-row" id="chart-bars"></div>
+              <svg class="chart-line" id="chart-line" viewBox="0 0 560 110" preserveAspectRatio="none"></svg>
+            </div>
+            <div class="chart-labels" id="chart-labels"></div>
           </div>
-          <div class="chart-labels" id="chart-labels"></div>
         </div>
         <div class="dashboard-bottom">
           <div class="card" style="margin-bottom:0">
@@ -589,6 +623,63 @@ details[open] summary .chevron{transform:rotate(90deg)}
         </div>
       </div>
 
+      <!-- НУУЦ ҮГ САН TAB -->
+      <div id="tab-vault" class="tab-content">
+        <!-- Түгжигдсэн байдал -->
+        <div id="vault-locked" class="card">
+          <div class="vault-lock">
+            <i class="ti ti-lock"></i>
+            <div style="font-size:15px;font-weight:600;color:#1a2332;margin-bottom:6px">Нууц үгийн сан</div>
+            <div style="font-size:12px;color:#8a97a8;margin-bottom:16px">Master нууц үгээ оруулж нээнэ үү</div>
+            <input type="password" id="vault-master-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')vaultUnlock()">
+            <br>
+            <button class="btn btn-primary" style="margin-top:4px" onclick="vaultUnlock()"><i class="ti ti-lock-open"></i> Нээх</button>
+            <div id="vault-lock-err" style="font-size:12px;color:#e74c3c;margin-top:8px;display:none">Нууц үг буруу байна</div>
+            <div style="font-size:11px;color:#a0aab4;margin-top:16px">Анх удаа нээж байгаа бол дурын нууц үг оруулна — тэр нь master болно</div>
+          </div>
+        </div>
+
+        <!-- Нээгдсэн байдал -->
+        <div id="vault-unlocked" style="display:none">
+          <div class="card" style="margin-bottom:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <input id="vault-search" placeholder="Хайх..." style="padding:6px 12px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none;width:200px" oninput="renderVault()">
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-sm" onclick="vaultLock()"><i class="ti ti-lock"></i> Түгжих</button>
+                <button class="btn btn-sm btn-primary" onclick="toggleVaultForm()"><i class="ti ti-plus"></i> Нэмэх</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Нэмэх форм -->
+          <div id="vault-add-form" class="vault-add-form" style="display:none;margin-bottom:10px">
+            <div class="vault-add-title"><i class="ti ti-plus"></i> Шинэ бүртгэл нэмэх</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div><label>Нэр <span class="req">*</span></label><input id="v-name" placeholder="Gmail, Work VPN..."></div>
+              <div><label>URL</label><input id="v-url" placeholder="https://..."></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div><label>Нэвтрэх нэр</label><input id="v-user" placeholder="username / email"></div>
+              <div><label>Нууц үг</label>
+                <div style="position:relative">
+                  <input id="v-pw" type="password" placeholder="••••••••" style="padding-right:36px">
+                  <button onclick="toggleVaultPwVis('v-pw',this)" type="button" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#8a97a8;font-size:14px"><i class="ti ti-eye"></i></button>
+                </div>
+              </div>
+            </div>
+            <div style="margin-bottom:10px"><label>Тэмдэглэл</label><input id="v-note" placeholder="Нэмэлт мэдээлэл..."></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button class="btn btn-sm" onclick="toggleVaultForm()">Болих</button>
+              <button class="btn btn-sm btn-primary" onclick="vaultSave()"><i class="ti ti-check"></i> Хадгалах</button>
+            </div>
+          </div>
+
+          <div class="vault-grid" id="vault-grid"></div>
+        </div>
+      </div>
+
       <!-- SETTINGS TAB -->
       <div id="tab-settings" class="tab-content">
         <div class="card">
@@ -618,7 +709,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
 const CLIENT_ID='318160635801-6970fmqoqafpp6j9nm216skqe0945fvm.apps.googleusercontent.com';
 const SCOPES='https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/calendar';
 const FILE_NAME='ajliin_temdegel_2026.json';
-const PAGE_TITLES={dashboard:'Хяналтын самбар',add:'Ажил нэмэх',list:'Тэмдэглэлүүд',report:'Тайлан',sticky:'Sticky notes',calendar:'Google Calendar',settings:'Тохиргоо'};
+const PAGE_TITLES={dashboard:'Хяналтын самбар',add:'Ажил нэмэх',list:'Тэмдэглэлүүд',report:'Тайлан',sticky:'Sticky notes',calendar:'Google Calendar',vault:'Нууц үгийн сан',settings:'Тохиргоо'};
 const MONTH_NAMES=['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
 const TAG_COLORS=['#E1F5EE:#0F6E56','#E6F1FB:#185FA5','#FAECE7:#993C1D','#FFF3E8:#9E5E3D','#F0F0FF:#4A3F9E','#FEFCE8:#7A6200'];
 
@@ -1263,6 +1354,7 @@ function showTab(name,el){
   if(name==='dashboard'){renderDashboard();}
   if(name==='sticky'){renderStickyNotes();}
   if(name==='calendar'){initCalendar();}
+  if(name==='vault'){initVault();}
 }
 
 // ── STICKY NOTES ──────────────────────────────────────────
@@ -1590,6 +1682,199 @@ function calGoToday(){
   fetchCalEvents().then(()=>renderDayEvents(calSelectedDate));
 }
 function calRefresh(){fetchCalEvents();}
+
+// ── НУУЦ ҮГ САН (AES-256-GCM) ────────────────────────────
+let vaultKey=null;
+let vaultItems=[];
+
+async function deriveKey(password,salt){
+  const enc=new TextEncoder();
+  const keyMaterial=await crypto.subtle.importKey('raw',enc.encode(password),{name:'PBKDF2'},false,['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {name:'PBKDF2',salt,iterations:100000,hash:'SHA-256'},
+    keyMaterial,{name:'AES-GCM',length:256},false,['encrypt','decrypt']
+  );
+}
+async function encryptData(key,data){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const enc=new TextEncoder();
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(JSON.stringify(data)));
+  return {iv:Array.from(iv),ct:Array.from(new Uint8Array(ct))};
+}
+async function decryptData(key,payload){
+  const iv=new Uint8Array(payload.iv);
+  const ct=new Uint8Array(payload.ct);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function b64(arr){return btoa(String.fromCharCode(...arr));}
+function unb64(s){return new Uint8Array(atob(s).split('').map(c=>c.charCodeAt(0)));}
+
+async function initVault(){
+  const stored=localStorage.getItem('vault_meta_hsti');
+  if(!stored){
+    // Анх удаа — lock screen харуулна
+    document.getElementById('vault-locked').style.display='block';
+    document.getElementById('vault-unlocked').style.display='none';
+    return;
+  }
+  if(vaultKey){
+    // Аль хэдийн нээгдсэн
+    document.getElementById('vault-locked').style.display='none';
+    document.getElementById('vault-unlocked').style.display='block';
+    renderVault();
+  } else {
+    document.getElementById('vault-locked').style.display='block';
+    document.getElementById('vault-unlocked').style.display='none';
+  }
+}
+
+async function vaultUnlock(){
+  const pw=document.getElementById('vault-master-input').value;
+  if(!pw){return;}
+  const errEl=document.getElementById('vault-lock-err');
+  errEl.style.display='none';
+
+  const stored=localStorage.getItem('vault_meta_hsti');
+  if(!stored){
+    // Анх удаа — master үүсгэх
+    const salt=crypto.getRandomValues(new Uint8Array(16));
+    vaultKey=await deriveKey(pw,salt);
+    // Шалгах утга хадгалах
+    const check=await encryptData(vaultKey,{check:'ok'});
+    localStorage.setItem('vault_meta_hsti',JSON.stringify({salt:Array.from(salt),check}));
+    localStorage.setItem('vault_data_hsti',JSON.stringify(await encryptData(vaultKey,[])));
+    vaultItems=[];
+  } else {
+    const meta=JSON.parse(stored);
+    const salt=new Uint8Array(meta.salt);
+    vaultKey=await deriveKey(pw,salt);
+    try{
+      const chk=await decryptData(vaultKey,meta.check);
+      if(chk.check!=='ok')throw new Error();
+    }catch(e){
+      vaultKey=null;
+      errEl.style.display='block';
+      return;
+    }
+    // Өгөгдөл уншах
+    const raw=localStorage.getItem('vault_data_hsti');
+    if(raw){
+      try{vaultItems=await decryptData(vaultKey,JSON.parse(raw));}catch(e){vaultItems=[];}
+    }
+  }
+  document.getElementById('vault-master-input').value='';
+  document.getElementById('vault-locked').style.display='none';
+  document.getElementById('vault-unlocked').style.display='block';
+  renderVault();
+}
+
+function vaultLock(){
+  vaultKey=null;vaultItems=[];
+  document.getElementById('vault-locked').style.display='block';
+  document.getElementById('vault-unlocked').style.display='none';
+  document.getElementById('vault-master-input').value='';
+}
+
+async function vaultSaveData(){
+  if(!vaultKey)return;
+  const enc=await encryptData(vaultKey,vaultItems);
+  localStorage.setItem('vault_data_hsti',JSON.stringify(enc));
+}
+
+function toggleVaultForm(){
+  const f=document.getElementById('vault-add-form');
+  f.style.display=f.style.display==='none'?'block':'none';
+  if(f.style.display==='block'){
+    document.getElementById('v-name').value='';
+    document.getElementById('v-url').value='';
+    document.getElementById('v-user').value='';
+    document.getElementById('v-pw').value='';
+    document.getElementById('v-note').value='';
+    document.getElementById('v-name').focus();
+  }
+}
+async function vaultSave(){
+  const name=document.getElementById('v-name').value.trim();
+  if(!name){showAlert('Нэр оруулна уу','error');return;}
+  const item={
+    id:Date.now(),name,
+    url:document.getElementById('v-url').value.trim(),
+    user:document.getElementById('v-user').value.trim(),
+    pw:document.getElementById('v-pw').value,
+    note:document.getElementById('v-note').value.trim(),
+    date:new Date().toISOString().slice(0,10)
+  };
+  vaultItems.unshift(item);
+  await vaultSaveData();
+  toggleVaultForm();
+  renderVault();
+  showAlert('Хадгалагдлаа!','success');
+}
+async function vaultDelete(id){
+  vaultItems=vaultItems.filter(i=>i.id!==id);
+  await vaultSaveData();
+  renderVault();
+}
+function toggleVaultPwVis(inputId,btn){
+  const inp=document.getElementById(inputId);
+  if(inp.type==='password'){inp.type='text';btn.innerHTML='<i class="ti ti-eye-off"></i>';}
+  else{inp.type='password';btn.innerHTML='<i class="ti ti-eye"></i>';}
+}
+function copyVaultField(text){
+  navigator.clipboard.writeText(text).then(()=>showAlert('Хуулагдлаа!','success'));
+}
+function getInitial(name){return name?name[0].toUpperCase():'?';}
+
+function renderVault(){
+  const q=(document.getElementById('vault-search')?.value||'').toLowerCase();
+  const grid=document.getElementById('vault-grid');
+  if(!grid)return;
+  const filtered=vaultItems.filter(i=>
+    i.name.toLowerCase().includes(q)||
+    (i.url||'').toLowerCase().includes(q)||
+    (i.user||'').toLowerCase().includes(q)
+  );
+  if(!filtered.length){
+    grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:#a0aab4">
+      <i class="ti ti-lock" style="font-size:36px;display:block;margin-bottom:10px;opacity:0.3"></i>
+      ${q?'Хайлтад тохирох бүртгэл байхгүй':'Нууц үгийн сан хоосон байна'}
+    </div>`;
+    return;
+  }
+  grid.innerHTML=filtered.map(item=>`
+    <div class="vault-card">
+      <div class="vault-card-top">
+        <div class="vault-favicon">${getInitial(item.name)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="vault-name">${item.name}</div>
+          ${item.url?`<div class="vault-url"><a href="${item.url}" target="_blank" style="color:#8a97a8;text-decoration:none">${item.url}</a></div>`:''}
+        </div>
+        <button onclick="vaultDelete(${item.id})" style="background:none;border:none;cursor:pointer;color:#e8edf3;font-size:14px" title="Устгах"><i class="ti ti-trash"></i></button>
+      </div>
+      ${item.user?`<div class="vault-field">
+        <span class="vault-field-label">Нэвтрэх нэр</span>
+        <span class="vault-field-val">${item.user}</span>
+        <button class="vault-copy-btn" onclick="copyVaultField('${item.user.replace(/'/g,"\\'")}')"><i class="ti ti-copy"></i></button>
+      </div>`:''}
+      ${item.pw?`<div class="vault-field">
+        <span class="vault-field-label">Нууц үг</span>
+        <span class="vault-field-val vault-pw" id="vpw-${item.id}">••••••••</span>
+        <button class="vault-copy-btn" onclick="copyVaultField('${item.pw.replace(/'/g,"\\'")}')"><i class="ti ti-copy"></i></button>
+        <button class="vault-copy-btn" onclick="toggleVaultItemPw(${item.id},'${item.pw.replace(/'/g,"\\'")}')"><i class="ti ti-eye"></i></button>
+      </div>`:''}
+      ${item.note?`<div class="vault-field">
+        <span class="vault-field-label">Тэмдэглэл</span>
+        <span class="vault-field-val" style="color:#8a97a8">${item.note}</span>
+      </div>`:''}
+      <div style="font-size:10px;color:#c9d4e0;margin-top:8px;text-align:right">${item.date}</div>
+    </div>`).join('');
+}
+function toggleVaultItemPw(id,pw){
+  const el=document.getElementById('vpw-'+id);
+  if(!el)return;
+  el.textContent=el.textContent==='••••••••'?pw:'••••••••';
+}
 
 window.addEventListener('load',init);
 </script>
