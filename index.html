@@ -1579,7 +1579,11 @@ function showTab(name,el){
   document.getElementById('page-title').textContent=PAGE_TITLES[name]||'';
   if(name==='list'){renderList();populateFilters();}
   if(name==='dashboard'){renderDashboard();}
-  if(name==='sticky'){renderStickyNotes();}
+  if(name==='sticky'){
+    // Labels-г localStorage-аас шинэчлэх
+    try{const l=localStorage.getItem('sticky_labels_hsti');if(l){const p=JSON.parse(l);if(p&&p.length>0)stickyLabels=p;}}catch(e){}
+    renderStickyNotes();
+  }
   if(name==='calendar'){initCalendar();}
   if(name==='vault'){initVault();}
 }
@@ -1598,13 +1602,9 @@ let activeFilterLabel=null;
 
 function loadStickyNotes(){
   try{const s=localStorage.getItem('sticky_notes_hsti');if(s)stickyNotes=JSON.parse(s);}catch(e){stickyNotes=[];}
-  // Labels-г зөвхөн хоосон үед localStorage-аас уншина
   try{
     const l=localStorage.getItem('sticky_labels_hsti');
-    if(l){
-      const parsed=JSON.parse(l);
-      if(parsed&&parsed.length>0)stickyLabels=parsed;
-    }
+    if(l){const parsed=JSON.parse(l);if(parsed&&parsed.length>0)stickyLabels=parsed;}
   }catch(e){}
 }
 let stickyAutoSyncTimer=null;
@@ -1747,7 +1747,9 @@ function filterByLabel(id){
 }
 
 function renderStickyNotes(){
-  loadStickyNotes();renderLabelFilters();
+  // Зөвхөн notes-г localStorage-аас уншина, labels-г биш
+  try{const s=localStorage.getItem('sticky_notes_hsti');if(s)stickyNotes=JSON.parse(s);}catch(e){stickyNotes=[];}
+  renderLabelFilters();
   const grid=document.getElementById('sticky-grid');if(!grid)return;
   let notes=stickyNotes;
   if(activeFilterLabel)notes=notes.filter(n=>(n.labels||[]).includes(activeFilterLabel));
