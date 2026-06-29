@@ -682,6 +682,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
               <div class="sticky-color-btn" style="background:#FFE0B2" data-color="#FFE0B2" onclick="selectStickyColor(this)" title="Улбар шар"></div>
             </div>
             <button class="btn btn-primary" onclick="addStickyNote()"><i class="ti ti-plus"></i> Нэмэх</button>
+            <button class="btn btn-sm" onclick="syncToDrive()" title="Drive-д хадгалах"><i class="ti ti-cloud-upload"></i></button>
           </div>
           <!-- Шошго шүүлтүүр -->
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -753,6 +754,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
               </div>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-sm" onclick="vaultLock()"><i class="ti ti-lock"></i> Түгжих</button>
+                <button class="btn btn-sm" onclick="syncToDrive()" title="Drive-д хадгалах"><i class="ti ti-cloud-upload"></i></button>
                 <button class="btn btn-sm btn-primary" onclick="toggleVaultForm()"><i class="ti ti-plus"></i> Нэмэх</button>
               </div>
             </div>
@@ -933,8 +935,20 @@ async function syncToDrive(){
   if(!accessToken){showAlert('Нэвтэрнэ үү','error');return;}
   setSyncBadge('Хадгалж байна...','#f39c12');
   try{
-    const data=JSON.stringify({entries,updated:new Date().toISOString()});
-    const blob=new Blob([data],{type:'application/json'});
+    // Sticky notes болон vault өгөгдлийг нэмэх
+    const stickyData=localStorage.getItem('sticky_notes_hsti');
+    const stickyLabelsData=localStorage.getItem('sticky_labels_hsti');
+    const vaultMeta=localStorage.getItem('vault_meta_hsti');
+    const vaultData=localStorage.getItem('vault_data_hsti');
+    const payload={
+      entries,
+      updated:new Date().toISOString(),
+      sticky_notes:stickyData?JSON.parse(stickyData):[],
+      sticky_labels:stickyLabelsData?JSON.parse(stickyLabelsData):[],
+      vault_meta:vaultMeta?JSON.parse(vaultMeta):null,
+      vault_data:vaultData?JSON.parse(vaultData):null,
+    };
+    const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
     if(!driveFileId){
       const meta=await fetch('https://www.googleapis.com/drive/v3/files',{
         method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
@@ -960,8 +974,9 @@ async function loadFromDrive(){
       driveFileId=res.files[0].id;
       const content=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
         headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+
+      // Ажлын тэмдэглэл — merge (давхардал орохгүй)
       if(content.entries&&content.entries.length){
-        // Drive + localStorage-г нэгтгэх — давхардлыг id-р шүүх
         const localIds=new Set(entries.map(e=>e.id));
         const driveOnly=content.entries.filter(e=>!localIds.has(e.id));
         if(driveOnly.length>0){
@@ -972,8 +987,37 @@ async function loadFromDrive(){
         }
         document.getElementById('total-count').textContent=entries.length;
         populateFilters();renderDashboard();
-        setSyncBadge('Синктэй','#0F6E56');
-      }else setSyncBadge('Синктэй','#0F6E56');
+      }
+
+      // Sticky notes — Drive дээр байвал localStorage-д бичих
+      if(content.sticky_notes&&content.sticky_notes.length){
+        const localSticky=localStorage.getItem('sticky_notes_hsti');
+        const localArr=localSticky?JSON.parse(localSticky):[];
+        const localIds=new Set(localArr.map(n=>n.id));
+        const newNotes=content.sticky_notes.filter(n=>!localIds.has(n.id));
+        if(newNotes.length>0){
+          const merged=[...localArr,...newNotes];
+          localStorage.setItem('sticky_notes_hsti',JSON.stringify(merged));
+          stickyNotes=merged;
+        }
+      }
+      if(content.sticky_labels&&content.sticky_labels.length){
+        const localLabels=localStorage.getItem('sticky_labels_hsti');
+        if(!localLabels||JSON.parse(localLabels).length===0){
+          localStorage.setItem('sticky_labels_hsti',JSON.stringify(content.sticky_labels));
+          stickyLabels=content.sticky_labels;
+        }
+      }
+
+      // Vault — Drive дээр байвал, localStorage хоосон үед бичих
+      if(content.vault_meta&&!localStorage.getItem('vault_meta_hsti')){
+        localStorage.setItem('vault_meta_hsti',JSON.stringify(content.vault_meta));
+      }
+      if(content.vault_data&&!localStorage.getItem('vault_data_hsti')){
+        localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault_data));
+      }
+
+      setSyncBadge('Синктэй','#0F6E56');
     }else setSyncBadge('Шинэ файл','#0F6E56');
   }catch(e){setSyncBadge('Алдаа','#e74c3c');}
 }
