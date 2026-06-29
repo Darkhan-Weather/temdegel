@@ -65,6 +65,22 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .dashboard-top-row{display:grid;grid-template-columns:1fr 1.5fr;gap:14px;margin-bottom:14px;align-items:start}
 
 /* НУУЦ ҮГ САН */
+/* TODO */
+.todo-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:#fafbfc;border:1.5px solid #f0f2f5;margin-bottom:7px;transition:all 0.15s}
+.todo-item:hover{border-color:#e0e7ef}
+.todo-item.done{opacity:0.5}
+.todo-item.done .todo-text{text-decoration:line-through;color:#a0aab4}
+.todo-check{width:18px;height:18px;border-radius:5px;border:2px solid #c9d4e0;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s;background:white}
+.todo-check.checked{background:linear-gradient(135deg,#EBAD7C,#9E5E3D);border-color:transparent}
+.todo-check.checked::after{content:'✓';color:white;font-size:11px}
+.todo-text{flex:1;font-size:13px;color:#1a2332;line-height:1.4}
+.todo-badge{font-size:10px;padding:2px 7px;border-radius:8px;flex-shrink:0}
+.todo-badge.urgent{background:#FFF0F0;color:#e74c3c}
+.todo-badge.important{background:#FFF8E8;color:#E67E22}
+.todo-badge.normal{background:#F0F4F8;color:#6b7a8d}
+.todo-del{background:none;border:none;cursor:pointer;color:#dde3ec;font-size:13px;padding:2px 4px;border-radius:4px}
+.todo-del:hover{color:#e74c3c}
+
 .vault-lock{text-align:center;padding:40px 20px}
 .vault-lock i{font-size:48px;color:#EBAD7C;display:block;margin-bottom:12px}
 .vault-lock input{width:100%;max-width:280px;padding:10px 14px;border:1.5px solid #dde3ec;border-radius:10px;font-size:14px;outline:none;text-align:center;letter-spacing:2px;margin-bottom:10px}
@@ -228,11 +244,23 @@ details[open] summary .chevron{transform:rotate(90deg)}
   .dashboard-top-row{grid-template-columns:1fr}
   .dashboard-bottom{grid-template-columns:1fr}
   .form-grid{grid-template-columns:1fr}
-  .filter-row{grid-template-columns:1fr}
+  .filter-row{grid-template-columns:1fr 1fr}
   .vault-grid{grid-template-columns:1fr}
-  .cal-grid{grid-template-columns:repeat(7,1fr)}
-  .cal-day{min-height:48px;padding:3px}
+  .cal-day{min-height:44px;padding:3px}
   .cal-event-dot{display:none}
+  .cal-day-num{font-size:11px;width:18px;height:18px}
+  /* Утасны template товчнууд */
+  .template-row{gap:6px}
+  .template-btn{font-size:11px;padding:6px 10px}
+  /* Sticky шошго хэвтээ байх */
+  #sticky-label-filters{flex-direction:row;flex-wrap:wrap}
+  /* Recent item утсанд */
+  .recent-date{min-width:60px;font-size:10px}
+  /* Dashboard top row утсанд өндөр хязгаарлах */
+  #today-list{max-height:180px}
+  /* Content header */
+  .content-header{padding:10px 14px}
+  .content-header h1{font-size:15px}
 }
 </style>
 </head>
@@ -347,6 +375,29 @@ details[open] summary .chevron{transform:rotate(90deg)}
             <div class="chart-labels" id="chart-labels"></div>
           </div>
         </div>
+
+        <!-- ӨНӨӨДРИЙН ДААЛГАВАР (ToDo) -->
+        <div class="card" style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="card-title" style="margin:0"><i class="ti ti-checklist"></i> Өнөөдрийн даалгавар</div>
+            <button class="btn btn-sm btn-primary" onclick="todoShowAdd()"><i class="ti ti-plus"></i> Нэмэх</button>
+          </div>
+          <!-- Нэмэх форм -->
+          <div id="todo-add-form" style="display:none;background:#f8fafc;border-radius:10px;border:1.5px dashed #c9d4e0;padding:12px;margin-bottom:12px">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input id="todo-input" placeholder="Даалгавар бичнэ үү..." style="flex:1;min-width:160px" onkeydown="if(event.key==='Enter')todoAdd()">
+              <select id="todo-priority" style="width:110px;padding:8px">
+                <option value="normal">Энгийн</option>
+                <option value="important">Чухал</option>
+                <option value="urgent">Яаралтай</option>
+              </select>
+              <button class="btn btn-sm btn-primary" onclick="todoAdd()"><i class="ti ti-check"></i></button>
+              <button class="btn btn-sm" onclick="document.getElementById('todo-add-form').style.display='none'">✕</button>
+            </div>
+          </div>
+          <div id="todo-list"></div>
+        </div>
+
         <div class="dashboard-bottom">
           <div class="card" style="margin-bottom:0">
             <div class="card-title"><i class="ti ti-clock"></i> Энэ долоо хоногт нэмсэн ажлууд</div>
@@ -581,7 +632,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
           <!-- Шошго шүүлтүүр -->
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="sticky-color-label">Шошго:</span>
-            <div id="sticky-label-filters" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></div>
+            <div id="sticky-label-filters" style="display:flex;gap:6px;flex-wrap:wrap;flex:1;flex-direction:row"></div>
             <button class="btn btn-sm" onclick="openLabelManager()" title="Шошго удирдах"><i class="ti ti-tag"></i> Удирдах</button>
           </div>
         </div>
@@ -878,6 +929,8 @@ function renderDashboard(){
         </div>`).join('');
     }
   }
+
+  renderTodos();
   const thisM=entries.filter(e=>e.date.slice(5,7)===curM).length;
   const zaaltSet=new Set(entries.map(e=>e.zaalt).filter(v=>v&&v!=='custom'&&v!=='nemel'&&v!=='medleg'&&v!=='eelje'));
   const covered=zaaltSet.size;
@@ -1682,6 +1735,68 @@ function calGoToday(){
   fetchCalEvents().then(()=>renderDayEvents(calSelectedDate));
 }
 function calRefresh(){fetchCalEvents();}
+
+// ── ӨНӨӨДРИЙН ДААЛГАВАР (ToDo) ───────────────────────────
+let todos=[];
+
+function loadTodos(){
+  try{const s=localStorage.getItem('todos_hsti');if(s)todos=JSON.parse(s);}catch(e){todos=[];}
+}
+function saveTodos(){
+  try{localStorage.setItem('todos_hsti',JSON.stringify(todos));}catch(e){}
+}
+function todoShowAdd(){
+  const f=document.getElementById('todo-add-form');
+  f.style.display=f.style.display==='none'?'block':'none';
+  if(f.style.display==='block')document.getElementById('todo-input').focus();
+}
+function todoAdd(){
+  const inp=document.getElementById('todo-input');
+  const text=inp.value.trim();
+  if(!text)return;
+  const pri=document.getElementById('todo-priority').value;
+  const today=new Date().toISOString().slice(0,10);
+  todos.unshift({id:Date.now(),text,priority:pri,done:false,date:today});
+  saveTodos();
+  inp.value='';
+  document.getElementById('todo-add-form').style.display='none';
+  renderTodos();
+}
+function todoToggle(id){
+  const t=todos.find(t=>t.id===id);
+  if(t){t.done=!t.done;saveTodos();renderTodos();}
+}
+function todoDelete(id){
+  todos=todos.filter(t=>t.id!==id);
+  saveTodos();renderTodos();
+}
+function renderTodos(){
+  loadTodos();
+  const today=new Date().toISOString().slice(0,10);
+  // Өнөөдрийн + дуусаагүй өмнөх даалгавруудыг харуулах
+  const visible=todos.filter(t=>t.date===today||!t.done);
+  const el=document.getElementById('todo-list');
+  if(!el)return;
+  if(!visible.length){
+    el.innerHTML='<div style="text-align:center;padding:16px;color:#a0aab4;font-size:13px"><i class="ti ti-checklist" style="font-size:20px;display:block;margin-bottom:6px;opacity:0.3"></i>Өнөөдрийн даалгавар байхгүй</div>';
+    return;
+  }
+  const priLabel={urgent:'Яаралтай',important:'Чухал',normal:'Энгийн'};
+  // Эрэмбэлэх: яаралтай → чухал → энгийн, дуусаагүй эхэнд
+  const sorted=[...visible].sort((a,b)=>{
+    if(a.done!==b.done)return a.done?1:-1;
+    const po={urgent:0,important:1,normal:2};
+    return (po[a.priority]||2)-(po[b.priority]||2);
+  });
+  el.innerHTML=sorted.map(t=>`
+    <div class="todo-item${t.done?' done':''}">
+      <div class="todo-check${t.done?' checked':''}" onclick="todoToggle(${t.id})"></div>
+      <span class="todo-text">${t.text}</span>
+      ${t.date!==today?`<span style="font-size:10px;color:#a0aab4">${t.date.slice(5).replace('-','/')} →</span>`:''}
+      <span class="todo-badge ${t.priority}">${priLabel[t.priority]}</span>
+      <button class="todo-del" onclick="todoDelete(${t.id})"><i class="ti ti-x"></i></button>
+    </div>`).join('');
+}
 
 // ── НУУЦ ҮГ САН (AES-256-GCM) ────────────────────────────
 let vaultKey=null;
