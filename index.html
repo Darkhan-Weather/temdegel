@@ -62,7 +62,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 
 /* STAT CARDS */
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;width:100%}
-.dashboard-top-row{display:grid;grid-template-columns:1fr 1.5fr;gap:14px;margin-bottom:14px;align-items:start}
+.dashboard-top-row{display:grid;grid-template-columns:1fr 1.5fr;gap:14px;margin-bottom:14px;align-items:start;min-width:0}
+.dashboard-top-row>*{min-width:0;overflow:hidden}
 
 /* НУУЦ ҮГ САН */
 /* THEME */
@@ -181,7 +182,8 @@ body.theme-dark label{color:#A0A0C0}
 .recent-tag{font-size:11px;padding:2px 8px;border-radius:5px;flex-shrink:0}
 
 /* DASHBOARD GRID */
-.dashboard-bottom{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;width:100%}
+.dashboard-bottom{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;width:100%;min-width:0}
+.dashboard-bottom>*{min-width:0;overflow:hidden}
 
 /* FORM */
 label{font-size:12px;color:#6b7a8d;margin-bottom:4px;display:block}
@@ -197,15 +199,15 @@ textarea{resize:vertical;min-height:80px}
 .btn-sm{padding:4px 10px;font-size:12px;border-radius:6px}
 .btn-danger{color:#e74c3c;border-color:#ffd0d0;background:#fff5f5}
 .btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
-.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
-.date-nav input{flex:1}
+.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.date-nav input{flex:1;min-width:120px}
 .field-error{font-size:12px;color:#e74c3c;margin-top:4px;display:flex;align-items:center;gap:4px}
 .tag-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.tag-chip{font-size:12px;padding:5px 12px;border-radius:20px;border:1.5px solid #dde3ec;background:white;cursor:pointer;color:#6b7a8d;transition:all 0.15s}
+.tag-chip{font-size:12px;padding:5px 12px;border-radius:20px;border:1.5px solid #dde3ec;background:white;cursor:pointer;color:#6b7a8d;transition:all 0.15s;white-space:nowrap}
 .tag-chip.active{background:linear-gradient(135deg,#EBAD7C,#9E5E3D);color:white;border-color:transparent}
 .tag-chip:hover{border-color:#EBAD7C}
 .template-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-.template-btn{font-size:12px;padding:7px 14px;border-radius:9px;border:1.5px dashed #c9d4e0;background:#fafbfc;cursor:pointer;color:#1a3a5c;display:inline-flex;align-items:center;gap:5px}
+.template-btn{font-size:12px;padding:7px 14px;border-radius:9px;border:1.5px dashed #c9d4e0;background:#fafbfc;cursor:pointer;color:#1a3a5c;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
 .template-btn:hover{border-color:#EBAD7C;background:#fff8f3}
 details summary{font-size:13px;color:#1a2332;cursor:pointer;margin-bottom:8px;user-select:none;display:flex;align-items:center;gap:6px;padding:8px 0;font-weight:500}
 details summary .chevron{transition:transform 0.2s;font-size:14px}
@@ -684,7 +686,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
           <!-- Шошго шүүлтүүр -->
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="sticky-color-label">Шошго:</span>
-            <div id="sticky-label-filters" style="display:flex;gap:6px;flex-wrap:wrap;flex:1;flex-direction:row"></div>
+            <div id="sticky-label-filters" style="display:flex;gap:6px;flex-wrap:wrap;flex:1;flex-direction:row;min-width:0"></div>
             <button class="btn btn-sm" onclick="openLabelManager()" title="Шошго удирдах"><i class="ti ti-tag"></i> Удирдах</button>
           </div>
         </div>
@@ -729,7 +731,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
       <!-- НУУЦ ҮГ САН TAB -->
       <div id="tab-vault" class="tab-content">
         <!-- Түгжигдсэн байдал -->
-        <div id="vault-locked" class="card">
+        <div id="vault-locked" class="card" style="display:none">
           <div class="vault-lock">
             <i class="ti ti-lock"></i>
             <div style="font-size:15px;font-weight:600;color:#1a2332;margin-bottom:6px">Нууц үгийн сан</div>
@@ -1930,22 +1932,18 @@ function b64(arr){return btoa(String.fromCharCode(...arr));}
 function unb64(s){return new Uint8Array(atob(s).split('').map(c=>c.charCodeAt(0)));}
 
 async function initVault(){
-  const stored=localStorage.getItem('vault_meta_hsti');
-  if(!stored){
-    // Анх удаа — lock screen харуулна
-    document.getElementById('vault-locked').style.display='block';
-    document.getElementById('vault-unlocked').style.display='none';
-    return;
-  }
   if(vaultKey){
-    // Аль хэдийн нээгдсэн
     document.getElementById('vault-locked').style.display='none';
     document.getElementById('vault-unlocked').style.display='block';
     renderVault();
-  } else {
-    document.getElementById('vault-locked').style.display='block';
-    document.getElementById('vault-unlocked').style.display='none';
+    return;
   }
+  // Түгжигдсэн байдал харуулах
+  document.getElementById('vault-locked').style.display='block';
+  document.getElementById('vault-unlocked').style.display='none';
+  const stored=localStorage.getItem('vault_meta_hsti');
+  const hint=document.getElementById('vault-lock-hint');
+  if(hint)hint.style.display=stored?'none':'block';
 }
 
 async function vaultUnlock(){
