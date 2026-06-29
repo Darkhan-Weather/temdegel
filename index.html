@@ -1016,6 +1016,10 @@ async function loadFromDrive(){
       if(content.vault_data&&!localStorage.getItem('vault_data_hsti')){
         localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault_data));
       }
+      // Vault tab нээлттэй бол дахин initVault дуудах
+      if(document.getElementById('tab-vault')?.classList.contains('active')){
+        initVault();
+      }
 
       setSyncBadge('Синктэй','#0F6E56');
     }else setSyncBadge('Шинэ файл','#0F6E56');
@@ -2027,12 +2031,15 @@ async function initVault(){
     renderVault();
     return;
   }
+  // Drive-аас vault өгөгдөл татаж байгаа эсэхийг шалгах
+  const hasMeta=localStorage.getItem('vault_meta_hsti');
+  if(!hasMeta&&accessToken){
+    // Drive-аас уншаад дахин шалгах
+    await loadFromDrive();
+  }
   // Түгжигдсэн байдал харуулах
   document.getElementById('vault-locked').style.display='block';
   document.getElementById('vault-unlocked').style.display='none';
-  const stored=localStorage.getItem('vault_meta_hsti');
-  const hint=document.getElementById('vault-lock-hint');
-  if(hint)hint.style.display=stored?'none':'block';
 }
 
 async function vaultUnlock(){
