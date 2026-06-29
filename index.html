@@ -952,12 +952,18 @@ async function loadFromDrive(){
       const content=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
         headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
       if(content.entries&&content.entries.length){
-        entries=content.entries;
-        localStorage.setItem('hsti_v3',JSON.stringify(entries));
+        // Drive + localStorage-г нэгтгэх — давхардлыг id-р шүүх
+        const localIds=new Set(entries.map(e=>e.id));
+        const driveOnly=content.entries.filter(e=>!localIds.has(e.id));
+        if(driveOnly.length>0){
+          entries=[...entries,...driveOnly];
+          entries.sort((a,b)=>b.date.localeCompare(a.date));
+          localStorage.setItem('hsti_v3',JSON.stringify(entries));
+          showAlert('Drive-аас '+driveOnly.length+' шинэ бүртгэл нэмэгдлээ','success');
+        }
         document.getElementById('total-count').textContent=entries.length;
         populateFilters();renderDashboard();
         setSyncBadge('Синктэй','#0F6E56');
-        showAlert('Drive-аас уншлаа — '+entries.length+' бүртгэл','success');
       }else setSyncBadge('Синктэй','#0F6E56');
     }else setSyncBadge('Шинэ файл','#0F6E56');
   }catch(e){setSyncBadge('Алдаа','#e74c3c');}
