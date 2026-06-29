@@ -695,25 +695,28 @@ details[open] summary .chevron{transform:rotate(90deg)}
 
         <!-- Шошго удирдах modal -->
         <div id="label-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:999;align-items:center;justify-content:center">
-          <div style="background:white;border-radius:16px;padding:20px;width:320px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
+          <div style="background:white;border-radius:16px;padding:20px;width:340px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
               <div style="font-size:14px;font-weight:600;color:#1a2332"><i class="ti ti-tag"></i> Шошго удирдах</div>
               <button onclick="closeLabelManager()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#8a97a8">✕</button>
             </div>
-            <div id="label-list" style="margin-bottom:12px;max-height:220px;overflow-y:auto"></div>
-            <div style="display:flex;gap:8px;margin-bottom:8px">
-              <input id="new-label-input" placeholder="Шинэ шошго нэр..." style="flex:1;min-width:0;width:auto;padding:7px 10px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')addNewLabel()">
-              <select id="new-label-color" style="width:100px;flex-shrink:0;padding:6px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none">
-                <option value="#E74C3C">🔴 Улаан</option>
-                <option value="#E67E22">🟠 Улбар</option>
-                <option value="#F1C40F">🟡 Шар</option>
-                <option value="#27AE60">🟢 Ногоон</option>
-                <option value="#2980B9">🔵 Цэнхэр</option>
-                <option value="#8E44AD">🟣 Нил</option>
-                <option value="#7F8C8D">⚫ Саарал</option>
-              </select>
+            <div id="label-list" style="margin-bottom:14px;max-height:220px;overflow-y:auto"></div>
+            <div style="border-top:1px solid #f0f2f5;padding-top:12px">
+              <div style="font-size:11px;color:#8a97a8;margin-bottom:8px;font-weight:500">ШИНЭ ШОШГО НЭМЭХ</div>
+              <input id="new-label-input" placeholder="Шошгоны нэр..." style="width:100%;padding:8px 10px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px" onkeydown="if(event.key==='Enter')addNewLabel()">
+              <div style="display:flex;gap:8px;align-items:center">
+                <select id="new-label-color" style="flex:1;padding:7px 8px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none">
+                  <option value="#E74C3C">🔴 Улаан</option>
+                  <option value="#E67E22">🟠 Улбар</option>
+                  <option value="#F1C40F">🟡 Шар</option>
+                  <option value="#27AE60">🟢 Ногоон</option>
+                  <option value="#2980B9">🔵 Цэнхэр</option>
+                  <option value="#8E44AD">🟣 Нил</option>
+                  <option value="#7F8C8D">⚫ Саарал</option>
+                </select>
+                <button class="btn btn-primary" onclick="addNewLabel()" style="white-space:nowrap"><i class="ti ti-plus"></i> Нэмэх</button>
+              </div>
             </div>
-            <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="addNewLabel()"><i class="ti ti-plus"></i> Нэмэх</button>
           </div>
         </div>
 
@@ -1652,13 +1655,26 @@ function closeLabelManager(){
 }
 function renderLabelList(){
   const el=document.getElementById('label-list');if(!el)return;
-  if(!stickyLabels.length){el.innerHTML='<p style="font-size:12px;color:#a0aab4;text-align:center">Шошго байхгүй</p>';return;}
+  if(!stickyLabels.length){
+    el.innerHTML='<p style="font-size:12px;color:#a0aab4;text-align:center;padding:8px">Шошго байхгүй</p>';
+    return;
+  }
   el.innerHTML=stickyLabels.map(l=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:#fafbfc;margin-bottom:6px">
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;background:#fafbfc;margin-bottom:6px">
       <span style="width:12px;height:12px;border-radius:50%;background:${l.color};flex-shrink:0;display:inline-block"></span>
-      <span style="flex:1;font-size:13px">${l.name}</span>
-      <button onclick="deleteLabel('${l.id}')" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:13px"><i class="ti ti-trash"></i></button>
+      <input value="${l.name}" style="flex:1;border:none;background:transparent;font-size:13px;outline:none;color:#1a2332;min-width:0"
+        onchange="editLabelName('${l.id}',this.value)"
+        onblur="editLabelName('${l.id}',this.value)">
+      <button onclick="deleteLabel('${l.id}')" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:13px;flex-shrink:0;padding:2px 4px;border-radius:4px" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'"><i class="ti ti-trash"></i></button>
     </div>`).join('');
+}
+function editLabelName(id,name){
+  const l=stickyLabels.find(l=>l.id===id);
+  if(l&&name.trim()){
+    l.name=name.trim();
+    try{localStorage.setItem('sticky_labels_hsti',JSON.stringify(stickyLabels));}catch(e){}
+    if(accessToken){clearTimeout(stickyAutoSyncTimer);stickyAutoSyncTimer=setTimeout(()=>syncToDrive(),2000);}
+  }
 }
 function addNewLabel(){
   const inp=document.getElementById('new-label-input');
@@ -2077,7 +2093,25 @@ async function vaultUnlock(){
       errEl.style.display='block';
       return;
     }
-    // Өгөгдөл уншах
+    // Өгөгдөл уншах — эхлээд Drive-аас шинэчлэх
+    if(accessToken){
+      try{
+        const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}'&spaces=drive`,{
+          headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+        if(res.files&&res.files.length>0){
+          const driveFileId=res.files[0].id;
+          const content=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
+            headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+          if(content.vault_data){
+            localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault_data));
+          }
+          if(content.vault_meta&&!localStorage.getItem('vault_meta_hsti')){
+            localStorage.setItem('vault_meta_hsti',JSON.stringify(content.vault_meta));
+          }
+        }
+      }catch(e){}
+    }
+    // Drive-аас татсан vault_data-г decode хийх
     const raw=localStorage.getItem('vault_data_hsti');
     if(raw){
       try{vaultItems=await decryptData(vaultKey,JSON.parse(raw));}catch(e){vaultItems=[];}
