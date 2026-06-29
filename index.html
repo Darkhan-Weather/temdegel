@@ -293,8 +293,9 @@ details[open] summary .chevron{transform:rotate(90deg)}
 @media(max-width:768px){
   .sidebar{width:60px}
   .sidebar-title,.nav-item span,.sidebar-user-name,.sidebar-user-role{display:none}
-  .main-content{margin-left:60px;width:calc(100% - 60px)}
-  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .main-content{margin-left:60px;width:calc(100% - 60px);overflow-x:hidden}
+  .content{padding:10px;overflow-x:hidden;width:100%;box-sizing:border-box}
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}
   .dashboard-top-row{grid-template-columns:1fr}
   .dashboard-bottom{grid-template-columns:1fr}
   .form-grid{grid-template-columns:1fr}
@@ -303,18 +304,15 @@ details[open] summary .chevron{transform:rotate(90deg)}
   .cal-day{min-height:44px;padding:3px}
   .cal-event-dot{display:none}
   .cal-day-num{font-size:11px;width:18px;height:18px}
-  /* Утасны template товчнууд */
   .template-row{gap:6px}
   .template-btn{font-size:11px;padding:6px 10px}
-  /* Sticky шошго хэвтээ байх */
   #sticky-label-filters{flex-direction:row;flex-wrap:wrap}
-  /* Recent item утсанд */
   .recent-date{min-width:60px;font-size:10px}
-  /* Dashboard top row утсанд өндөр хязгаарлах */
   #today-list{max-height:180px}
-  /* Content header */
-  .content-header{padding:10px 14px}
+  .content-header{padding:10px 12px}
   .content-header h1{font-size:15px}
+  .card{padding:12px;min-width:0;overflow:hidden;box-sizing:border-box}
+  .dashboard-top-row>*,.dashboard-bottom>*{min-width:0;overflow:hidden;box-sizing:border-box}
 }
 </style>
 </head>
@@ -1012,11 +1010,11 @@ async function loadFromDrive(){
         }
       }
 
-      // Vault — Drive дээр байвал, localStorage хоосон үед бичих
+      // Vault — meta хоосон үед л бичих, data үргэлж Drive-аас шинэчлэх
       if(content.vault_meta&&!localStorage.getItem('vault_meta_hsti')){
         localStorage.setItem('vault_meta_hsti',JSON.stringify(content.vault_meta));
       }
-      if(content.vault_data&&!localStorage.getItem('vault_data_hsti')){
+      if(content.vault_data){
         localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault_data));
       }
       // Vault tab нээлттэй бол дахин initVault дуудах
@@ -2102,16 +2100,14 @@ async function vaultUnlock(){
           const driveFileId=res.files[0].id;
           const content=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
             headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+          // vault_data үргэлж Drive-аас шинэчлэх
           if(content.vault_data){
             localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault_data));
-          }
-          if(content.vault_meta&&!localStorage.getItem('vault_meta_hsti')){
-            localStorage.setItem('vault_meta_hsti',JSON.stringify(content.vault_meta));
           }
         }
       }catch(e){}
     }
-    // Drive-аас татсан vault_data-г decode хийх
+    // Decode хийх
     const raw=localStorage.getItem('vault_data_hsti');
     if(raw){
       try{vaultItems=await decryptData(vaultKey,JSON.parse(raw));}catch(e){vaultItems=[];}
