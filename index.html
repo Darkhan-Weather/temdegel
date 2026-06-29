@@ -698,9 +698,9 @@ details[open] summary .chevron{transform:rotate(90deg)}
               <button onclick="closeLabelManager()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#8a97a8">✕</button>
             </div>
             <div id="label-list" style="margin-bottom:12px;max-height:220px;overflow-y:auto"></div>
-            <div style="display:flex;gap:8px">
-              <input id="new-label-input" placeholder="Шинэ шошго нэр..." style="flex:1;padding:7px 10px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none">
-              <select id="new-label-color" style="padding:6px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none">
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <input id="new-label-input" placeholder="Шинэ шошго нэр..." style="flex:1;min-width:0;width:auto;padding:7px 10px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')addNewLabel()">
+              <select id="new-label-color" style="width:100px;flex-shrink:0;padding:6px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none">
                 <option value="#E74C3C">🔴 Улаан</option>
                 <option value="#E67E22">🟠 Улбар</option>
                 <option value="#F1C40F">🟡 Шар</option>
