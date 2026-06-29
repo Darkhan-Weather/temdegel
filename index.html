@@ -65,6 +65,58 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .dashboard-top-row{display:grid;grid-template-columns:1fr 1.5fr;gap:14px;margin-bottom:14px;align-items:start}
 
 /* НУУЦ ҮГ САН */
+/* THEME */
+.theme-option{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;padding:8px;border-radius:10px;border:2px solid transparent;transition:all 0.15s}
+.theme-option:hover{background:#f5f7fa}
+.theme-option.active{border-color:#1a2332}
+.theme-option span{font-size:11px;color:#6b7a8d}
+
+/* THEME: Brown (default) */
+body.theme-brown .sidebar{background:linear-gradient(180deg,#EBAD7C 0%,#9E5E3D 100%)}
+body.theme-brown .btn-primary{background:linear-gradient(135deg,#EBAD7C,#9E5E3D)}
+body.theme-brown .nav-item.active{background:rgba(255,255,255,0.2)}
+body.theme-brown .stat-card:nth-child(4){background:linear-gradient(135deg,#EBAD7C,#9E5E3D)}
+
+/* THEME: Blue */
+body.theme-blue .sidebar{background:linear-gradient(180deg,#5B9BD5 0%,#1A5276 100%)}
+body.theme-blue .btn-primary{background:linear-gradient(135deg,#5B9BD5,#1A5276)}
+body.theme-blue .nav-item.active{background:rgba(255,255,255,0.2)}
+body.theme-blue .entry-tag{background:#E6F1FB;color:#1A5276}
+body.theme-blue .tag-chip.active{background:linear-gradient(135deg,#5B9BD5,#1A5276)}
+body.theme-blue .cal-day.today{border-color:#5B9BD5;background:#EBF3FB}
+body.theme-blue .cal-day.today .cal-day-num{background:linear-gradient(135deg,#5B9BD5,#1A5276)}
+
+/* THEME: Green */
+body.theme-green .sidebar{background:linear-gradient(180deg,#52BE80 0%,#1E8449 100%)}
+body.theme-green .btn-primary{background:linear-gradient(135deg,#52BE80,#1E8449)}
+body.theme-green .nav-item.active{background:rgba(255,255,255,0.2)}
+body.theme-green .entry-tag{background:#E8F8F0;color:#1E8449}
+body.theme-green .tag-chip.active{background:linear-gradient(135deg,#52BE80,#1E8449)}
+body.theme-green .cal-day.today{border-color:#52BE80;background:#EAFAF1}
+body.theme-green .cal-day.today .cal-day-num{background:linear-gradient(135deg,#52BE80,#1E8449)}
+
+/* THEME: Dark */
+body.theme-dark{background:#1A1A2E}
+body.theme-dark .sidebar{background:linear-gradient(180deg,#4A4A5A 0%,#1A1A2E 100%)}
+body.theme-dark .main-content{background:#1A1A2E}
+body.theme-dark .content{background:#1A1A2E}
+body.theme-dark .card{background:#2A2A3E;border-color:#3A3A4E;color:#E0E0F0}
+body.theme-dark .content-header{background:#2A2A3E;border-color:#3A3A4E}
+body.theme-dark .content-header-title{color:#E0E0F0}
+body.theme-dark .content-header-sub{color:#8A8AAA}
+body.theme-dark .card-title{color:#C0C0E0}
+body.theme-dark input,body.theme-dark select,body.theme-dark textarea{background:#3A3A4E;border-color:#4A4A5E;color:#E0E0F0}
+body.theme-dark .entry-item{background:#2A2A3E;border-color:#3A3A4E}
+body.theme-dark .entry-work{color:#E0E0F0}
+body.theme-dark .recent-item{background:#3A3A4E}
+body.theme-dark .btn{background:#3A3A4E;border-color:#4A4A5E;color:#E0E0F0}
+body.theme-dark .btn:hover{background:#4A4A5E}
+body.theme-dark .btn-primary{background:linear-gradient(135deg,#4A4A5A,#1A1A2E);border-color:#5A5A6A}
+body.theme-dark .cal-day{background:#2A2A3E;border-color:#3A3A4E}
+body.theme-dark .cal-day-num{color:#E0E0F0}
+body.theme-dark .sticky-note-text{color:#1a2332}
+body.theme-dark label{color:#A0A0C0}
+
 /* TODO */
 .todo-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:#fafbfc;border:1.5px solid #f0f2f5;margin-bottom:7px;transition:all 0.15s}
 .todo-item:hover{border-color:#e0e7ef}
@@ -733,6 +785,28 @@ details[open] summary .chevron{transform:rotate(90deg)}
 
       <!-- SETTINGS TAB -->
       <div id="tab-settings" class="tab-content">
+        <!-- THEME СОНГОГЧ -->
+        <div class="card">
+          <div class="card-title"><i class="ti ti-palette"></i> Загвар (Theme)</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <div class="theme-option" data-theme="brown" onclick="setTheme('brown')" title="Улбар хүрэн">
+              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#EBAD7C,#9E5E3D)"></div>
+              <span>Хүрэн</span>
+            </div>
+            <div class="theme-option" data-theme="blue" onclick="setTheme('blue')" title="Хөх">
+              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#5B9BD5,#1A5276)"></div>
+              <span>Хөх</span>
+            </div>
+            <div class="theme-option" data-theme="green" onclick="setTheme('green')" title="Ногоон">
+              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#52BE80,#1E8449)"></div>
+              <span>Ногоон</span>
+            </div>
+            <div class="theme-option" data-theme="dark" onclick="setTheme('dark')" title="Харанхуй">
+              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#4A4A5A,#1A1A2E)"></div>
+              <span>Харанхуй</span>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-title"><i class="ti ti-cloud"></i> Google Drive синк</div>
           <p style="font-size:13px;color:#6b7a8d;margin-bottom:12px;line-height:1.6">Өгөгдөл таны Google Drive-д <b>ajliin_temdegel_2026.json</b> нэртэй файлд хадгалагдана.</p>
@@ -791,6 +865,7 @@ const SEED_DATA=[
 ];
 
 function init(){
+  initTheme();
   document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];
   let saved=localStorage.getItem('hsti_v3');
   if(saved){try{entries=JSON.parse(saved)}catch(e){entries=[]}}
@@ -1424,7 +1499,14 @@ let activeFilterLabel=null;
 
 function loadStickyNotes(){
   try{const s=localStorage.getItem('sticky_notes_hsti');if(s)stickyNotes=JSON.parse(s);}catch(e){stickyNotes=[];}
-  try{const l=localStorage.getItem('sticky_labels_hsti');if(l)stickyLabels=JSON.parse(l);}catch(e){}
+  // Labels-г зөвхөн хоосон үед localStorage-аас уншина
+  try{
+    const l=localStorage.getItem('sticky_labels_hsti');
+    if(l){
+      const parsed=JSON.parse(l);
+      if(parsed&&parsed.length>0)stickyLabels=parsed;
+    }
+  }catch(e){}
 }
 function saveStickyNotes(){
   try{localStorage.setItem('sticky_notes_hsti',JSON.stringify(stickyNotes));}catch(e){}
@@ -1479,10 +1561,15 @@ function renderLabelList(){
 function addNewLabel(){
   const inp=document.getElementById('new-label-input');
   const col=document.getElementById('new-label-color');
-  const name=inp.value.trim();if(!name)return;
+  const name=inp.value.trim();
+  if(!name){inp.focus();return;}
   stickyLabels.push({id:'l'+Date.now(),name,color:col.value});
-  saveStickyNotes();inp.value='';
-  renderLabelList();renderLabelFilters();
+  // Шууд localStorage-д хадгалах
+  try{localStorage.setItem('sticky_labels_hsti',JSON.stringify(stickyLabels));}catch(e){}
+  inp.value='';
+  renderLabelList();
+  renderLabelFilters();
+  showAlert('Шошго нэмэгдлээ!','success');
 }
 function deleteLabel(id){
   stickyLabels=stickyLabels.filter(l=>l.id!==id);
@@ -1735,6 +1822,23 @@ function calGoToday(){
   fetchCalEvents().then(()=>renderDayEvents(calSelectedDate));
 }
 function calRefresh(){fetchCalEvents();}
+
+// ── THEME ─────────────────────────────────────────────────
+const THEMES=['brown','blue','green','dark'];
+
+function setTheme(theme){
+  THEMES.forEach(t=>document.body.classList.remove('theme-'+t));
+  document.body.classList.add('theme-'+theme);
+  localStorage.setItem('app_theme_hsti',theme);
+  document.querySelectorAll('.theme-option').forEach(el=>{
+    el.classList.toggle('active',el.dataset.theme===theme);
+  });
+}
+
+function initTheme(){
+  const saved=localStorage.getItem('app_theme_hsti')||'brown';
+  setTheme(saved);
+}
 
 // ── ӨНӨӨДРИЙН ДААЛГАВАР (ToDo) ───────────────────────────
 let todos=[];
