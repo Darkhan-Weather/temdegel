@@ -701,9 +701,9 @@ details[open] summary .chevron{transform:rotate(90deg)}
             <div id="label-list" style="margin-bottom:14px;max-height:220px;overflow-y:auto"></div>
             <div style="border-top:1px solid #f0f2f5;padding-top:12px">
               <div style="font-size:11px;color:#8a97a8;margin-bottom:8px;font-weight:500">ШИНЭ ШОШГО НЭМЭХ</div>
-              <input id="new-label-input" placeholder="Шошгоны нэр..." style="width:100%;padding:8px 10px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px" onkeydown="if(event.key==='Enter')addNewLabel()">
-              <div style="display:flex;gap:8px;align-items:center">
-                <select id="new-label-color" style="flex:1;padding:7px 8px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none">
+              <div style="display:flex;gap:8px;margin-bottom:8px">
+                <input id="new-label-input" placeholder="Шошгоны нэр..." style="flex:1;min-width:0;padding:8px 10px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box" onkeydown="if(event.key==='Enter')addNewLabel()">
+                <select id="new-label-color" style="width:90px;flex-shrink:0;padding:7px 6px;border:1.5px solid #dde3ec;border-radius:8px;font-size:12px;outline:none">
                   <option value="#E74C3C">🔴 Улаан</option>
                   <option value="#E67E22">🟠 Улбар</option>
                   <option value="#F1C40F">🟡 Шар</option>
@@ -712,8 +712,8 @@ details[open] summary .chevron{transform:rotate(90deg)}
                   <option value="#8E44AD">🟣 Нил</option>
                   <option value="#7F8C8D">⚫ Саарал</option>
                 </select>
-                <button class="btn btn-primary" onclick="addNewLabel()" style="white-space:nowrap"><i class="ti ti-plus"></i> Нэмэх</button>
               </div>
+              <button class="btn btn-primary" onclick="addNewLabel()" style="width:100%"><i class="ti ti-plus"></i> Нэмэх</button>
             </div>
           </div>
         </div>
@@ -990,7 +990,7 @@ async function loadFromDrive(){
         populateFilters();renderDashboard();
       }
 
-      // Sticky notes — Drive дээр байвал localStorage-д бичих
+      // Sticky notes — merge (давхардал орохгүй)
       if(content.sticky_notes&&content.sticky_notes.length){
         const localSticky=localStorage.getItem('sticky_notes_hsti');
         const localArr=localSticky?JSON.parse(localSticky):[];
@@ -1002,11 +1002,13 @@ async function loadFromDrive(){
           stickyNotes=merged;
         }
       }
+      // Sticky labels — үргэлж Drive-аас шинэчлэх
       if(content.sticky_labels&&content.sticky_labels.length){
-        const localLabels=localStorage.getItem('sticky_labels_hsti');
-        if(!localLabels||JSON.parse(localLabels).length===0){
-          localStorage.setItem('sticky_labels_hsti',JSON.stringify(content.sticky_labels));
-          stickyLabels=content.sticky_labels;
+        localStorage.setItem('sticky_labels_hsti',JSON.stringify(content.sticky_labels));
+        stickyLabels=content.sticky_labels;
+        // Sticky tab нээлттэй бол дахин render хийх
+        if(document.getElementById('tab-sticky')?.classList.contains('active')){
+          renderLabelFilters();renderStickyNotes();
         }
       }
 
@@ -2091,16 +2093,19 @@ async function vaultUnlock(){
       errEl.style.display='block';
       return;
     }
-    // Өгөгдөл уншах — эхлээд Drive-аас шинэчлэх
+    // Өгөгдөл уншах — Drive-аас vault_data шинэчлэх
     if(accessToken){
       try{
-        const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}'&spaces=drive`,{
-          headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
-        if(res.files&&res.files.length>0){
-          const driveFileId=res.files[0].id;
-          const content=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
+        // driveFileId global байвал шууд ашиглах, байхгүй бол хайх
+        let fid=driveFileId;
+        if(!fid){
+          const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}'&spaces=drive`,{
             headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
-          // vault_data үргэлж Drive-аас шинэчлэх
+          if(res.files&&res.files.length>0)fid=res.files[0].id;
+        }
+        if(fid){
+          const content=await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`,{
+            headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
           if(content.vault_data){
             localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault_data));
           }
