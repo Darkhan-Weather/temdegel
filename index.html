@@ -818,6 +818,15 @@ details[open] summary .chevron{transform:rotate(90deg)}
           </div>
         </div>
         <div class="card">
+          <div class="card-title"><i class="ti ti-file-import"></i> JSON импорт</div>
+          <p style="font-size:13px;color:#6b7a8d;margin-bottom:12px">JSON файлаас тэмдэглэл нэмэх — давхардсан бүртгэл орохгүй (id-р шалгана)</p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(this)">
+            <button class="btn btn-primary" onclick="document.getElementById('import-file').click()"><i class="ti ti-upload"></i> JSON файл сонгох</button>
+            <span id="import-status" style="font-size:12px;color:#6b7a8d"></span>
+          </div>
+        </div>
+        <div class="card">
           <div class="card-title"><i class="ti ti-info-circle"></i> Мэдээлэл</div>
           <p style="font-size:13px;color:#6b7a8d">Нийт тэмдэглэл: <b id="total-count">0</b></p>
         </div>
@@ -1157,6 +1166,36 @@ function deleteEntry(id){
   document.getElementById('total-count').textContent=entries.length;
   if(accessToken)syncToDrive();
   renderList();populateFilters();
+}
+
+function importJSON(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      const arr=Array.isArray(data)?data:(data.entries||[]);
+      if(!arr.length){showAlert('JSON хоосон байна','error');return;}
+      const existIds=new Set(entries.map(e=>e.id));
+      const newEntries=arr.filter(e=>!existIds.has(e.id));
+      if(!newEntries.length){
+        showAlert('Бүх бүртгэл аль хэдийн байна (давхардал)','info');
+        return;
+      }
+      entries=[...entries,...newEntries];
+      entries.sort((a,b)=>b.date.localeCompare(a.date));
+      localStorage.setItem('hsti_v3',JSON.stringify(entries));
+      document.getElementById('total-count').textContent=entries.length;
+      document.getElementById('import-status').textContent=`✓ ${newEntries.length} бүртгэл нэмэгдлээ`;
+      renderDashboard();populateFilters();
+      showAlert(`${newEntries.length} бүртгэл импортлогдлоо!`,'success');
+    }catch(err){
+      showAlert('JSON файл буруу байна','error');
+    }
+    input.value='';
+  };
+  reader.readAsText(file);
 }
 
 function clearAll(){
