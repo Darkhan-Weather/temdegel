@@ -139,15 +139,15 @@ body.theme-dark label{color:#A0A0C0}
 .vault-lock input{width:100%;max-width:280px;padding:10px 14px;border:1.5px solid #dde3ec;border-radius:10px;font-size:14px;outline:none;text-align:center;letter-spacing:2px;margin-bottom:10px}
 .vault-lock input:focus{border-color:#EBAD7C}
 .vault-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:14px}
-.vault-card{background:white;border:1.5px solid #e8edf3;border-radius:12px;padding:14px;transition:box-shadow 0.2s}
+.vault-card{background:white;border:1.5px solid #e8edf3;border-radius:12px;padding:14px;transition:box-shadow 0.2s;min-width:0;overflow:hidden}
 .vault-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);border-color:#EBAD7C}
-.vault-card-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.vault-card-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;min-width:0}
 .vault-favicon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#EBAD7C,#9E5E3D);display:flex;align-items:center;justify-content:center;color:white;font-size:14px;flex-shrink:0}
-.vault-name{font-size:13px;font-weight:600;color:#1a2332;flex:1}
-.vault-url{font-size:11px;color:#8a97a8;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.vault-field{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.vault-name{font-size:13px;font-weight:600;color:#1a2332;flex:1;min-width:0;word-break:break-word;line-height:1.4}
+.vault-url{font-size:11px;color:#8a97a8;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.vault-field{display:flex;align-items:center;gap:6px;margin-bottom:5px;min-width:0}
 .vault-field-label{font-size:10px;color:#a0aab4;width:55px;flex-shrink:0}
-.vault-field-val{font-size:12px;color:#1a2332;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vault-field-val{font-size:12px;color:#1a2332;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .vault-copy-btn{background:none;border:none;cursor:pointer;color:#c9d4e0;font-size:12px;padding:2px 4px;border-radius:4px}
 .vault-copy-btn:hover{color:#9E5E3D;background:#FFF3E8}
 .vault-pw{font-family:monospace;letter-spacing:1px;font-size:12px}
@@ -1238,6 +1238,7 @@ function importJSON(input){
       document.getElementById('import-status').textContent=`✓ ${newEntries.length} бүртгэл нэмэгдлээ`;
       renderDashboard();populateFilters();
       showAlert(`${newEntries.length} бүртгэл импортлогдлоо!`,'success');
+      if(accessToken)syncToDrive();
     }catch(err){
       showAlert('JSON файл буруу байна','error');
     }
@@ -1603,9 +1604,15 @@ function loadStickyNotes(){
     }
   }catch(e){}
 }
+let stickyAutoSyncTimer=null;
 function saveStickyNotes(){
   try{localStorage.setItem('sticky_notes_hsti',JSON.stringify(stickyNotes));}catch(e){}
   try{localStorage.setItem('sticky_labels_hsti',JSON.stringify(stickyLabels));}catch(e){}
+  // 2 секунд хүлээгээд Drive-д хадгалах (debounce)
+  if(accessToken){
+    clearTimeout(stickyAutoSyncTimer);
+    stickyAutoSyncTimer=setTimeout(()=>syncToDrive(),2000);
+  }
 }
 function selectStickyColor(btn){
   document.querySelectorAll('.sticky-color-btn').forEach(b=>b.classList.remove('selected'));
@@ -2093,6 +2100,8 @@ async function vaultSaveData(){
   if(!vaultKey)return;
   const enc=await encryptData(vaultKey,vaultItems);
   localStorage.setItem('vault_data_hsti',JSON.stringify(enc));
+  // Drive-д автоматаар хадгалах
+  if(accessToken)syncToDrive();
 }
 
 function toggleVaultForm(){
