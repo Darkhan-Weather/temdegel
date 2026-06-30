@@ -843,7 +843,8 @@ details[open] summary .chevron{transform:rotate(90deg)}
         </div>
         <div class="card">
           <div class="card-title"><i class="ti ti-trash"></i> Өгөгдөл устгах</div>
-          <button class="btn btn-danger" onclick="clearAll()"><i class="ti ti-trash"></i> Бүх тэмдэглэл устгах</button>
+          <p style="font-size:13px;color:#6b7a8d;margin-bottom:12px;line-height:1.6">Устгахаас өмнө автоматаар Drive-д backup үүснэ. Баталгаажуулалт шаардлагатай.</p>
+          <button class="btn btn-danger" onclick="openClearAllModal()"><i class="ti ti-trash"></i> Бүх тэмдэглэл устгах</button>
         </div>
       </div>
 
@@ -855,6 +856,33 @@ details[open] summary .chevron{transform:rotate(90deg)}
             <button onclick="closeBackupModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#8a97a8">✕</button>
           </div>
           <div id="backup-list" style="overflow-y:auto;flex:1"></div>
+        </div>
+      </div>
+
+      <!-- Бүх тэмдэглэл устгах modal -->
+      <div id="clear-all-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
+        <div style="background:white;border-radius:16px;padding:22px;width:380px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <div style="width:38px;height:38px;border-radius:50%;background:#FFF0F0;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <i class="ti ti-alert-triangle" style="color:#e74c3c;font-size:18px"></i>
+            </div>
+            <div style="font-size:15px;font-weight:600;color:#1a2332">Бүх тэмдэглэл устгах</div>
+          </div>
+          <p style="font-size:13px;color:#6b7a8d;line-height:1.6;margin-bottom:6px">
+            Энэ үйлдэл <b id="clear-all-count">0</b> бичлэгийг бүрмөсөн устгана. Энэ нь буцаах боломжгүй.
+          </p>
+          <p style="font-size:13px;color:#6b7a8d;line-height:1.6;margin-bottom:14px">
+            Үргэлжлүүлэхийн өмнө автомат backup Drive-д үүсгэнэ.
+          </p>
+          <div style="background:#fafbfc;border:1.5px solid #f0f2f5;border-radius:10px;padding:12px;margin-bottom:14px">
+            <label style="font-size:12px;color:#1a2332;font-weight:500;margin-bottom:8px;display:block">Баталгаажуулахын тулд доор <b>БҮХ</b> гэж бичнэ үү:</label>
+            <input id="clear-all-confirm-input" placeholder="БҮХ" style="width:100%;padding:9px 12px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box" oninput="checkClearAllInput()">
+          </div>
+          <div id="clear-all-status" style="font-size:12px;color:#8a97a8;margin-bottom:12px;display:none"></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn btn-sm" onclick="closeClearAllModal()">Цуцлах</button>
+            <button class="btn btn-sm btn-danger" id="clear-all-confirm-btn" onclick="confirmClearAll()" disabled style="opacity:0.4;cursor:not-allowed"><i class="ti ti-trash"></i> Бүгдийг устгах</button>
+          </div>
         </div>
       </div>
 
@@ -1492,12 +1520,82 @@ function importJSON(input){
   reader.readAsText(file);
 }
 
-function clearAll(){
-  if(!confirm('Бүх тэмдэглэлийг устгах уу?'))return;
+function openClearAllModal(){
+  document.getElementById('clear-all-count').textContent=entries.length;
+  document.getElementById('clear-all-confirm-input').value='';
+  document.getElementById('clear-all-status').style.display='none';
+  document.getElementById('clear-all-confirm-btn').disabled=true;
+  document.getElementById('clear-all-confirm-btn').style.opacity='0.4';
+  document.getElementById('clear-all-confirm-btn').style.cursor='not-allowed';
+  document.getElementById('clear-all-modal').style.display='flex';
+}
+function closeClearAllModal(){
+  document.getElementById('clear-all-modal').style.display='none';
+}
+function checkClearAllInput(){
+  const val=document.getElementById('clear-all-confirm-input').value.trim();
+  const btn=document.getElementById('clear-all-confirm-btn');
+  const ok=val==='БҮХ';
+  btn.disabled=!ok;
+  btn.style.opacity=ok?'1':'0.4';
+  btn.style.cursor=ok?'pointer':'not-allowed';
+}
+async function confirmClearAll(){
+  const val=document.getElementById('clear-all-confirm-input').value.trim();
+  if(val!=='БҮХ')return;
+  const statusEl=document.getElementById('clear-all-status');
+  const btn=document.getElementById('clear-all-confirm-btn');
+  btn.disabled=true;
+  statusEl.style.display='block';
+
+  // 1. Устгахаас өмнө автомат backup үүсгэх
+  if(accessToken){
+    statusEl.textContent='Backup үүсгэж байна...';
+    try{
+      const folderId=await getOrCreateFolder();
+      const entriesPayload={entries,updated:new Date().toISOString()};
+      const stickyData=localStorage.getItem('sticky_notes_hsti');
+      const stickyLabelsData=localStorage.getItem('sticky_labels_hsti');
+      const stickyPayload={
+        sticky_notes:stickyData?JSON.parse(stickyData):[],
+        sticky_labels:stickyLabelsData?JSON.parse(stickyLabelsData):[],
+        updated:new Date().toISOString()
+      };
+      const vaultMeta=localStorage.getItem('vault_meta_hsti');
+      const vaultData=localStorage.getItem('vault_data_hsti');
+      const vaultPayload={
+        vault_meta:vaultMeta?JSON.parse(vaultMeta):null,
+        vault_data:vaultData?JSON.parse(vaultData):null,
+        updated:new Date().toISOString()
+      };
+      await createBackup(folderId,entriesPayload,stickyPayload,vaultPayload);
+      statusEl.textContent='Backup үүслээ. Устгаж байна...';
+    }catch(e){
+      statusEl.textContent='Backup амжилтгүй боллоо, устгахыг үргэлжлүүлж байна...';
+    }
+  } else {
+    statusEl.textContent='Drive холбогдоогүй тул backup алгасав. Устгаж байна...';
+  }
+
+  // 2. Локал JSON татах (нэмэлт хамгаалалт)
+  try{
+    const exportData={entries,exported:new Date().toISOString(),reason:'before_clear_all'};
+    const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=`tailan_backup_устгахаас_өмнө_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }catch(e){}
+
+  // 3. Устгах
   entries=[];driveFileId=null;
   localStorage.setItem('hsti_v3',JSON.stringify(entries));
   document.getElementById('total-count').textContent=0;
   renderList();populateFilters();renderDashboard();
+
+  closeClearAllModal();
+  showAlert('Бүх тэмдэглэл устгагдлаа. Backup хадгалагдсан.','success');
 }
 
 function getZaalt(){const v=document.getElementById('zaalt-select').value;return v==='custom'?document.getElementById('custom-zaalt').value.trim():v;}
