@@ -165,7 +165,7 @@ body.theme-dark label{color:#A0A0C0}
 .chart-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
 .chart-title{font-size:13px;font-weight:600;color:#1a2332;margin-bottom:2px}
 .chart-sub{font-size:11px;color:#8a97a8}
-.chart-badge{font-size:11px;padding:3px 10px;border-radius:20px;background:#E1F5EE;color:#0F6E56}
+.chart-badge{font-size:11px;padding:3px 10px;border-radius:20px;background:#E1F5EE;color:#0F6E56;white-space:nowrap;cursor:help}
 .chart-area{position:relative;height:130px;margin-bottom:8px}
 .chart-bars-row{display:flex;align-items:flex-end;gap:6px;height:110px;padding:0 4px;width:100%}
 .chart-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
@@ -1135,13 +1135,34 @@ function renderDashboard(){
       ${pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#EBAD7C" stroke="white" stroke-width="1.5"/>`).join('')}`;
   }
 
-  // Badge
-  const prev=counts[maxM-1]||0;
-  const cur=counts[maxM]||0;
-  const diff=prev>0?Math.round((cur-prev)/prev*100):0;
-  document.getElementById('chart-badge').textContent=diff>=0?'+'+diff+'% өссөн':diff+'% буурсан';
-  document.getElementById('chart-badge').style.background=diff>=0?'#E1F5EE':'#FFF0F0';
-  document.getElementById('chart-badge').style.color=diff>=0?'#0F6E56':'#e74c3c';
+  // Badge — сарын харьцуулалт биш, долоо хоногийн харьцуулалт (богино интервал, найдвартай)
+  const today=new Date();
+  const msDay=86400000;
+  function dateStr(d){return d.toISOString().slice(0,10);}
+  function normDate(d){
+    const p=d.split('-');
+    return p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:d;
+  }
+  const last7Start=dateStr(new Date(today-6*msDay));
+  const last7End=dateStr(today);
+  const prev7Start=dateStr(new Date(today-13*msDay));
+  const prev7End=dateStr(new Date(today-7*msDay));
+  const last7Count=entries.filter(e=>{const d=normDate(e.date);return d>=last7Start&&d<=last7End;}).length;
+  const prev7Count=entries.filter(e=>{const d=normDate(e.date);return d>=prev7Start&&d<=prev7End;}).length;
+  const badge=document.getElementById('chart-badge');
+  if(prev7Count===0&&last7Count===0){
+    badge.textContent='Сүүлийн 7 хоног: 0 бичлэг';
+    badge.style.background='#F0F4F8';badge.style.color='#6b7a8d';
+  } else if(prev7Count===0){
+    badge.textContent='Сүүлийн 7 хоног: '+last7Count+' бичлэг (шинэ)';
+    badge.style.background='#E1F5EE';badge.style.color='#0F6E56';
+  } else {
+    const wdiff=Math.round((last7Count-prev7Count)/prev7Count*100);
+    badge.textContent=(wdiff>=0?'+'+wdiff:wdiff)+'% (7 хоногоор)';
+    badge.style.background=wdiff>=0?'#E1F5EE':'#FFF0F0';
+    badge.style.color=wdiff>=0?'#0F6E56':'#e74c3c';
+  }
+  badge.title='Сүүлийн 7 хоног: '+last7Count+' бичлэг, өмнөх 7 хоног: '+prev7Count+' бичлэг';
 
   // Recent week
   const weekAgo=new Date(now);weekAgo.setDate(now.getDate()-7);
