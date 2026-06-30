@@ -817,11 +817,16 @@ details[open] summary .chevron{transform:rotate(90deg)}
         </div>
         <div class="card">
           <div class="card-title"><i class="ti ti-cloud"></i> Google Drive синк</div>
-          <p style="font-size:13px;color:#6b7a8d;margin-bottom:12px;line-height:1.6">Өгөгдөл таны Google Drive-д <b>ajliin_temdegel_2026.json</b> нэртэй файлд хадгалагдана.</p>
+          <p style="font-size:13px;color:#6b7a8d;margin-bottom:12px;line-height:1.6">Өгөгдөл таны Google Drive-ийн <b>ХСТИ Систем</b> folder-д ангилсан 3 файлд хадгалагдана.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary" onclick="syncToDrive()"><i class="ti ti-cloud-upload"></i> Drive-д хадгалах</button>
             <button class="btn" onclick="loadFromDrive()"><i class="ti ti-cloud-download"></i> Drive-аас уншах</button>
           </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="ti ti-database"></i> Backup / Сэргээх</div>
+          <p style="font-size:13px;color:#6b7a8d;margin-bottom:12px;line-height:1.6">Хадгалах бүрт автоматаар backup үүснэ (сүүлийн 10-г хадгална). Алдаа гарвал өмнөх хувилбар руу буцаж болно.</p>
+          <button class="btn btn-primary" onclick="openBackupModal()"><i class="ti ti-history"></i> Backup-аас сэргээх</button>
         </div>
         <div class="card">
           <div class="card-title"><i class="ti ti-file-import"></i> JSON импорт</div>
@@ -839,6 +844,17 @@ details[open] summary .chevron{transform:rotate(90deg)}
         <div class="card">
           <div class="card-title"><i class="ti ti-trash"></i> Өгөгдөл устгах</div>
           <button class="btn btn-danger" onclick="clearAll()"><i class="ti ti-trash"></i> Бүх тэмдэглэл устгах</button>
+        </div>
+      </div>
+
+      <!-- Backup modal -->
+      <div id="backup-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:999;align-items:center;justify-content:center">
+        <div style="background:white;border-radius:16px;padding:20px;width:380px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0">
+            <div style="font-size:14px;font-weight:600;color:#1a2332"><i class="ti ti-history"></i> Backup-аас сэргээх</div>
+            <button onclick="closeBackupModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#8a97a8">✕</button>
+          </div>
+          <div id="backup-list" style="overflow-y:auto;flex:1"></div>
         </div>
       </div>
 
@@ -969,6 +985,23 @@ async function getOrCreateFolder(){
   return driveFolderId;
 }
 
+let driveBackupFolderId=null;
+async function getOrCreateBackupFolder(parentFolderId){
+  if(driveBackupFolderId)return driveBackupFolderId;
+  const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='backups' and mimeType='application/vnd.google-apps.folder' and '${parentFolderId}' in parents and trashed=false&spaces=drive`,{
+    headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+  if(res.files&&res.files.length>0){
+    driveBackupFolderId=res.files[0].id;
+  }else{
+    const meta=await fetch('https://www.googleapis.com/drive/v3/files',{
+      method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({name:'backups',mimeType:'application/vnd.google-apps.folder',parents:[parentFolderId]})
+    }).then(r=>r.json());
+    driveBackupFolderId=meta.id;
+  }
+  return driveBackupFolderId;
+}
+
 async function findFileInFolder(fileName,folderId){
   const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(fileName)}' and '${folderId}' in parents and trashed=false&spaces=drive`,{
     headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
@@ -989,6 +1022,119 @@ async function uploadToFile(fileName,fileId,folderId,payload){
     method:'PATCH',headers:{Authorization:'Bearer '+accessToken},body:blob
   });
   return fid;
+}
+
+// ── BACKUP ──────────────────────────────────────────────
+const MAX_BACKUPS=10;
+
+function backupTimestamp(){
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+}
+
+async function createBackup(folderId,entriesPayload,stickyPayload,vaultPayload){
+  try{
+    const backupFolderId=await getOrCreateBackupFolder(folderId);
+    const ts=backupTimestamp();
+    const combined={
+      timestamp:new Date().toISOString(),
+      entries:entriesPayload,
+      sticky:stickyPayload,
+      vault:vaultPayload
+    };
+    const blob=new Blob([JSON.stringify(combined)],{type:'application/json'});
+    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
+      method:'POST',
+      headers:{Authorization:'Bearer '+accessToken,'Content-Type':'multipart/related; boundary=backup_boundary'},
+      body:`--backup_boundary\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({name:`backup_${ts}.json`,mimeType:'application/json',parents:[backupFolderId]})}\r\n--backup_boundary\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(combined)}\r\n--backup_boundary--`
+    });
+    await cleanupOldBackups(backupFolderId);
+  }catch(e){console.error('Backup алдаа:',e);}
+}
+
+async function cleanupOldBackups(backupFolderId){
+  try{
+    const res=await fetch(`https://www.googleapis.com/drive/v3/files?q='${backupFolderId}' in parents and trashed=false&orderBy=createdTime desc&spaces=drive&fields=files(id,name,createdTime)`,{
+      headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+    if(res.files&&res.files.length>MAX_BACKUPS){
+      const toDelete=res.files.slice(MAX_BACKUPS);
+      for(const f of toDelete){
+        await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`,{
+          method:'DELETE',headers:{Authorization:'Bearer '+accessToken}
+        });
+      }
+    }
+  }catch(e){console.error('Backup цэвэрлэхэд алдаа:',e);}
+}
+
+async function listBackups(){
+  if(!accessToken){showAlert('Нэвтэрнэ үү','error');return[];}
+  try{
+    const folderId=await getOrCreateFolder();
+    const backupFolderId=await getOrCreateBackupFolder(folderId);
+    const res=await fetch(`https://www.googleapis.com/drive/v3/files?q='${backupFolderId}' in parents and trashed=false&orderBy=createdTime desc&spaces=drive&fields=files(id,name,createdTime)`,{
+      headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+    return res.files||[];
+  }catch(e){return[];}
+}
+
+async function restoreFromBackup(fileId){
+  if(!confirm('Энэ backup-аас сэргээх үү? Одоогийн өгөгдөл дарагдана.'))return;
+  try{
+    setSyncBadge('Сэргээж байна...','#f39c12');
+    const content=await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,{
+      headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+    if(content.entries&&content.entries.entries){
+      entries=content.entries.entries;
+      localStorage.setItem('hsti_v3',JSON.stringify(entries));
+    }
+    if(content.sticky){
+      if(content.sticky.sticky_notes){
+        localStorage.setItem('sticky_notes_hsti',JSON.stringify(content.sticky.sticky_notes));
+        stickyNotes=content.sticky.sticky_notes;
+      }
+      if(content.sticky.sticky_labels){
+        localStorage.setItem('sticky_labels_hsti',JSON.stringify(content.sticky.sticky_labels));
+        stickyLabels=content.sticky.sticky_labels;
+      }
+    }
+    if(content.vault){
+      if(content.vault.vault_data)localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault.vault_data));
+      if(content.vault.vault_meta)localStorage.setItem('vault_meta_hsti',JSON.stringify(content.vault.vault_meta));
+    }
+    document.getElementById('total-count').textContent=entries.length;
+    populateFilters();renderDashboard();
+    setSyncBadge('Сэргээгдсэн','#0F6E56');
+    showAlert('Backup-аас амжилттай сэргээгдлээ!','success');
+    closeBackupModal();
+  }catch(e){
+    setSyncBadge('Алдаа','#e74c3c');
+    showAlert('Сэргээхэд алдаа гарлаа','error');
+  }
+}
+
+async function openBackupModal(){
+  const modal=document.getElementById('backup-modal');
+  const list=document.getElementById('backup-list');
+  modal.style.display='flex';
+  list.innerHTML='<div style="text-align:center;padding:20px;color:#a0aab4;font-size:13px">Уншиж байна...</div>';
+  const backups=await listBackups();
+  if(!backups.length){
+    list.innerHTML='<div style="text-align:center;padding:20px;color:#a0aab4;font-size:13px">Backup байхгүй байна</div>';
+    return;
+  }
+  list.innerHTML=backups.map(b=>{
+    const d=new Date(b.createdTime);
+    const dateStr=d.toLocaleDateString('mn-MN')+' '+d.toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'});
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:9px;background:#fafbfc;border:1.5px solid #f0f2f5;margin-bottom:7px">
+      <span style="font-size:13px;color:#1a2332"><i class="ti ti-clock-history" style="font-size:13px;color:#8a97a8"></i> ${dateStr}</span>
+      <button class="btn btn-sm btn-primary" onclick="restoreFromBackup('${b.id}')"><i class="ti ti-restore"></i> Сэргээх</button>
+    </div>`;
+  }).join('');
+}
+function closeBackupModal(){
+  document.getElementById('backup-modal').style.display='none';
 }
 
 async function syncToDrive(){
@@ -1023,6 +1169,9 @@ async function syncToDrive(){
     };
     if(!vaultFileId)vaultFileId=await findFileInFolder(VAULT_FILE_NAME,folderId);
     vaultFileId=await uploadToFile(VAULT_FILE_NAME,vaultFileId,folderId,vaultPayload);
+
+    // Backup үүсгэх (async, sync-ийг саатуулахгүй)
+    createBackup(folderId,entriesPayload,stickyPayload,vaultPayload);
 
     setSyncBadge('Drive-д хадгалагдсан','#0F6E56');
     showAlert('Drive-д хадгалагдлаа!','success');
