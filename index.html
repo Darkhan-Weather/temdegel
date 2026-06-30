@@ -682,14 +682,14 @@ details[open] summary .chevron{transform:rotate(90deg)}
               <div class="sticky-color-btn" style="background:#E8C5F7" data-color="#E8C5F7" onclick="selectStickyColor(this)" title="Нил ягаан"></div>
               <div class="sticky-color-btn" style="background:#FFE0B2" data-color="#FFE0B2" onclick="selectStickyColor(this)" title="Улбар шар"></div>
             </div>
-            <button class="btn btn-primary" onclick="addStickyNote()"><i class="ti ti-plus"></i> Нэмэх</button>
-            <button class="btn btn-sm" onclick="syncToDrive()" title="Drive-д хадгалах"><i class="ti ti-cloud-upload"></i></button>
+            <button class="btn btn-sm" onclick="syncToDrive()" title="Drive-д хадгалах"><i class="ti ti-cloud-upload"></i> Хадгалах</button>
           </div>
           <!-- Шошго шүүлтүүр -->
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="sticky-color-label">Шошго:</span>
             <div id="sticky-label-filters" style="display:flex;gap:6px;flex-wrap:wrap;flex:1;flex-direction:row;min-width:0"></div>
             <button class="btn btn-sm" onclick="openLabelManager()" title="Шошго удирдах"><i class="ti ti-tag"></i> Удирдах</button>
+            <button class="btn btn-primary btn-sm" onclick="addStickyNote()"><i class="ti ti-plus"></i> Нэмэх</button>
           </div>
         </div>
         <div class="sticky-grid" id="sticky-grid"></div>
