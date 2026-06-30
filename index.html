@@ -1140,8 +1140,9 @@ async function restoreFromBackup(fileId){
     showAlert('Backup-аас амжилттай сэргээгдлээ!','success');
     closeBackupModal();
   }catch(e){
+    console.error('[Backup сэргээх] Алдаа:',e);
     setSyncBadge('Алдаа','#e74c3c');
-    showAlert('Сэргээхэд алдаа гарлаа','error');
+    showAlert('Backup-аас сэргээхэд алдаа гарлаа. Интернэт холболтоо шалгаад дахин оролдоно уу.','error');
   }
 }
 
@@ -1206,20 +1207,33 @@ async function syncToDrive(){
 
     setSyncBadge('Drive-д хадгалагдсан','#0F6E56');
     showAlert('Drive-д хадгалагдлаа!','success');
-  }catch(e){console.error(e);setSyncBadge('Алдаа','#e74c3c');}
+  }catch(e){
+    console.error('[Drive sync алдаа]',e);
+    setSyncBadge('Drive холболтгүй','#e74c3c');
+    showAlert('Drive-тай холбогдож чадсангүй. Та санаа зовох хэрэггүй — өгөгдөл таны төхөөрөмж дээр (локал) хадгалагдсан хэвээр байна. Интернэт холболтоо шалгаад дахин оролдоно уу.','error');
+  }
 }
 
 async function loadFromDrive(){
   if(!accessToken)return;
   setSyncBadge('Уншиж байна...','#f39c12');
+  let hadError=false;
+
+  // 1. Ажлын тэмдэглэл — алдаа гарвал бусдыг гацаахгүй
   try{
     const folderId=await getOrCreateFolder();
-
-    // 1. Ажлын тэмдэглэл
     if(!driveFileId)driveFileId=await findFileInFolder(FILE_NAME,folderId);
     if(driveFileId){
-      const content=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
-        headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+      const res=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
+        headers:{Authorization:'Bearer '+accessToken}});
+      const text=await res.text();
+      let content;
+      try{
+        content=JSON.parse(text);
+      }catch(parseErr){
+        console.error('[Drive] entries файл эвдэрсэн (JSON parse алдаа):',parseErr);
+        throw new Error('JSON_PARSE_FAILED');
+      }
       if(content.entries&&content.entries.length){
         const localIds=new Set(entries.map(e=>e.id));
         const driveOnly=content.entries.filter(e=>!localIds.has(e.id));
@@ -1233,12 +1247,29 @@ async function loadFromDrive(){
         populateFilters();renderDashboard();
       }
     }
+  }catch(e){
+    hadError=true;
+    console.error('[Drive] Тэмдэглэл уншихад алдаа:',e);
+    if(e.message==='JSON_PARSE_FAILED'){
+      if(confirm('Drive дээрх тэмдэглэлийн файл эвдэрсэн байна. Сүүлийн backup-аас сэргээх үү?')){
+        openBackupModal();
+      }
+    } else {
+      showAlert('Тэмдэглэл Drive-аас уншихад алдаа гарлаа. Таны локал өгөгдөл хэвээрээ байгаа.','error');
+    }
+  }
 
-    // 2. Sticky notes + labels
+  // 2. Sticky notes + labels — тус тусдаа алдаа барина
+  try{
+    const folderId=await getOrCreateFolder();
     if(!stickyFileId)stickyFileId=await findFileInFolder(STICKY_FILE_NAME,folderId);
     if(stickyFileId){
-      const content=await fetch(`https://www.googleapis.com/drive/v3/files/${stickyFileId}?alt=media`,{
-        headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+      const res=await fetch(`https://www.googleapis.com/drive/v3/files/${stickyFileId}?alt=media`,{
+        headers:{Authorization:'Bearer '+accessToken}});
+      const text=await res.text();
+      let content;
+      try{content=JSON.parse(text);}
+      catch(parseErr){console.error('[Drive] sticky файл эвдэрсэн:',parseErr);throw new Error('JSON_PARSE_FAILED');}
       if(content.sticky_notes&&content.sticky_notes.length){
         const localSticky=localStorage.getItem('sticky_notes_hsti');
         const localArr=localSticky?JSON.parse(localSticky):[];
@@ -1258,12 +1289,23 @@ async function loadFromDrive(){
         }
       }
     }
+  }catch(e){
+    hadError=true;
+    console.error('[Drive] Sticky notes уншихад алдаа:',e);
+    // Sticky-ийн алдааг тийм ноцтой биш тул чимээгүй log хийгээд үргэлжлүүлнэ
+  }
 
-    // 3. Vault (шифрлэгдсэн)
+  // 3. Vault (шифрлэгдсэн) — тус тусдаа алдаа барина
+  try{
+    const folderId=await getOrCreateFolder();
     if(!vaultFileId)vaultFileId=await findFileInFolder(VAULT_FILE_NAME,folderId);
     if(vaultFileId){
-      const content=await fetch(`https://www.googleapis.com/drive/v3/files/${vaultFileId}?alt=media`,{
-        headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+      const res=await fetch(`https://www.googleapis.com/drive/v3/files/${vaultFileId}?alt=media`,{
+        headers:{Authorization:'Bearer '+accessToken}});
+      const text=await res.text();
+      let content;
+      try{content=JSON.parse(text);}
+      catch(parseErr){console.error('[Drive] vault файл эвдэрсэн:',parseErr);throw new Error('JSON_PARSE_FAILED');}
       if(content.vault_meta&&!localStorage.getItem('vault_meta_hsti')){
         localStorage.setItem('vault_meta_hsti',JSON.stringify(content.vault_meta));
       }
@@ -1274,9 +1316,13 @@ async function loadFromDrive(){
         initVault();
       }
     }
+  }catch(e){
+    hadError=true;
+    console.error('[Drive] Vault уншихад алдаа:',e);
+    // Vault-ийн алдааг чимээгүй log хийнэ — учир нь нэвтрэх үед дахин оролдоно
+  }
 
-    setSyncBadge('Синктэй','#0F6E56');
-  }catch(e){console.error(e);setSyncBadge('Алдаа','#e74c3c');}
+  setSyncBadge(hadError?'Хэсэгчилсэн алдаа':'Синктэй',hadError?'#f39c12':'#0F6E56');
 }
 
 function setSyncBadge(txt,color){
@@ -1609,7 +1655,8 @@ function importJSON(input){
       showAlert(`${newEntries.length} бүртгэл импортлогдлоо!`,'success');
       if(accessToken)syncToDrive();
     }catch(err){
-      showAlert('JSON файл буруу байна','error');
+      console.error('[Импорт] JSON parse алдаа:',err);
+      showAlert('JSON файл буруу байна эсвэл эвдэрсэн. Файлаа шалгаад дахин оролдоно уу.','error');
     }
     input.value='';
   };
@@ -2002,10 +2049,46 @@ function copyReport(){
 }
 
 function showAlert(msg,type){
-  const a=document.getElementById('alert-area');if(!a)return;
+  const a=document.getElementById('alert-area');
+  if(!a){
+    // alert-area байхгүй үед (жишээ нь login screen дээр) console-д л бичих
+    if(type==='error')console.error('[Alert]',msg);
+    return;
+  }
   a.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;
   setTimeout(()=>{if(a)a.innerHTML='';},3000);
 }
+
+// ── ГЛОБАЛ АЛДАА БАРИГЧ (safety net) ─────────────────────
+let lastGlobalErrorTime=0;
+function showGlobalErrorToast(msg){
+  // Хэт олон удаа дараалан гарвал spam болохоос сэргийлэх (3 секундэд 1 удаа)
+  const now=Date.now();
+  if(now-lastGlobalErrorTime<3000)return;
+  lastGlobalErrorTime=now;
+  let toast=document.getElementById('global-error-toast');
+  if(!toast){
+    toast=document.createElement('div');
+    toast.id='global-error-toast';
+    toast.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fff0f0;color:#c0392b;border:1.5px solid #f5b7b1;padding:10px 18px;border-radius:10px;font-size:13px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.15);max-width:90vw;text-align:center';
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML=`<i class="ti ti-alert-triangle" style="margin-right:6px"></i>${msg}`;
+  toast.style.display='block';
+  clearTimeout(toast._hideTimer);
+  toast._hideTimer=setTimeout(()=>{toast.style.display='none';},4000);
+}
+
+window.addEventListener('error',function(e){
+  console.error('[Глобал алдаа]',e.error||e.message);
+  showGlobalErrorToast('Алдаа гарлаа, гэхдээ таны өгөгдөл хадгалагдсан хэвээр байна. Хуудсыг шинэчилж үзнэ үү.');
+  return false; // Алдаа цааш дамжуулна, console-д харагдсаар байна
+});
+
+window.addEventListener('unhandledrejection',function(e){
+  console.error('[Барьгдаагүй Promise алдаа]',e.reason);
+  showGlobalErrorToast('Сүлжээний эсвэл системийн алдаа гарлаа. Дахин оролдоно уу.');
+});
 
 function showTab(name,el){
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
@@ -2544,12 +2627,20 @@ async function vaultUnlock(){
             localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault_data));
           }
         }
-      }catch(e){}
+      }catch(e){
+        console.error('[Vault] Drive-аас уншихад алдаа:',e);
+        showAlert('Drive-аас шинэчилж чадсангүй, локал хадгалсан өгөгдлийг харуулж байна','info');
+      }
     }
     // Decode хийх
     const raw=localStorage.getItem('vault_data_hsti');
     if(raw){
-      try{vaultItems=await decryptData(vaultKey,JSON.parse(raw));}catch(e){vaultItems=[];}
+      try{vaultItems=await decryptData(vaultKey,JSON.parse(raw));}
+      catch(e){
+        console.error('[Vault] Тайлахад алдаа:',e);
+        vaultItems=[];
+        showAlert('Нууц үгийн санг уншихад алдаа гарлаа. Өгөгдөл устаагүй байж магадгүй — Тохиргоо хэсгээс backup шалгана уу.','error');
+      }
     }
   }
   document.getElementById('vault-master-input').value='';
