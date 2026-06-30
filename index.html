@@ -487,7 +487,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
           <div class="form-grid" style="margin-bottom:0">
             <div style="margin-bottom:12px">
               <label><span class="req">*</span> Төлөвлөгөөний заалт</label>
-              <select id="zaalt-select" onchange="onZaaltChange()">
+              <select id="zaalt-select" onchange="onZaaltChange();scheduleDraftSave()">
                 <option value="">-- Жагсаалтаас сонгох --</option>
                 <optgroup label="Стратеги"><option value="1.1">1.1 Интернэтийн хурд нэмэгдүүлэх</option></optgroup>
                 <optgroup label="ХАБ"><option value="2.1">2.1 ХАБ зааварчилгаа мөрдөх</option></optgroup>
@@ -537,7 +537,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
             </div>
             <div style="margin-bottom:12px">
               <label><span class="req">*</span> Үр дүн</label>
-              <select id="entry-result" onchange="onResultChange()">
+              <select id="entry-result" onchange="onResultChange();scheduleDraftSave()">
                 <option value="">-- Үр дүн сонгох --</option>
                 <option value="Хэвийн ажиллагаанд оруулсан">Хэвийн ажиллагаанд оруулсан</option>
                 <option value="Гэмтэл арилгагдсан">Гэмтэл арилгагдсан</option>
@@ -557,8 +557,11 @@ details[open] summary .chevron{transform:rotate(90deg)}
             </div>
           </div>
           <div style="margin-bottom:12px">
-            <label><span class="req">*</span> Хийсэн ажил</label>
-            <textarea id="entry-work" placeholder="Өнөөдөр хийсэн ажлаа дэлгэрэнгүй бичнэ үү..."></textarea>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <label><span class="req">*</span> Хийсэн ажил</label>
+              <span id="draft-status" style="font-size:11px;color:#a0aab4;display:none"></span>
+            </div>
+            <textarea id="entry-work" placeholder="Өнөөдөр хийсэн ажлаа дэлгэрэнгүй бичнэ үү..." oninput="scheduleDraftSave()"></textarea>
             <div class="tag-row">
               <button type="button" class="tag-chip" data-tag="Уулзалт" onclick="toggleTag(this)">Уулзалт</button>
               <button type="button" class="tag-chip" data-tag="Баримт бичиг" onclick="toggleTag(this)">Баримт бичиг</button>
@@ -1434,6 +1437,97 @@ function renderDashboard(){
 // FORM FUNCTIONS
 function clearFieldErrors(){['err-zaalt','err-result','err-work'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});}
 
+// ── DRAFT (форм сэргээх) ──────────────────────────────────
+const DRAFT_KEY='hsti_draft_v1';
+let draftSaveTimer=null;
+
+function scheduleDraftSave(){
+  clearTimeout(draftSaveTimer);
+  const statusEl=document.getElementById('draft-status');
+  if(statusEl){statusEl.textContent='Бичиж байна...';statusEl.style.display='inline';}
+  draftSaveTimer=setTimeout(saveDraftNow,1200);
+}
+
+function saveDraftNow(){
+  // editingId байгаа үед (засаж байгаа үед) draft хадгалахгүй — энэ нь шинэ ажил биш
+  if(editingId)return;
+  const work=document.getElementById('entry-work')?.value||'';
+  const zaalt=document.getElementById('zaalt-select')?.value||'';
+  const result=document.getElementById('entry-result')?.value||'';
+  // Бүх талбар хоосон бол draft хадгалахгүй
+  if(!work.trim()&&!zaalt&&!result){
+    clearDraft();
+    return;
+  }
+  const draft={
+    date:document.getElementById('entry-date')?.value||'',
+    zaalt,result,work,
+    customZaalt:document.getElementById('custom-zaalt')?.value||'',
+    customResult:document.getElementById('custom-result')?.value||'',
+    location:document.getElementById('entry-location')?.value||'',
+    partner:document.getElementById('entry-partner')?.value||'',
+    tool:document.getElementById('entry-tool')?.value||'',
+    days:document.getElementById('entry-days')?.value||'',
+    tags:[...document.querySelectorAll('#tab-add .tag-chip.active')].map(t=>t.dataset.tag).filter(t=>t),
+    savedAt:new Date().toISOString()
+  };
+  try{
+    localStorage.setItem(DRAFT_KEY,JSON.stringify(draft));
+    const statusEl=document.getElementById('draft-status');
+    if(statusEl){
+      statusEl.innerHTML='<i class="ti ti-check" style="font-size:11px;color:#27ae60"></i> Ноорог хадгалагдсан';
+      statusEl.style.display='inline';
+    }
+  }catch(e){}
+}
+
+function clearDraft(){
+  try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
+  const statusEl=document.getElementById('draft-status');
+  if(statusEl)statusEl.style.display='none';
+}
+
+function checkAndRestoreDraft(){
+  if(editingId)return; // Засаж байгаа үед draft санал болгохгүй
+  let draft;
+  try{
+    const raw=localStorage.getItem(DRAFT_KEY);
+    if(!raw)return;
+    draft=JSON.parse(raw);
+  }catch(e){return;}
+  if(!draft||(!draft.work?.trim()&&!draft.zaalt&&!draft.result))return;
+
+  const savedTime=new Date(draft.savedAt);
+  const timeStr=savedTime.toLocaleDateString('mn-MN')+' '+savedTime.toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'});
+  if(!confirm(`Өмнө бичиж дуусгаагүй ноорог олдлоо (${timeStr}).\n\nСэргээх үү?`))
+  {
+    clearDraft();
+    return;
+  }
+  // Сэргээх
+  if(draft.date)document.getElementById('entry-date').value=draft.date;
+  if(draft.zaalt){document.getElementById('zaalt-select').value=draft.zaalt;onZaaltChange();}
+  if(draft.customZaalt)document.getElementById('custom-zaalt').value=draft.customZaalt;
+  if(draft.result){document.getElementById('entry-result').value=draft.result;onResultChange();}
+  if(draft.customResult)document.getElementById('custom-result').value=draft.customResult;
+  document.getElementById('entry-work').value=draft.work||'';
+  document.getElementById('entry-location').value=draft.location||'';
+  document.getElementById('entry-partner').value=draft.partner||'';
+  document.getElementById('entry-tool').value=draft.tool||'';
+  document.getElementById('entry-days').value=draft.days||'';
+  if(draft.tags&&draft.tags.length){
+    document.querySelectorAll('#tab-add .tag-chip').forEach(chip=>{
+      if(draft.tags.includes(chip.dataset.tag))chip.classList.add('active');
+    });
+  }
+  const statusEl=document.getElementById('draft-status');
+  if(statusEl){
+    statusEl.innerHTML='<i class="ti ti-check" style="font-size:11px;color:#27ae60"></i> Ноорог сэргээгдсэн';
+    statusEl.style.display='inline';
+  }
+  showAlert('Ноорог сэргээгдлээ','success');
+}
+
 function saveEntry(){
   clearFieldErrors();
   const date=document.getElementById('entry-date').value;
@@ -1456,6 +1550,7 @@ function saveEntry(){
   localStorage.setItem('hsti_v3',JSON.stringify(entries));
   document.getElementById('total-count').textContent=entries.length;
   clearForm();populateFilters();
+  clearDraft();
   showAlert('Хадгалагдлаа!','success');
   if(accessToken)syncToDrive();
 }
@@ -1463,6 +1558,7 @@ function saveEntry(){
 function editEntry(id){
   const e=entries.find(x=>x.id===id);if(!e)return;
   editingId=id;
+  const ds=document.getElementById('draft-status');if(ds)ds.style.display='none';
   document.getElementById('entry-date').value=e.date;
   document.getElementById('entry-work').value=e.work;
   document.getElementById('entry-location').value=e.location||'';
@@ -1926,6 +2022,7 @@ function showTab(name,el){
   }
   if(name==='calendar'){initCalendar();}
   if(name==='vault'){initVault();}
+  if(name==='add'){setTimeout(checkAndRestoreDraft,150);}
 }
 
 // ── STICKY NOTES ──────────────────────────────────────────
