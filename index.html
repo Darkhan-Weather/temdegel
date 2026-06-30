@@ -206,6 +206,9 @@ textarea{resize:vertical;min-height:80px}
 .tag-chip{font-size:12px;padding:5px 12px;border-radius:20px;border:1.5px solid #dde3ec;background:white;cursor:pointer;color:#6b7a8d;transition:all 0.15s;white-space:nowrap}
 .tag-chip.active{background:linear-gradient(135deg,#EBAD7C,#9E5E3D);color:white;border-color:transparent}
 .tag-chip:hover{border-color:#EBAD7C}
+.label-chip{font-size:12px;padding:5px 12px;border-radius:20px;border:1.5px solid #dde3ec;background:white;cursor:pointer;color:#6b7a8d;transition:all 0.15s;white-space:nowrap}
+.label-chip.active{background:linear-gradient(135deg,#EBAD7C,#9E5E3D);color:white;border-color:transparent}
+.label-chip:hover{border-color:#EBAD7C}
 .template-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .template-btn{font-size:12px;padding:7px 14px;border-radius:9px;border:1.5px dashed #c9d4e0;background:#fafbfc;cursor:pointer;color:#1a3a5c;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
 .template-btn:hover{border-color:#EBAD7C;background:#fff8f3}
@@ -887,6 +890,19 @@ function init(){
     entries=[...SEED_DATA];
     localStorage.setItem('hsti_v3',JSON.stringify(entries));
   }
+  // Migration: хуучин буруу null/хоосон tags-г цэвэрлэх
+  let tagsCleaned=false;
+  entries=entries.map(e=>{
+    if(e.tags&&Array.isArray(e.tags)){
+      const cleaned=e.tags.filter(t=>t&&typeof t==='string'&&t.trim());
+      if(cleaned.length!==e.tags.length){tagsCleaned=true;}
+      return{...e,tags:cleaned};
+    }
+    return e;
+  });
+  if(tagsCleaned){
+    localStorage.setItem('hsti_v3',JSON.stringify(entries));
+  }
   const tok=localStorage.getItem('hsti_tok'),usr=localStorage.getItem('hsti_usr');
   if(tok&&usr){accessToken=tok;currentUser=JSON.parse(usr);showMain();setTimeout(loadFromDrive,800);}
 }
@@ -1175,7 +1191,9 @@ function saveEntry(){
   if(!work){document.getElementById('err-work').style.display='flex';err=true;}
   if(!result){document.getElementById('err-result').style.display='flex';err=true;}
   if(err){showAlert('Тодруулсан талбаруудыг бөглөнө үү','error');return;}
-  const tags=[...document.querySelectorAll('.tag-chip.active')].map(t=>t.dataset.tag);
+  const tags=[...document.querySelectorAll('#tab-add .tag-chip.active')]
+    .map(t=>t.dataset.tag)
+    .filter(t=>t&&t.trim());
   const entry={id:editingId||Date.now(),date,zaalt,work,result,tags,
     location:document.getElementById('entry-location').value.trim(),
     partner:document.getElementById('entry-partner').value.trim(),
@@ -1326,7 +1344,7 @@ function renderList(){
       </div>
       <div class="entry-work">${e.work}</div>
       <div class="entry-result"><i class="ti ti-check" style="font-size:11px"></i> ${e.result}${e.days?' — '+e.days+' хоног':''}</div>
-      ${e.tags&&e.tags.length?`<div class="tag-row" style="margin-top:6px">${e.tags.map(t=>`<span class="tag-chip active" style="cursor:default;padding:2px 9px;font-size:11px">${t}</span>`).join('')}</div>`:''}
+      ${e.tags&&e.tags.length?`<div class="tag-row" style="margin-top:6px">${e.tags.filter(t=>t&&t.trim()).map(t=>`<span class="tag-chip active" style="cursor:default;padding:2px 9px;font-size:11px">${t}</span>`).join('')}</div>`:''}
       ${e.location||e.partner||e.tool?`<div class="entry-meta">${[e.location&&'📍'+e.location,e.partner&&'👤'+e.partner,e.tool&&'🔧'+e.tool].filter(Boolean).join(' · ')}</div>`:''}
       <div class="entry-actions">
         <button class="btn btn-sm" onclick="editEntry(${e.id})"><i class="ti ti-edit"></i> Засах</button>
@@ -1734,9 +1752,9 @@ function toggleNoteLabel(noteId,labelId,el){
 // Шошго шүүлтүүр
 function renderLabelFilters(){
   const el=document.getElementById('sticky-label-filters');if(!el)return;
-  let html=`<span class="tag-chip${activeFilterLabel===null?' active':''}" onclick="filterByLabel(null)">Бүгд</span>`;
+  let html=`<span class="label-chip${activeFilterLabel===null?' active':''}" onclick="filterByLabel(null)">Бүгд</span>`;
   stickyLabels.forEach(l=>{
-    html+=`<span class="tag-chip${activeFilterLabel===l.id?' active':''}" onclick="filterByLabel('${l.id}')">
+    html+=`<span class="label-chip${activeFilterLabel===l.id?' active':''}" onclick="filterByLabel('${l.id}')">
       <span style="width:8px;height:8px;border-radius:50%;background:${l.color};display:inline-block;margin-right:4px;vertical-align:middle"></span>${l.name}
     </span>`;
   });
