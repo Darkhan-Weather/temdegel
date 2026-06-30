@@ -850,12 +850,17 @@ details[open] summary .chevron{transform:rotate(90deg)}
 <script>
 const CLIENT_ID='318160635801-6970fmqoqafpp6j9nm216skqe0945fvm.apps.googleusercontent.com';
 const SCOPES='https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/calendar';
+const FOLDER_NAME='ХСТИ Систем';
 const FILE_NAME='ajliin_temdegel_2026.json';
+const STICKY_FILE_NAME='sticky_notes_2026.json';
+const VAULT_FILE_NAME='vault_2026.json';
+let driveFolderId=null;
 const PAGE_TITLES={dashboard:'Хяналтын самбар',add:'Ажил нэмэх',list:'Тэмдэглэлүүд',report:'Тайлан',sticky:'Sticky notes',calendar:'Google Calendar',vault:'Нууц үгийн сан',settings:'Тохиргоо'};
 const MONTH_NAMES=['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
 const TAG_COLORS=['#E1F5EE:#0F6E56','#E6F1FB:#185FA5','#FAECE7:#993C1D','#FFF3E8:#9E5E3D','#F0F0FF:#4A3F9E','#FEFCE8:#7A6200'];
 
 let entries=[],accessToken=null,driveFileId=null,currentUser=null,editingId=null,tokenClient=null;
+let stickyFileId=null,vaultFileId=null;
 
 // Seed demo data for months 1-5
 const SEED_DATA=[
@@ -948,51 +953,93 @@ function showMain(){
   renderDashboard();
 }
 
+async function getOrCreateFolder(){
+  if(driveFolderId)return driveFolderId;
+  const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(FOLDER_NAME)}' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive`,{
+    headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+  if(res.files&&res.files.length>0){
+    driveFolderId=res.files[0].id;
+  }else{
+    const meta=await fetch('https://www.googleapis.com/drive/v3/files',{
+      method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({name:FOLDER_NAME,mimeType:'application/vnd.google-apps.folder'})
+    }).then(r=>r.json());
+    driveFolderId=meta.id;
+  }
+  return driveFolderId;
+}
+
+async function findFileInFolder(fileName,folderId){
+  const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(fileName)}' and '${folderId}' in parents and trashed=false&spaces=drive`,{
+    headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+  return res.files&&res.files.length>0?res.files[0].id:null;
+}
+
+async function uploadToFile(fileName,fileId,folderId,payload){
+  const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+  let fid=fileId;
+  if(!fid){
+    const meta=await fetch('https://www.googleapis.com/drive/v3/files',{
+      method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({name:fileName,mimeType:'application/json',parents:[folderId]})
+    }).then(r=>r.json());
+    fid=meta.id;
+  }
+  await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=media`,{
+    method:'PATCH',headers:{Authorization:'Bearer '+accessToken},body:blob
+  });
+  return fid;
+}
+
 async function syncToDrive(){
   if(!accessToken){showAlert('Нэвтэрнэ үү','error');return;}
   setSyncBadge('Хадгалж байна...','#f39c12');
   try{
-    // Sticky notes болон vault өгөгдлийг нэмэх
+    const folderId=await getOrCreateFolder();
+
+    // 1. Ажлын тэмдэглэл — тусдаа файл
+    const entriesPayload={entries,updated:new Date().toISOString()};
+    if(!driveFileId)driveFileId=await findFileInFolder(FILE_NAME,folderId);
+    driveFileId=await uploadToFile(FILE_NAME,driveFileId,folderId,entriesPayload);
+
+    // 2. Sticky notes + labels — тусдаа файл
     const stickyData=localStorage.getItem('sticky_notes_hsti');
     const stickyLabelsData=localStorage.getItem('sticky_labels_hsti');
-    const vaultMeta=localStorage.getItem('vault_meta_hsti');
-    const vaultData=localStorage.getItem('vault_data_hsti');
-    const payload={
-      entries,
-      updated:new Date().toISOString(),
+    const stickyPayload={
       sticky_notes:stickyData?JSON.parse(stickyData):[],
       sticky_labels:stickyLabelsData?JSON.parse(stickyLabelsData):[],
+      updated:new Date().toISOString()
+    };
+    if(!stickyFileId)stickyFileId=await findFileInFolder(STICKY_FILE_NAME,folderId);
+    stickyFileId=await uploadToFile(STICKY_FILE_NAME,stickyFileId,folderId,stickyPayload);
+
+    // 3. Vault — тусдаа файл (шифрлэгдсэн)
+    const vaultMeta=localStorage.getItem('vault_meta_hsti');
+    const vaultData=localStorage.getItem('vault_data_hsti');
+    const vaultPayload={
       vault_meta:vaultMeta?JSON.parse(vaultMeta):null,
       vault_data:vaultData?JSON.parse(vaultData):null,
+      updated:new Date().toISOString()
     };
-    const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
-    if(!driveFileId){
-      const meta=await fetch('https://www.googleapis.com/drive/v3/files',{
-        method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
-        body:JSON.stringify({name:FILE_NAME,mimeType:'application/json'})
-      }).then(r=>r.json());
-      driveFileId=meta.id;
-    }
-    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,{
-      method:'PATCH',headers:{Authorization:'Bearer '+accessToken},body:blob
-    });
+    if(!vaultFileId)vaultFileId=await findFileInFolder(VAULT_FILE_NAME,folderId);
+    vaultFileId=await uploadToFile(VAULT_FILE_NAME,vaultFileId,folderId,vaultPayload);
+
     setSyncBadge('Drive-д хадгалагдсан','#0F6E56');
     showAlert('Drive-д хадгалагдлаа!','success');
-  }catch(e){setSyncBadge('Алдаа','#e74c3c');}
+  }catch(e){console.error(e);setSyncBadge('Алдаа','#e74c3c');}
 }
 
 async function loadFromDrive(){
   if(!accessToken)return;
   setSyncBadge('Уншиж байна...','#f39c12');
   try{
-    const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}'&spaces=drive`,{
-      headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
-    if(res.files&&res.files.length>0){
-      driveFileId=res.files[0].id;
+    const folderId=await getOrCreateFolder();
+
+    // 1. Ажлын тэмдэглэл
+    if(!driveFileId)driveFileId=await findFileInFolder(FILE_NAME,folderId);
+    if(driveFileId){
       const content=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
         headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
-
-      // Ажлын тэмдэглэл — merge (давхардал орохгүй)
       if(content.entries&&content.entries.length){
         const localIds=new Set(entries.map(e=>e.id));
         const driveOnly=content.entries.filter(e=>!localIds.has(e.id));
@@ -1005,8 +1052,13 @@ async function loadFromDrive(){
         document.getElementById('total-count').textContent=entries.length;
         populateFilters();renderDashboard();
       }
+    }
 
-      // Sticky notes — merge (давхардал орохгүй)
+    // 2. Sticky notes + labels
+    if(!stickyFileId)stickyFileId=await findFileInFolder(STICKY_FILE_NAME,folderId);
+    if(stickyFileId){
+      const content=await fetch(`https://www.googleapis.com/drive/v3/files/${stickyFileId}?alt=media`,{
+        headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
       if(content.sticky_notes&&content.sticky_notes.length){
         const localSticky=localStorage.getItem('sticky_notes_hsti');
         const localArr=localSticky?JSON.parse(localSticky):[];
@@ -1018,31 +1070,33 @@ async function loadFromDrive(){
           stickyNotes=merged;
         }
       }
-      // Sticky labels — үргэлж Drive-аас шинэчлэх
       if(content.sticky_labels&&content.sticky_labels.length){
         localStorage.setItem('sticky_labels_hsti',JSON.stringify(content.sticky_labels));
         stickyLabels=content.sticky_labels;
-        // Sticky tab нээлттэй бол дахин render хийх
         if(document.getElementById('tab-sticky')?.classList.contains('active')){
           renderLabelFilters();renderStickyNotes();
         }
       }
+    }
 
-      // Vault — meta хоосон үед л бичих, data үргэлж Drive-аас шинэчлэх
+    // 3. Vault (шифрлэгдсэн)
+    if(!vaultFileId)vaultFileId=await findFileInFolder(VAULT_FILE_NAME,folderId);
+    if(vaultFileId){
+      const content=await fetch(`https://www.googleapis.com/drive/v3/files/${vaultFileId}?alt=media`,{
+        headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
       if(content.vault_meta&&!localStorage.getItem('vault_meta_hsti')){
         localStorage.setItem('vault_meta_hsti',JSON.stringify(content.vault_meta));
       }
       if(content.vault_data){
         localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault_data));
       }
-      // Vault tab нээлттэй бол дахин initVault дуудах
       if(document.getElementById('tab-vault')?.classList.contains('active')){
         initVault();
       }
+    }
 
-      setSyncBadge('Синктэй','#0F6E56');
-    }else setSyncBadge('Шинэ файл','#0F6E56');
-  }catch(e){setSyncBadge('Алдаа','#e74c3c');}
+    setSyncBadge('Синктэй','#0F6E56');
+  }catch(e){console.error(e);setSyncBadge('Алдаа','#e74c3c');}
 }
 
 function setSyncBadge(txt,color){
@@ -2134,18 +2188,13 @@ async function vaultUnlock(){
       errEl.style.display='block';
       return;
     }
-    // Өгөгдөл уншах — Drive-аас vault_data шинэчлэх
+    // Өгөгдөл уншах — Drive-аас vault_data шинэчлэх (тусдаа vault файлаас)
     if(accessToken){
       try{
-        // driveFileId global байвал шууд ашиглах, байхгүй бол хайх
-        let fid=driveFileId;
-        if(!fid){
-          const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}'&spaces=drive`,{
-            headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
-          if(res.files&&res.files.length>0)fid=res.files[0].id;
-        }
-        if(fid){
-          const content=await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`,{
+        const folderId=await getOrCreateFolder();
+        if(!vaultFileId)vaultFileId=await findFileInFolder(VAULT_FILE_NAME,folderId);
+        if(vaultFileId){
+          const content=await fetch(`https://www.googleapis.com/drive/v3/files/${vaultFileId}?alt=media`,{
             headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
           if(content.vault_data){
             localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault_data));
