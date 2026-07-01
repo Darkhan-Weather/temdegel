@@ -957,6 +957,37 @@ const TAG_COLORS=['#E1F5EE:#0F6E56','#E6F1FB:#185FA5','#FAECE7:#993C1D','#FFF3E8
 let entries=[],accessToken=null,driveFileId=null,currentUser=null,editingId=null,tokenClient=null;
 let stickyFileId=null,vaultFileId=null;
 
+const ZAALT_LIST=[
+  {id:'1.2.1.1',name:'Сүлжээний хяналт, удирдлага'},
+  {id:'1.2.2.1',name:'AWS310 автомат станц'},
+  {id:'1.2.2.2',name:'Дархан бороо систем'},
+  {id:'1.2.2.3',name:'Агаар, цаг уурын мэдээлэл'},
+  {id:'1.2.2.4',name:'Компьютер, тоног төхөөрөмж'},
+  {id:'1.2.2.5',name:'Видео хяналт, камер'},
+  {id:'1.2.3.1',name:'Цахим хуудас хяналт'},
+  {id:'1.2.3.2',name:'Программ хангамж'},
+  {id:'1.2.3.3',name:'Мэдээллийн сан'},
+  {id:'1.2.4.1',name:'Цахилгаан хангамж'},
+  {id:'1.2.4.2',name:'Гал унтраах систем'},
+  {id:'1.2.4.3',name:'Шарын гол гулдрилын зураглал'},
+  {id:'1.3.1',name:'Мэдээллийн технологи нэвтрүүлэх'},
+  {id:'1.3.2',name:'Нээлттэй хаалганы өдөр'},
+  {id:'1.4.1',name:'Жилийн төлөвлөгөөний хэрэгжилт'},
+  {id:'1.4.2',name:'Сургалтанд оролцох'},
+  {id:'1.4.3',name:'Үүрэг даалгавар хэрэгжүүлэх'},
+  {id:'1.4.4',name:'Цэвэрлэгээ, арга хэмжээ'},
+  {id:'1.4.5',name:'Аймгийн арга хэмжээ'},
+  {id:'1.4.6',name:'Ёс зүй, авлигагүй ажиллах'},
+  {id:'1.4.7',name:'Тэрбум мод тарих'},
+  {id:'1.4.8',name:'Архивт баримт хүлээлгэн өгөх'},
+  {id:'1.4.9',name:'ӨХБЗ үйл ажиллагаа'},
+  {id:'1.4.10',name:'Гамшгийн эрсдэлийн үнэлгээ'},
+  {id:'1.4.11',name:'Удирдлагын нэгдсэн систем'},
+  {id:'1.4.12',name:'Ахмадуудын дурсамж видео'},
+  {id:'1.1',name:'Хагас жилийн тайлан'},
+  {id:'2.1',name:'Жилийн тайлан'},
+];
+
 // Seed demo data for months 1-5
 const SEED_DATA=[
   {id:1001,date:'2026-01-15',zaalt:'1.2.2.4',work:'Компьютерийн үзлэг хийсэн',result:'Хэвийн ажиллагаанд оруулсан',tags:['Засвар'],location:'Төв байр',partner:'',tool:'',days:''},
@@ -1508,25 +1539,53 @@ function renderDashboard(){
       </div>`).join('');
   }
 
-  // Zaalt coverage
-  const zaaltList=[
-    {id:'1.2.1.1',name:'Сүлжээ хяналт'},{id:'1.2.2.3',name:'AWS310'},{id:'1.2.2.4',name:'Компьютер'},
-    {id:'1.2.3.1',name:'Цахим хуудас'},{id:'1.4.1',name:'Төлөвлөгөө'},{id:'1.4.2',name:'Сургалт'},
-    {id:'1.4.4',name:'Цэвэрлэгээ'},{id:'1.4.9',name:'ӨХБЗ'}
-  ];
-  document.getElementById('zaalt-coverage').innerHTML=zaaltList.map(z=>{
-    const cnt=entries.filter(e=>e.zaalt===z.id).length;
-    const pct2=Math.min(cnt/5*100,100);
-    return `<div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-        <span style="font-size:12px;color:#1a2332">${z.name}</span>
-        <span style="font-size:11px;color:#8a97a8">${cnt} бүртгэл</span>
+  // ── ЗААЛТЫН ХАМРАГДАЛТ ──────────────────────────────────
+  const curMEntries=entries.filter(e=>e.date.slice(5,7)===curM);
+  const curMZaaltIds=new Set(curMEntries.map(e=>e.zaalt).filter(Boolean));
+
+  // Нийт бүртгэлийн заалтын давтамж
+  const zaaltCounts={};
+  ZAALT_LIST.forEach(z=>{zaaltCounts[z.id]=entries.filter(e=>e.zaalt===z.id).length;});
+
+  // Хамрагдаагүй (одоогийн сард)
+  const uncovered=ZAALT_LIST.filter(z=>!curMZaaltIds.has(z.id));
+  const coveredCount=ZAALT_LIST.length-uncovered.length;
+
+  document.getElementById('zaalt-coverage').innerHTML=`
+    <div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:600;color:#1a2332">${MONTH_NAMES[now.getMonth()]} — ${coveredCount}/${ZAALT_LIST.length} заалт</span>
+        <span style="font-size:11px;padding:2px 8px;border-radius:8px;background:${coveredCount===ZAALT_LIST.length?'#E1F5EE':'#FFF3E8'};color:${coveredCount===ZAALT_LIST.length?'#0F6E56':'#9E5E3D'}">${Math.round(coveredCount/ZAALT_LIST.length*100)}%</span>
       </div>
-      <div style="background:#f0f4f8;border-radius:20px;height:6px">
-        <div style="background:linear-gradient(to right,#EBAD7C,#9E5E3D);height:6px;border-radius:20px;width:${pct2}%;transition:width 0.5s"></div>
-      </div>
+      <!-- Хөндөгдөөгүй заалтууд -->
+      ${uncovered.length>0?`
+      <div style="background:#FFF8F0;border:1px solid #FDEBD0;border-radius:9px;padding:10px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:600;color:#9E5E3D;margin-bottom:6px"><i class="ti ti-alert-triangle" style="font-size:11px"></i> Энэ сард хөндөгдөөгүй (${uncovered.length})</div>
+        ${uncovered.map(z=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:6px;margin-bottom:3px;background:white">
+            <span style="font-size:11px;color:#6b7a8d">${z.id}</span>
+            <span style="font-size:11px;color:#1a2332;flex:1;margin:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${z.name}</span>
+            <span style="font-size:10px;color:#a0aab4">${zaaltCounts[z.id]>0?zaaltCounts[z.id]+' удаа':'Огт хөндөгдөөгүй'}</span>
+          </div>`).join('')}
+      </div>`:'<div style="background:#E8FAF0;border-radius:9px;padding:8px;text-align:center;font-size:12px;color:#0F6E56;margin-bottom:10px"><i class="ti ti-check"></i> Энэ сард бүх заалт хамрагдсан!</div>'}
+      <!-- Давтамжийн дүн шинжилгээ -->
+      <div style="font-size:11px;font-weight:600;color:#1a2332;margin-bottom:6px">Нийт давтамж (идэвхтэй заалтууд)</div>
+      ${ZAALT_LIST.filter(z=>zaaltCounts[z.id]>0).sort((a,b)=>zaaltCounts[b.id]-zaaltCounts[a.id]).slice(0,8).map(z=>{
+        const cnt=zaaltCounts[z.id];
+        const color=cnt>=5?'#27AE60':cnt>=2?'#F1C40F':'#e74c3c';
+        const icon=cnt>=5?'🟢':cnt>=2?'🟡':'🔴';
+        const pct2=Math.min(cnt/Math.max(...Object.values(zaaltCounts))*100,100);
+        return `<div style="margin-bottom:7px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <span style="font-size:11px;color:#1a2332">${icon} ${z.name}</span>
+            <span style="font-size:10px;color:${color};font-weight:500">${cnt} удаа</span>
+          </div>
+          <div style="background:#f0f4f8;border-radius:20px;height:5px">
+            <div style="background:${color};height:5px;border-radius:20px;width:${pct2}%;transition:width 0.5s"></div>
+          </div>
+        </div>`;
+      }).join('')}
     </div>`;
-  }).join('');
 }
 
 // FORM FUNCTIONS
@@ -1966,6 +2025,57 @@ function generateReport(){
   });
 
   html+='</div>';
+
+  // Заалтын давтамж + хөндөгдөөгүй хэсэг
+  const fromInt=parseInt(from),toInt=parseInt(to);
+  const periodZaaltIds=new Set(filtered.map(e=>e.zaalt).filter(Boolean));
+  const uncoveredZaalts=ZAALT_LIST.filter(z=>!periodZaaltIds.has(z.id));
+  const coveredZaalts=ZAALT_LIST.filter(z=>periodZaaltIds.has(z.id));
+
+  html+=`<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div class="card-title" style="margin:0"><i class="ti ti-chart-dots"></i> Заалтын дүн шинжилгээ</div>
+      <span style="font-size:12px;padding:3px 10px;border-radius:8px;background:${uncoveredZaalts.length===0?'#E1F5EE':'#FFF3E8'};color:${uncoveredZaalts.length===0?'#0F6E56':'#9E5E3D'}">${coveredZaalts.length}/${ZAALT_LIST.length} заалт хамрагдсан</span>
+    </div>
+
+    ${uncoveredZaalts.length>0?`
+    <div style="background:#FFF8F0;border:1px solid #FDEBD0;border-radius:10px;padding:12px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:600;color:#9E5E3D;margin-bottom:8px"><i class="ti ti-alert-triangle"></i> Энэ хугацаанд хөндөгдөөгүй заалтууд (${uncoveredZaalts.length})</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">
+        ${uncoveredZaalts.map(z=>{
+          const totalCnt=entries.filter(e=>e.zaalt===z.id).length;
+          return `<div style="background:white;border-radius:7px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:10px;color:#9E5E3D;font-weight:500">${z.id}</div>
+              <div style="font-size:11px;color:#1a2332">${z.name}</div>
+            </div>
+            <span style="font-size:10px;color:${totalCnt>0?'#8a97a8':'#e74c3c'};white-space:nowrap">${totalCnt>0?'Нийт '+totalCnt:'Огт хөндөгдөөгүй'}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`:''}
+
+    <div style="font-size:12px;font-weight:600;color:#1a2332;margin-bottom:10px">Заалт бүрийн давтамж</div>
+    <div style="display:grid;gap:6px">
+      ${ZAALT_LIST.map(z=>{
+        const cnt=filtered.filter(e=>e.zaalt===z.id).length;
+        if(cnt===0)return'';
+        const icon=cnt>=5?'🟢':cnt>=2?'🟡':'🔴';
+        const color=cnt>=5?'#27AE60':cnt>=2?'#E67E22':'#e74c3c';
+        const maxCnt=Math.max(...ZAALT_LIST.map(zz=>filtered.filter(e=>e.zaalt===zz.id).length),1);
+        const pct=Math.round(cnt/maxCnt*100);
+        return `<div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:11px;color:#8a97a8;width:70px;flex-shrink:0">${z.id}</span>
+          <span style="font-size:12px;color:#1a2332;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${z.name}</span>
+          <div style="width:80px;flex-shrink:0;background:#f0f4f8;border-radius:10px;height:6px">
+            <div style="background:${color};height:6px;border-radius:10px;width:${pct}%"></div>
+          </div>
+          <span style="font-size:11px;color:${color};width:50px;text-align:right;flex-shrink:0">${icon} ${cnt}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+
   document.getElementById('report-output').innerHTML=html;
 }
 
