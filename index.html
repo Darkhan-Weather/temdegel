@@ -405,11 +405,33 @@ details[open] summary .chevron{transform:rotate(90deg)}
 
       <!-- DASHBOARD TAB -->
       <div id="tab-dashboard" class="tab-content active">
+
+        <!-- МЕНЕЖМЕНТИЙН БЛОК — өглөө нэвтрэхэд хамгийн түрүүнд харах -->
+        <div id="mgmt-block" style="margin-bottom:14px;display:none">
+          <div class="card" style="border-left:3px solid #e74c3c;background:linear-gradient(135deg,#FFFAF9,#FFF5F5);padding:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <i class="ti ti-alert-circle" style="color:#e74c3c;font-size:16px"></i>
+                <span style="font-size:14px;font-weight:600;color:#c0392b">Өнөөдөр анхаарах</span>
+              </div>
+              <span id="mgmt-count" style="font-size:11px;background:#e74c3c;color:white;padding:2px 8px;border-radius:10px"></span>
+            </div>
+            <div id="mgmt-list"></div>
+          </div>
+        </div>
+
         <div class="stats-grid" id="stats-grid"></div>
+
+        <!-- Хөндөгдөөгүй заалт toggle panel -->
+        <div id="uncovered-panel" style="display:none;margin-top:-10px;margin-bottom:14px">
+          <div class="card" style="border-top:none;border-radius:0 0 12px 12px;background:#FFF8F0;border:1.5px solid #FDEBD0;border-top:none;padding:12px">
+            <div style="font-size:12px;font-weight:600;color:#9E5E3D;margin-bottom:8px">Энэ сард хөндөгдөөгүй заалтууд</div>
+            <div id="uncovered-list"></div>
+          </div>
+        </div>
 
         <!-- ӨНӨӨДРИЙН ТЭМДЭГЛЭЛ + CHART хажуу хажуугаар -->
         <div class="dashboard-top-row">
-          <!-- Өнөөдрийн тэмдэглэл -->
           <div class="card" id="today-card" style="margin-bottom:0;display:flex;flex-direction:column">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
               <div class="card-title" style="margin:0"><i class="ti ti-calendar-check"></i> Өнөөдрийн тэмдэглэл <span id="today-date-label" style="font-size:12px;font-weight:400;color:#8a97a8;margin-left:6px"></span></div>
@@ -417,8 +439,6 @@ details[open] summary .chevron{transform:rotate(90deg)}
             </div>
             <div id="today-list" style="flex:1;overflow-y:auto;max-height:240px"></div>
           </div>
-
-          <!-- Сарын тэмдэглэлийн тоо -->
           <div class="chart-wrap" style="margin-bottom:0">
             <div class="chart-header">
               <div>
@@ -435,24 +455,12 @@ details[open] summary .chevron{transform:rotate(90deg)}
           </div>
         </div>
 
-        <!-- АНХААРАЛ ХАНДУУЛАХ -->
-        <div id="todo-attention-card" style="display:none;margin-bottom:14px">
-          <div class="card" style="border-left:3px solid #e74c3c;background:#FFFAF9">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-              <i class="ti ti-alert-circle" style="color:#e74c3c;font-size:16px"></i>
-              <div class="card-title" style="margin:0;color:#c0392b">Анхаарал хандуулах</div>
-            </div>
-            <div id="todo-attention-list"></div>
-          </div>
-        </div>
-
         <!-- ӨНӨӨДРИЙН ДААЛГАВАР (ToDo) -->
         <div class="card" style="margin-bottom:14px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
             <div class="card-title" style="margin:0"><i class="ti ti-checklist"></i> Өнөөдрийн даалгавар</div>
             <button class="btn btn-sm btn-primary" onclick="todoShowAdd()"><i class="ti ti-plus"></i> Нэмэх</button>
           </div>
-          <!-- Нэмэх форм -->
           <div id="todo-add-form" style="display:none;background:#f8fafc;border-radius:10px;border:1.5px dashed #c9d4e0;padding:12px;margin-bottom:12px">
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
               <input id="todo-input" placeholder="Даалгавар бичнэ үү..." style="flex:1;min-width:160px" onkeydown="if(event.key==='Enter')todoAdd()">
@@ -466,7 +474,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
               <div style="display:flex;align-items:center;gap:6px;flex:1">
                 <label style="font-size:12px;color:#6b7a8d;white-space:nowrap">Дуусгах огноо:</label>
                 <input id="todo-deadline" type="date" style="flex:1;min-width:130px;padding:6px 8px">
-                <button class="btn btn-sm" onclick="document.getElementById('todo-deadline').value=''" title="Огноо арилгах" style="padding:5px 8px">✕</button>
+                <button class="btn btn-sm" onclick="document.getElementById('todo-deadline').value=''" style="padding:5px 8px">✕</button>
               </div>
               <button class="btn btn-sm btn-primary" onclick="todoAdd()"><i class="ti ti-check"></i> Нэмэх</button>
               <button class="btn btn-sm" onclick="document.getElementById('todo-add-form').style.display='none'">Болих</button>
@@ -1450,6 +1458,7 @@ function renderDashboard(){
 
   renderTodos();
   renderAttention();
+  renderUncoveredPanel();
   const thisM=entries.filter(e=>e.date.slice(5,7)===curM).length;
   const zaaltSet=new Set(entries.map(e=>e.zaalt).filter(v=>v&&v!=='custom'&&v!=='nemel'&&v!=='medleg'&&v!=='eelje'));
   const covered=zaaltSet.size;
@@ -1458,11 +1467,11 @@ function renderDashboard(){
   const pct=total?Math.round(done/total*100):0;
 
   document.getElementById('stats-grid').innerHTML=[
-    {label:'Нийт тэмдэглэл',value:total,icon:'ti-notebook',bg:'linear-gradient(135deg,#1D9E75,#0F6E56)',sub:'Нийт бүртгэл'},
-    {label:'Энэ сар',value:thisM,icon:'ti-calendar',bg:'linear-gradient(135deg,#378ADD,#185FA5)',sub:MONTH_NAMES[now.getMonth()]},
-    {label:'Заалт хамрагдсан',value:covered+'/'+total28,icon:'ti-list-check',bg:'linear-gradient(135deg,#D85A30,#993C1D)',sub:Math.round(covered/total28*100)+'% хамрагдсан'},
-    {label:'Биелэлт',value:pct+'%',icon:'ti-chart-bar',bg:'linear-gradient(135deg,#BA7517,#854F0B)',sub:'Дуусгасан ажил'}
-  ].map(s=>`<div class="stat-card" style="background:${s.bg}">
+    {label:'Нийт тэмдэглэл',value:total,icon:'ti-notebook',bg:'linear-gradient(135deg,#1D9E75,#0F6E56)',sub:'Нийт бүртгэл',click:''},
+    {label:'Энэ сар',value:thisM,icon:'ti-calendar',bg:'linear-gradient(135deg,#378ADD,#185FA5)',sub:MONTH_NAMES[now.getMonth()],click:''},
+    {label:'Заалт хамрагдсан',value:covered+'/'+total28,icon:'ti-list-check',bg:'linear-gradient(135deg,#D85A30,#993C1D)',sub:Math.round(covered/total28*100)+'% · дарж дэлгэрэнгүй харах',click:'onclick="toggleUncoveredPanel()"'},
+    {label:'Биелэлт',value:pct+'%',icon:'ti-chart-bar',bg:'linear-gradient(135deg,#BA7517,#854F0B)',sub:'Дуусгасан ажил',click:''}
+  ].map(s=>`<div class="stat-card" style="background:${s.bg};${s.click?'cursor:pointer;':''}" ${s.click}>
     <div class="stat-card-top"><span class="stat-label">${s.label}</span><div class="stat-icon"><i class="ti ${s.icon}"></i></div></div>
     <div class="stat-value">${s.value}</div><div class="stat-sub">${s.sub}</div>
   </div>`).join('');
@@ -2750,26 +2759,110 @@ function todoDelete(id){
 function renderAttention(){
   loadTodos();
   const today=new Date().toISOString().slice(0,10);
-  const urgent=todos.filter(t=>{
-    if(t.done)return false;
-    if(!t.deadline)return false;
+  const curM=String(new Date().getMonth()+1).padStart(2,'0');
+
+  const items=[];
+
+  // 1. Deadline хэтэрсэн + өнөөдөр/маргааш дуусах todo
+  todos.filter(t=>{
+    if(t.done||!t.deadline)return false;
     const st=getDeadlineStatus(t.deadline);
-    return st&&st.days<=1; // Хугацаа хэтэрсэн + өнөөдөр + маргааш
+    return st&&st.days<=1;
+  }).forEach(t=>{
+    const st=getDeadlineStatus(t.deadline);
+    items.push({
+      type:'todo',
+      icon:'ti-checklist',
+      color:st.color,
+      title:t.text,
+      sub:st.label,
+      bg:st.bg,
+      action:`todoToggle(${t.id})`
+    });
   });
-  const card=document.getElementById('todo-attention-card');
-  const list=document.getElementById('todo-attention-list');
-  if(!card||!list)return;
-  if(!urgent.length){card.style.display='none';return;}
-  card.style.display='block';
-  list.innerHTML=urgent.map(t=>{
-    const st=getDeadlineStatus(t.deadline);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:${st.bg};border:1px solid ${st.color}33;margin-bottom:6px">
-      <div class="todo-check${t.done?' checked':''}" onclick="todoToggle(${t.id})" style="border-color:${st.color}"></div>
-      <span style="flex:1;font-size:13px;color:#1a2332">${t.text}</span>
-      <span style="font-size:11px;padding:2px 8px;border-radius:8px;background:${st.color};color:white;white-space:nowrap">${st.label}</span>
-      <button class="todo-del" onclick="todoDelete(${t.id})"><i class="ti ti-x"></i></button>
-    </div>`;
-  }).join('');
+
+  // 2. Чухал эрэмбэтэй өнөөдрийн тэмдэглэл
+  const todayImportant=entries.filter(e=>{
+    if(e.priority!=='important')return false;
+    const p=e.date.split('-');
+    const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
+    return norm===today;
+  });
+  todayImportant.forEach(e=>{
+    items.push({
+      type:'entry',
+      icon:'ti-alert-triangle',
+      color:'#e74c3c',
+      title:e.work,
+      sub:`🔴 Чухал · ${e.zaalt}`,
+      bg:'#FFF0F0'
+    });
+  });
+
+  // 3. Энэ сард хөндөгдөөгүй + нийт 0 бүртгэлтэй заалтууд (critical)
+  const curMZaaltIds=new Set(entries.filter(e=>e.date.slice(5,7)===curM).map(e=>e.zaalt));
+  const neverTouched=ZAALT_LIST.filter(z=>entries.filter(e=>e.zaalt===z.id).length===0);
+  if(neverTouched.length>0){
+    items.push({
+      type:'zaalt',
+      icon:'ti-file-x',
+      color:'#8E44AD',
+      title:`${neverTouched.length} заалт огт бүртгэлгүй`,
+      sub:neverTouched.slice(0,3).map(z=>z.id).join(', ')+(neverTouched.length>3?'...':''),
+      bg:'#F9F0FF'
+    });
+  }
+
+  const mgmtBlock=document.getElementById('mgmt-block');
+  const mgmtList=document.getElementById('mgmt-list');
+  const mgmtCount=document.getElementById('mgmt-count');
+  if(!mgmtBlock||!mgmtList)return;
+
+  if(!items.length){
+    mgmtBlock.style.display='none';
+    return;
+  }
+
+  mgmtBlock.style.display='block';
+  mgmtCount.textContent=items.length+' зүйл';
+  mgmtList.innerHTML=items.map(item=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:${item.bg};border:1px solid ${item.color}22;margin-bottom:6px">
+      <i class="ti ${item.icon}" style="color:${item.color};font-size:14px;flex-shrink:0"></i>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:#1a2332;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.title}</div>
+        <div style="font-size:11px;color:${item.color};margin-top:1px">${item.sub}</div>
+      </div>
+      ${item.action?`<button class="todo-check" onclick="${item.action}" title="Дуусгасан болгох"></button>`:''}
+    </div>`).join('');
+}
+
+function toggleUncoveredPanel(){
+  const panel=document.getElementById('uncovered-panel');
+  if(!panel)return;
+  const isOpen=panel.style.display!=='none';
+  panel.style.display=isOpen?'none':'block';
+}
+
+function renderUncoveredPanel(){
+  const curM=String(new Date().getMonth()+1).padStart(2,'0');
+  const curMZaaltIds=new Set(entries.filter(e=>e.date.slice(5,7)===curM).map(e=>e.zaalt));
+  const uncovered=ZAALT_LIST.filter(z=>!curMZaaltIds.has(z.id));
+  const list=document.getElementById('uncovered-list');
+  if(!list)return;
+  if(!uncovered.length){
+    list.innerHTML='<div style="font-size:12px;color:#27ae60;text-align:center;padding:8px"><i class="ti ti-check"></i> Энэ сард бүх заалт хамрагдсан!</div>';
+    return;
+  }
+  list.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">
+    ${uncovered.map(z=>{
+      const total=entries.filter(e=>e.zaalt===z.id).length;
+      return `<div style="background:white;border-radius:7px;padding:7px 10px;cursor:pointer" onclick="showTab('add',document.querySelectorAll('.nav-item')[1])">
+        <div style="font-size:10px;color:#9E5E3D;font-weight:600">${z.id}</div>
+        <div style="font-size:12px;color:#1a2332">${z.name}</div>
+        <div style="font-size:10px;color:${total>0?'#8a97a8':'#e74c3c'};margin-top:2px">${total>0?'Нийт '+total+' бүртгэл':'Огт хөндөгдөөгүй'}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 function renderTodos(){
