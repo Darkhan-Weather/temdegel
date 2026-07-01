@@ -431,6 +431,17 @@ details[open] summary .chevron{transform:rotate(90deg)}
           </div>
         </div>
 
+        <!-- АНХААРАЛ ХАНДУУЛАХ -->
+        <div id="todo-attention-card" style="display:none;margin-bottom:14px">
+          <div class="card" style="border-left:3px solid #e74c3c;background:#FFFAF9">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <i class="ti ti-alert-circle" style="color:#e74c3c;font-size:16px"></i>
+              <div class="card-title" style="margin:0;color:#c0392b">Анхаарал хандуулах</div>
+            </div>
+            <div id="todo-attention-list"></div>
+          </div>
+        </div>
+
         <!-- ӨНӨӨДРИЙН ДААЛГАВАР (ToDo) -->
         <div class="card" style="margin-bottom:14px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -439,15 +450,22 @@ details[open] summary .chevron{transform:rotate(90deg)}
           </div>
           <!-- Нэмэх форм -->
           <div id="todo-add-form" style="display:none;background:#f8fafc;border-radius:10px;border:1.5px dashed #c9d4e0;padding:12px;margin-bottom:12px">
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
               <input id="todo-input" placeholder="Даалгавар бичнэ үү..." style="flex:1;min-width:160px" onkeydown="if(event.key==='Enter')todoAdd()">
               <select id="todo-priority" style="width:110px;padding:8px">
                 <option value="normal">Энгийн</option>
                 <option value="important">Чухал</option>
                 <option value="urgent">Яаралтай</option>
               </select>
-              <button class="btn btn-sm btn-primary" onclick="todoAdd()"><i class="ti ti-check"></i></button>
-              <button class="btn btn-sm" onclick="document.getElementById('todo-add-form').style.display='none'">✕</button>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:6px;flex:1">
+                <label style="font-size:12px;color:#6b7a8d;white-space:nowrap">Дуусгах огноо:</label>
+                <input id="todo-deadline" type="date" style="flex:1;min-width:130px;padding:6px 8px">
+                <button class="btn btn-sm" onclick="document.getElementById('todo-deadline').value=''" title="Огноо арилгах" style="padding:5px 8px">✕</button>
+              </div>
+              <button class="btn btn-sm btn-primary" onclick="todoAdd()"><i class="ti ti-check"></i> Нэмэх</button>
+              <button class="btn btn-sm" onclick="document.getElementById('todo-add-form').style.display='none'">Болих</button>
             </div>
           </div>
           <div id="todo-list"></div>
@@ -1370,6 +1388,7 @@ function renderDashboard(){
   }
 
   renderTodos();
+  renderAttention();
   const thisM=entries.filter(e=>e.date.slice(5,7)===curM).length;
   const zaaltSet=new Set(entries.map(e=>e.zaalt).filter(v=>v&&v!=='custom'&&v!=='nemel'&&v!=='medleg'&&v!=='eelje'));
   const covered=zaaltSet.size;
@@ -2332,6 +2351,7 @@ async function fetchCalEvents(){
 }
 
 function renderCalGrid(){
+  loadTodos(); // Deadline-тай todo-г харуулахын тулд
   const grid=document.getElementById('cal-grid');
   if(!grid)return;
   const titleEl=document.getElementById('cal-month-title');
@@ -2354,9 +2374,16 @@ function renderCalGrid(){
       const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
       return norm===ds;
     }).length;
+    // Deadline бүхий todo-г харуулах
+    const deadlineTodos=todos.filter(t=>t.deadline===ds&&!t.done);
     let dots='';
     dayEv.slice(0,2).forEach(e=>{dots+=`<div class="cal-event-dot gcal">${e.summary||'Event'}</div>`;});
     if(wCount>0)dots+=`<div class="cal-event-dot work">Ажил: ${wCount}</div>`;
+    if(deadlineTodos.length>0){
+      const st=getDeadlineStatus(ds);
+      const dotColor=st?st.color:'#e74c3c';
+      dots+=`<div class="cal-event-dot" style="background:${dotColor}22;color:${dotColor}">⏰ ${deadlineTodos.length} даалгавар</div>`;
+    }
     if(dayEv.length>2)dots+=`<div class="cal-more">+${dayEv.length-2}</div>`;
     html+=`<div class="cal-day${isToday?' today':''}${isSel?' selected':''}" onclick="calSelectDay('${ds}')"><div class="cal-day-num">${d}</div>${dots}</div>`;
   }
@@ -2494,30 +2521,71 @@ function todoShowAdd(){
   f.style.display=f.style.display==='none'?'block':'none';
   if(f.style.display==='block')document.getElementById('todo-input').focus();
 }
+
+// Deadline-ын төлөв динамикаар тооцох (хадгалахгүй, харуулах болгонд тооцно)
+function getDeadlineStatus(deadline){
+  if(!deadline)return null;
+  const today=new Date(); today.setHours(0,0,0,0);
+  const dl=new Date(deadline); dl.setHours(0,0,0,0);
+  const diff=Math.round((dl-today)/(1000*60*60*24));
+  if(diff<0)return{label:'Хугацаа хэтэрсэн',color:'#e74c3c',bg:'#FFF0F0',days:diff};
+  if(diff===0)return{label:'Өнөөдөр дуусах',color:'#E67E22',bg:'#FFF8F0',days:0};
+  if(diff===1)return{label:'Маргааш дуусах',color:'#F1C40F',bg:'#FFFDE8',days:1};
+  return{label:`${diff} хоног үлдсэн`,color:'#27AE60',bg:'#F0FFF4',days:diff};
+}
+
 function todoAdd(){
   const inp=document.getElementById('todo-input');
   const text=inp.value.trim();
   if(!text)return;
   const pri=document.getElementById('todo-priority').value;
+  const deadline=document.getElementById('todo-deadline').value||null;
   const today=new Date().toISOString().slice(0,10);
-  todos.unshift({id:Date.now(),text,priority:pri,done:false,date:today});
+  todos.unshift({id:Date.now(),text,priority:pri,done:false,date:today,deadline});
   saveTodos();
   inp.value='';
+  document.getElementById('todo-deadline').value='';
   document.getElementById('todo-add-form').style.display='none';
   renderTodos();
+  renderAttention();
 }
 function todoToggle(id){
   const t=todos.find(t=>t.id===id);
-  if(t){t.done=!t.done;saveTodos();renderTodos();}
+  if(t){t.done=!t.done;saveTodos();renderTodos();renderAttention();}
 }
 function todoDelete(id){
   todos=todos.filter(t=>t.id!==id);
-  saveTodos();renderTodos();
+  saveTodos();renderTodos();renderAttention();
 }
+
+function renderAttention(){
+  loadTodos();
+  const today=new Date().toISOString().slice(0,10);
+  const urgent=todos.filter(t=>{
+    if(t.done)return false;
+    if(!t.deadline)return false;
+    const st=getDeadlineStatus(t.deadline);
+    return st&&st.days<=1; // Хугацаа хэтэрсэн + өнөөдөр + маргааш
+  });
+  const card=document.getElementById('todo-attention-card');
+  const list=document.getElementById('todo-attention-list');
+  if(!card||!list)return;
+  if(!urgent.length){card.style.display='none';return;}
+  card.style.display='block';
+  list.innerHTML=urgent.map(t=>{
+    const st=getDeadlineStatus(t.deadline);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:${st.bg};border:1px solid ${st.color}33;margin-bottom:6px">
+      <div class="todo-check${t.done?' checked':''}" onclick="todoToggle(${t.id})" style="border-color:${st.color}"></div>
+      <span style="flex:1;font-size:13px;color:#1a2332">${t.text}</span>
+      <span style="font-size:11px;padding:2px 8px;border-radius:8px;background:${st.color};color:white;white-space:nowrap">${st.label}</span>
+      <button class="todo-del" onclick="todoDelete(${t.id})"><i class="ti ti-x"></i></button>
+    </div>`;
+  }).join('');
+}
+
 function renderTodos(){
   loadTodos();
   const today=new Date().toISOString().slice(0,10);
-  // Өнөөдрийн + дуусаагүй өмнөх даалгавруудыг харуулах
   const visible=todos.filter(t=>t.date===today||!t.done);
   const el=document.getElementById('todo-list');
   if(!el)return;
@@ -2526,20 +2594,29 @@ function renderTodos(){
     return;
   }
   const priLabel={urgent:'Яаралтай',important:'Чухал',normal:'Энгийн'};
-  // Эрэмбэлэх: яаралтай → чухал → энгийн, дуусаагүй эхэнд
+  // Эрэмбэлэх: хугацаа хэтэрсэн → яаралтай → чухал → энгийн, дуусаагүй эхэнд
   const sorted=[...visible].sort((a,b)=>{
     if(a.done!==b.done)return a.done?1:-1;
+    const aDays=a.deadline?getDeadlineStatus(a.deadline)?.days??99:99;
+    const bDays=b.deadline?getDeadlineStatus(b.deadline)?.days??99:99;
+    if(aDays!==bDays)return aDays-bDays;
     const po={urgent:0,important:1,normal:2};
     return (po[a.priority]||2)-(po[b.priority]||2);
   });
-  el.innerHTML=sorted.map(t=>`
-    <div class="todo-item${t.done?' done':''}">
+  el.innerHTML=sorted.map(t=>{
+    const st=t.deadline&&!t.done?getDeadlineStatus(t.deadline):null;
+    return `<div class="todo-item${t.done?' done':''}" style="${st&&!t.done?'border-color:'+st.color+'44':''}">
       <div class="todo-check${t.done?' checked':''}" onclick="todoToggle(${t.id})"></div>
-      <span class="todo-text">${t.text}</span>
-      ${t.date!==today?`<span style="font-size:10px;color:#a0aab4">${t.date.slice(5).replace('-','/')} →</span>`:''}
+      <div style="flex:1;min-width:0">
+        <div class="todo-text">${t.text}</div>
+        ${t.deadline&&!t.done&&st?`<div style="font-size:11px;color:${st.color};margin-top:2px"><i class="ti ti-calendar-due" style="font-size:10px"></i> ${t.deadline} · ${st.label}</div>`:''}
+        ${t.deadline&&t.done?`<div style="font-size:11px;color:#a0aab4;margin-top:2px;text-decoration:line-through"><i class="ti ti-calendar" style="font-size:10px"></i> ${t.deadline}</div>`:''}
+        ${t.date!==today&&!t.done?`<span style="font-size:10px;color:#a0aab4">${t.date.slice(5).replace('-','/')} →</span>`:''}
+      </div>
       <span class="todo-badge ${t.priority}">${priLabel[t.priority]}</span>
       <button class="todo-del" onclick="todoDelete(${t.id})"><i class="ti ti-x"></i></button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── НУУЦ ҮГ САН (AES-256-GCM) ────────────────────────────
