@@ -98,27 +98,32 @@ body.theme-green .tag-chip.active{background:linear-gradient(135deg,#52BE80,#1E8
 body.theme-green .cal-day.today{border-color:#52BE80;background:#EAFAF1}
 body.theme-green .cal-day.today .cal-day-num{background:linear-gradient(135deg,#52BE80,#1E8449)}
 
-/* THEME: Dark */
-body.theme-dark{background:#1A1A2E}
-body.theme-dark .sidebar{background:linear-gradient(180deg,#4A4A5A 0%,#1A1A2E 100%)}
-body.theme-dark .main-content{background:#1A1A2E}
-body.theme-dark .content{background:#1A1A2E}
-body.theme-dark .card{background:#2A2A3E;border-color:#3A3A4E;color:#E0E0F0}
-body.theme-dark .content-header{background:#2A2A3E;border-color:#3A3A4E}
-body.theme-dark .content-header-title{color:#E0E0F0}
-body.theme-dark .content-header-sub{color:#8A8AAA}
-body.theme-dark .card-title{color:#C0C0E0}
-body.theme-dark input,body.theme-dark select,body.theme-dark textarea{background:#3A3A4E;border-color:#4A4A5E;color:#E0E0F0}
-body.theme-dark .entry-item{background:#2A2A3E;border-color:#3A3A4E}
-body.theme-dark .entry-work{color:#E0E0F0}
-body.theme-dark .recent-item{background:#3A3A4E}
-body.theme-dark .btn{background:#3A3A4E;border-color:#4A4A5E;color:#E0E0F0}
-body.theme-dark .btn:hover{background:#4A4A5E}
-body.theme-dark .btn-primary{background:linear-gradient(135deg,#4A4A5A,#1A1A2E);border-color:#5A5A6A}
-body.theme-dark .cal-day{background:#2A2A3E;border-color:#3A3A4E}
-body.theme-dark .cal-day-num{color:#E0E0F0}
-body.theme-dark .sticky-note-text{color:#1a2332}
-body.theme-dark label{color:#A0A0C0}
+/* THEME: Далай (cyan→indigo) */
+body.theme-ocean .sidebar{background:linear-gradient(180deg,#17A8C4 0%,#2C3E8C 100%)}
+body.theme-ocean .btn-primary{background:linear-gradient(135deg,#17A8C4,#2C3E8C)}
+body.theme-ocean .nav-item.active{background:rgba(255,255,255,0.2)}
+body.theme-ocean .entry-tag{background:#E0F7FA;color:#006064}
+body.theme-ocean .tag-chip.active{background:linear-gradient(135deg,#17A8C4,#2C3E8C)}
+body.theme-ocean .cal-day.today{border-color:#17A8C4;background:#E0F7FA}
+body.theme-ocean .cal-day.today .cal-day-num{background:linear-gradient(135deg,#17A8C4,#2C3E8C)}
+
+/* THEME: Тэнгэр (цайвар цэнхэр) */
+body.theme-sky .sidebar{background:linear-gradient(180deg,#4FC3F7 0%,#0277BD 100%)}
+body.theme-sky .btn-primary{background:linear-gradient(135deg,#4FC3F7,#0277BD)}
+body.theme-sky .nav-item.active{background:rgba(255,255,255,0.25)}
+body.theme-sky .entry-tag{background:#E1F5FE;color:#01579B}
+body.theme-sky .tag-chip.active{background:linear-gradient(135deg,#4FC3F7,#0277BD)}
+body.theme-sky .cal-day.today{border-color:#4FC3F7;background:#E1F5FE}
+body.theme-sky .cal-day.today .cal-day-num{background:linear-gradient(135deg,#4FC3F7,#0277BD)}
+
+/* THEME: Нил (violet) */
+body.theme-violet .sidebar{background:linear-gradient(180deg,#7B1FA2 0%,#4527A0 100%)}
+body.theme-violet .btn-primary{background:linear-gradient(135deg,#7B1FA2,#4527A0)}
+body.theme-violet .nav-item.active{background:rgba(255,255,255,0.2)}
+body.theme-violet .entry-tag{background:#F3E5F5;color:#6A1B9A}
+body.theme-violet .tag-chip.active{background:linear-gradient(135deg,#7B1FA2,#4527A0)}
+body.theme-violet .cal-day.today{border-color:#7B1FA2;background:#F3E5F5}
+body.theme-violet .cal-day.today .cal-day-num{background:linear-gradient(135deg,#7B1FA2,#4527A0)}
 
 /* TODO */
 .todo-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:#fafbfc;border:1.5px solid #f0f2f5;margin-bottom:7px;transition:all 0.15s}
@@ -896,9 +901,17 @@ details[open] summary .chevron{transform:rotate(90deg)}
               <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#52BE80,#1E8449)"></div>
               <span>Ногоон</span>
             </div>
-            <div class="theme-option" data-theme="dark" onclick="setTheme('dark')" title="Харанхуй">
-              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#4A4A5A,#1A1A2E)"></div>
-              <span>Харанхуй</span>
+            <div class="theme-option" data-theme="ocean" onclick="setTheme('ocean')" title="Далай">
+              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#17A8C4,#2C3E8C)"></div>
+              <span>Далай</span>
+            </div>
+            <div class="theme-option" data-theme="sky" onclick="setTheme('sky')" title="Тэнгэр">
+              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#4FC3F7,#0277BD)"></div>
+              <span>Тэнгэр</span>
+            </div>
+            <div class="theme-option" data-theme="violet" onclick="setTheme('violet')" title="Нил">
+              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7B1FA2,#4527A0)"></div>
+              <span>Нил</span>
             </div>
           </div>
         </div>
@@ -2765,7 +2778,7 @@ function calGoToday(){
 function calRefresh(){fetchCalEvents();}
 
 // ── THEME ─────────────────────────────────────────────────
-const THEMES=['brown','blue','green','dark'];
+const THEMES=['brown','blue','green','ocean','sky','violet'];
 
 function setTheme(theme){
   THEMES.forEach(t=>document.body.classList.remove('theme-'+t));
@@ -2777,7 +2790,7 @@ function setTheme(theme){
 }
 
 function initTheme(){
-  const saved=localStorage.getItem('app_theme_hsti')||'brown';
+  const saved=localStorage.getItem('app_theme_hsti')||'ocean';
   setTheme(saved);
 }
 
