@@ -125,6 +125,14 @@ body.theme-violet .tag-chip.active{background:linear-gradient(135deg,#7B1FA2,#45
 body.theme-violet .cal-day.today{border-color:#7B1FA2;background:#F3E5F5}
 body.theme-violet .cal-day.today .cal-day-num{background:linear-gradient(135deg,#7B1FA2,#4527A0)}
 
+/* HEATMAP */
+.heatmap-wrap{display:flex;gap:3px}
+.heatmap-week{display:flex;flex-direction:column;gap:3px}
+.heatmap-cell{width:13px;height:13px;border-radius:2px;cursor:pointer;transition:opacity 0.15s}
+.heatmap-cell:hover{opacity:0.7;outline:1.5px solid #555}
+.heatmap-month-labels{display:flex;gap:0;margin-bottom:4px;font-size:9px;color:#a0aab4;height:12px;position:relative}
+.heatmap-day-labels{display:flex;flex-direction:column;gap:3px;margin-right:4px;font-size:9px;color:#a0aab4}
+
 .search-result-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:9px;cursor:pointer;transition:background 0.1s}
 .search-result-item:hover,.search-result-item.selected{background:#f5f7fa}
 .search-result-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
@@ -534,6 +542,31 @@ details[open] summary .chevron{transform:rotate(90deg)}
           <div class="card" style="margin-bottom:0">
             <div class="card-title"><i class="ti ti-chart-donut"></i> Заалтын хамрагдалт</div>
             <div id="zaalt-coverage"></div>
+          </div>
+        </div>
+
+        <!-- СТАТИСТИК: Heatmap + Pie -->
+        <div class="dashboard-top-row" style="margin-top:14px;margin-bottom:0">
+          <!-- Heatmap -->
+          <div class="card" style="margin-bottom:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div class="card-title" style="margin:0"><i class="ti ti-calendar-stats"></i> Идэвхийн хуанли</div>
+              <div style="display:flex;gap:4px;align-items:center;font-size:10px;color:#a0aab4">
+                <span style="width:10px;height:10px;border-radius:2px;background:#f0f4f8;display:inline-block"></span>0
+                <span style="width:10px;height:10px;border-radius:2px;background:#C8E6C9;display:inline-block;margin-left:4px"></span>1-2
+                <span style="width:10px;height:10px;border-radius:2px;background:#66BB6A;display:inline-block;margin-left:4px"></span>3-5
+                <span style="width:10px;height:10px;border-radius:2px;background:#2E7D32;display:inline-block;margin-left:4px"></span>6+
+              </div>
+            </div>
+            <div id="heatmap-grid" style="overflow-x:auto"></div>
+          </div>
+          <!-- Pie chart -->
+          <div class="card" style="margin-bottom:0">
+            <div class="card-title" style="margin-bottom:12px"><i class="ti ti-chart-pie"></i> Заалтын хуваарилалт</div>
+            <div style="display:flex;align-items:flex-start;gap:14px">
+              <canvas id="pie-canvas" width="130" height="130" style="flex-shrink:0"></canvas>
+              <div id="pie-legend" style="flex:1;min-width:0;font-size:11px;line-height:1.8"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -1588,6 +1621,8 @@ function renderDashboard(){
   renderTodos();
   renderAttention();
   renderUncoveredPanel();
+  renderHeatmap();
+  setTimeout(renderPieChart,50);
   const thisM=entries.filter(e=>e.date.slice(5,7)===curM).length;
   const zaaltSet=new Set(entries.map(e=>e.zaalt).filter(v=>v&&v!=='custom'&&v!=='nemel'&&v!=='medleg'&&v!=='eelje'));
   const covered=zaaltSet.size;
@@ -2046,6 +2081,194 @@ function clearForm(){
   document.querySelectorAll('.tag-chip.active').forEach(c=>c.classList.remove('active'));
   setEntryPriority('normal'); // Priority default-д буцаах
   clearFieldErrors();
+}
+
+// ── HEATMAP ───────────────────────────────────────────────
+function renderHeatmap(){
+  const grid=document.getElementById('heatmap-grid');
+  if(!grid)return;
+
+  // Өнгөний шат
+  function heatColor(n){
+    if(n===0)return'#f0f4f8';
+    if(n<=2)return'#C8E6C9';
+    if(n<=5)return'#66BB6A';
+    return'#2E7D32';
+  }
+
+  // Өнгөрсөн 26 долоо хоног (182 өдөр)
+  const today=new Date();today.setHours(0,0,0,0);
+  const WEEKS=26;
+
+  // entries-г огноогоор map болгох
+  const countByDate={};
+  entries.forEach(e=>{
+    const p=e.date.split('-');
+    const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
+    countByDate[norm]=(countByDate[norm]||0)+1;
+  });
+
+  // Даваагаас эхлүүлэх
+  const startDow=(today.getDay()+6)%7; // Да=0
+  const startDate=new Date(today);
+  startDate.setDate(today.getDate()-startDow-(WEEKS-1)*7);
+
+  const weeks=[];
+  for(let w=0;w<WEEKS;w++){
+    const week=[];
+    for(let d=0;d<7;d++){
+      const dt=new Date(startDate);
+      dt.setDate(startDate.getDate()+w*7+d);
+      const ds=dt.toISOString().slice(0,10);
+      week.push({date:ds,count:countByDate[ds]||0,dt});
+    }
+    weeks.push(week);
+  }
+
+  // Сарын гарчиг
+  const monthNames=['1','2','3','4','5','6','7','8','9','10','11','12'];
+  let monthHtml='<div style="display:flex;margin-left:24px;margin-bottom:3px">';
+  let lastMonth=-1;
+  weeks.forEach((week,wi)=>{
+    const m=week[0].dt.getMonth();
+    if(m!==lastMonth){
+      monthHtml+=`<div style="position:absolute;left:${wi*16+24}px;font-size:9px;color:#8a97a8">${monthNames[m]}</div>`;
+      lastMonth=m;
+    }
+  });
+  monthHtml+='</div>';
+
+  // Cells
+  let cellHtml=`<div style="display:flex;align-items:flex-start;gap:3px">
+    <div class="heatmap-day-labels" style="margin-top:0">
+      <div style="height:13px"></div>
+      <div style="height:13px">Мя</div>
+      <div style="height:13px"></div>
+      <div style="height:13px">Пү</div>
+      <div style="height:13px"></div>
+      <div style="height:13px">Бя</div>
+      <div style="height:13px"></div>
+    </div>
+    <div style="position:relative">
+      <div style="display:flex;position:relative;height:14px;margin-bottom:3px">`;
+  weeks.forEach((week,wi)=>{
+    const m=week[0].dt.getMonth();
+    if(m!==lastMonth||wi===0){
+      cellHtml+=`<div style="width:13px;font-size:9px;color:#8a97a8;text-align:center;line-height:13px">${m!==lastMonth||wi===0?monthNames[m]:''}</div>`;
+      if(wi>0)lastMonth=m;
+    } else {
+      cellHtml+=`<div style="width:13px"></div>`;
+    }
+  });
+
+  // Бүх weeks-ийн cell-үүд
+  let allCellsHtml='<div style="display:flex;gap:3px">';
+  weeks.forEach(week=>{
+    allCellsHtml+=`<div style="display:flex;flex-direction:column;gap:3px">`;
+    week.forEach(cell=>{
+      const isToday=cell.date===today.toISOString().slice(0,10);
+      const tip=`${cell.date}: ${cell.count} бүртгэл`;
+      allCellsHtml+=`<div class="heatmap-cell" style="background:${heatColor(cell.count)};${isToday?'outline:2px solid #1a2332':''}" title="${tip}" onclick="calSelectDay('${cell.date}')"></div>`;
+    });
+    allCellsHtml+='</div>';
+  });
+  allCellsHtml+='</div>';
+
+  // Сарын label дахин тооцоолох
+  lastMonth=-1;
+  let monthLabelHtml='<div style="display:flex;gap:3px;margin-bottom:3px;margin-left:20px">';
+  weeks.forEach(week=>{
+    const m=week[0].dt.getMonth();
+    if(m!==lastMonth){
+      monthLabelHtml+=`<div style="min-width:13px;font-size:9px;color:#8a97a8">${monthNames[m]}</div>`;
+      lastMonth=m;
+    } else {
+      monthLabelHtml+=`<div style="min-width:13px"></div>`;
+    }
+  });
+  monthLabelHtml+='</div>';
+
+  grid.innerHTML=`
+    ${monthLabelHtml}
+    <div style="display:flex;align-items:flex-start;gap:3px">
+      <div style="display:flex;flex-direction:column;gap:3px;margin-right:2px;padding-top:0px">
+        ${['Да','','Лх','','Ба','','Ня'].map(d=>`<div style="height:13px;font-size:9px;color:#a0aab4;line-height:13px;width:14px">${d}</div>`).join('')}
+      </div>
+      ${allCellsHtml}
+    </div>`;
+}
+
+// ── PIE CHART (Canvas) ────────────────────────────────────
+function renderPieChart(){
+  const canvas=document.getElementById('pie-canvas');
+  const legend=document.getElementById('pie-legend');
+  if(!canvas||!legend)return;
+
+  // Заалтаар тоолох
+  const counts={};
+  entries.forEach(e=>{
+    const z=e.zaalt||'other';
+    counts[z]=(counts[z]||0)+1;
+  });
+
+  // Бүлгэлэх — заалтын бүлгээр (1.2.2.x → "Тоног төхөөрөмж")
+  const groups={
+    'Тоног төхөөрөмж':0,'Сүлжээ':0,'Аюулгүй байдал':0,
+    'Салбарын ажил':0,'Үйлчилгээ':0,'Үүрэг':0,'Бусад':0
+  };
+  Object.entries(counts).forEach(([z,c])=>{
+    if(z.startsWith('1.2.2'))groups['Тоног төхөөрөмж']+=c;
+    else if(z.startsWith('1.2.1')||z.startsWith('1.2.3'))groups['Сүлжээ']+=c;
+    else if(z.startsWith('1.2.4'))groups['Салбарын ажил']+=c;
+    else if(z.startsWith('1.3'))groups['Үйлчилгээ']+=c;
+    else if(z.startsWith('1.4'))groups['Үүрэг']+=c;
+    else if(z==='eelje'||z==='nemel'||z==='medleg')groups['Бусад']+=c;
+    else groups['Бусад']+=c;
+  });
+
+  const COLORS=['#2980B9','#27AE60','#E67E22','#8E44AD','#e74c3c','#16A085','#7f8c8d'];
+  const filtered=Object.entries(groups).filter(([,v])=>v>0);
+  const total=filtered.reduce((s,[,v])=>s+v,0);
+  if(!total){legend.innerHTML='<div style="color:#a0aab4;font-size:12px">Өгөгдөл байхгүй</div>';return;}
+
+  const ctx=canvas.getContext('2d');
+  const cx=65,cy=65,r=58,iR=30;
+  ctx.clearRect(0,0,130,130);
+
+  let angle=-Math.PI/2;
+  filtered.forEach(([,v],i)=>{
+    const slice=(v/total)*Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+slice);
+    ctx.closePath();
+    ctx.fillStyle=COLORS[i%COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle='white';
+    ctx.lineWidth=2;
+    ctx.stroke();
+    angle+=slice;
+  });
+  // Дотоод цагаан тойрог (donut)
+  ctx.beginPath();
+  ctx.arc(cx,cy,iR,0,Math.PI*2);
+  ctx.fillStyle='white';
+  ctx.fill();
+  // Нийт тоо дунд
+  ctx.fillStyle='#1a2332';
+  ctx.font='bold 14px Arial';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(total,cx,cy);
+
+  // Legend
+  legend.innerHTML=filtered.map(([name,v],i)=>`
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="width:10px;height:10px;border-radius:2px;background:${COLORS[i%COLORS.length]};flex-shrink:0;display:inline-block"></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1a2332">${name}</span>
+      <span style="color:#8a97a8;flex-shrink:0">${v}</span>
+      <span style="color:#a0aab4;flex-shrink:0;font-size:10px">${Math.round(v/total*100)}%</span>
+    </div>`).join('');
 }
 
 // ── GLOBAL SEARCH (Ctrl+K) ────────────────────────────────
