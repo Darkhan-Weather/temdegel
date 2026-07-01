@@ -815,7 +815,13 @@ details[open] summary .chevron{transform:rotate(90deg)}
               <button class="btn btn-sm btn-primary" onclick="calAddEvent()"><i class="ti ti-check"></i> Нэмэх</button>
             </div>
           </div>
-          <div style="margin-top:10px;text-align:right">
+          <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span style="font-size:10px;display:flex;align-items:center;gap:3px;color:#27AE60"><span style="width:8px;height:8px;border-radius:50%;background:#27AE60;display:inline-block"></span>Засвар</span>
+              <span style="font-size:10px;display:flex;align-items:center;gap:3px;color:#2980B9"><span style="width:8px;height:8px;border-radius:50%;background:#2980B9;display:inline-block"></span>Сургалт</span>
+              <span style="font-size:10px;display:flex;align-items:center;gap:3px;color:#E6A817"><span style="width:8px;height:8px;border-radius:50%;background:#F1C40F;display:inline-block"></span>Хурал</span>
+              <span style="font-size:10px;display:flex;align-items:center;gap:3px;color:#e74c3c"><span style="width:8px;height:8px;border-radius:50%;background:#e74c3c;display:inline-block"></span>Чухал</span>
+            </div>
             <button class="btn btn-sm" id="cal-show-add-btn" onclick="document.getElementById('cal-add-form').style.display='block';this.style.display='none'" style="display:none">
               <i class="ti ti-plus"></i> Үйл явдал нэмэх
             </button>
@@ -2923,13 +2929,31 @@ function renderCalGrid(){
     }).length;
     // Deadline бүхий todo-г харуулах
     const deadlineTodos=todos.filter(t=>t.deadline===ds&&!t.done);
+    // Тэр өдрийн тэмдэглэлүүдийн өнгийн ангилал
+    const dayEntries=entries.filter(e=>{
+      const p=e.date.split('-');
+      const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
+      return norm===ds;
+    });
     let dots='';
     dayEv.slice(0,2).forEach(e=>{dots+=`<div class="cal-event-dot gcal">${e.summary||'Event'}</div>`;});
-    if(wCount>0)dots+=`<div class="cal-event-dot work">Ажил: ${wCount}</div>`;
+    if(dayEntries.length>0){
+      // Өнгийн ангиллаар бүлэглэж харуулах
+      const colorGroups={};
+      dayEntries.forEach(e=>{
+        const wc=getWorkColor(e);
+        if(!colorGroups[wc.label])colorGroups[wc.label]={color:wc.color,bg:wc.bg,count:0};
+        colorGroups[wc.label].count++;
+      });
+      Object.entries(colorGroups).slice(0,2).forEach(([label,info])=>{
+        dots+=`<div class="cal-event-dot" style="background:${info.bg};color:${info.color}">${label} ${info.count}</div>`;
+      });
+      if(Object.keys(colorGroups).length>2)dots+=`<div class="cal-more">+${Object.keys(colorGroups).length-2}</div>`;
+    }
     if(deadlineTodos.length>0){
       const st=getDeadlineStatus(ds);
       const dotColor=st?st.color:'#e74c3c';
-      dots+=`<div class="cal-event-dot" style="background:${dotColor}22;color:${dotColor}">⏰ ${deadlineTodos.length} даалгавар</div>`;
+      dots+=`<div class="cal-event-dot" style="background:${dotColor}22;color:${dotColor}">⏰ ${deadlineTodos.length}</div>`;
     }
     if(dayEv.length>2)dots+=`<div class="cal-more">+${dayEv.length-2}</div>`;
     html+=`<div class="cal-day${isToday?' today':''}${isSel?' selected':''}" onclick="calSelectDay('${ds}')"><div class="cal-day-num">${d}</div>${dots}</div>`;
@@ -2948,6 +2972,24 @@ function calSelectDay(ds){
   if(btn)btn.style.display='inline-flex';
   const form=document.getElementById('cal-add-form');
   if(form)form.style.display='none';
+}
+
+// Ажлын өнгийн ангилал — tag болон priority-аар
+function getWorkColor(entry){
+  const tags=(entry.tags||[]).map(t=>(t||'').toLowerCase());
+  const pri=entry.priority||'normal';
+  if(pri==='important')return{bg:'#FFF0F0',color:'#e74c3c',label:'🔴 Чухал'};
+  if(tags.some(t=>t.includes('засвар')||t.includes('repair')))return{bg:'#E8F8F0',color:'#27AE60',label:'🟢 Засвар'};
+  if(tags.some(t=>t.includes('сургалт')||t.includes('training')))return{bg:'#EBF3FB',color:'#2980B9',label:'🔵 Сургалт'};
+  if(tags.some(t=>t.includes('уулзалт')||t.includes('хурал')||t.includes('meeting')))return{bg:'#FFFDE8',color:'#F1C40F',label:'🟡 Хурал'};
+  if(tags.some(t=>t.includes('хяналт')))return{bg:'#F0F4FF',color:'#5B6BD5',label:'🔷 Хяналт'};
+  if(tags.some(t=>t.includes('цэвэрлэгээ')))return{bg:'#FFF5E8',color:'#E67E22',label:'🟠 Цэвэрлэгээ'};
+  // Заалтаар ангилах (tag байхгүй үед)
+  const zaalt=entry.zaalt||'';
+  if(zaalt.includes('1.2.2'))return{bg:'#E8F8F0',color:'#27AE60',label:'🟢 Тоног төхөөрөмж'};
+  if(zaalt.includes('1.2.3')||zaalt.includes('1.2.1'))return{bg:'#EBF3FB',color:'#2980B9',label:'🔵 Сүлжээ'};
+  if(zaalt.includes('1.4'))return{bg:'#FFFDE8',color:'#E67E22',label:'🟡 Үүрэг'};
+  return{bg:'#F5F7FA',color:'#6b7a8d',label:'⚪ Ажил'};
 }
 
 function renderDayEvents(ds){
@@ -2982,13 +3024,14 @@ function renderDayEvents(ds){
     </div>`;
   });
   workItems.forEach(w=>{
-    html+=`<div class="cal-event-item">
-      <div class="cal-event-time">Ажил</div>
+    const wc=getWorkColor(w);
+    html+=`<div class="cal-event-item" style="border-left:3px solid ${wc.color};background:${wc.bg}">
+      <div class="cal-event-time" style="color:${wc.color}">${wc.label}</div>
       <div class="cal-event-info">
         <div class="cal-event-name">${w.work}</div>
         ${w.result?`<div class="cal-event-loc" style="color:#27ae60"><i class="ti ti-check" style="font-size:10px"></i> ${w.result}</div>`:''}
       </div>
-      <span class="cal-event-badge" style="background:#FFF3E8;color:#9E5E3D">${w.zaalt||''}</span>
+      <span class="cal-event-badge" style="background:${wc.color}22;color:${wc.color}">${w.zaalt||''}</span>
     </div>`;
   });
   const list=document.getElementById('cal-events-list');
