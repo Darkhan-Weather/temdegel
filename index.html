@@ -376,10 +376,10 @@ details[open] summary .chevron{transform:rotate(90deg)}
       </div>
       <div class="nav-group-label">ХЭРЭГСЛҮҮД</div>
       <div class="nav-item" onclick="showTab('sticky',this)">
-        <i class="ti ti-notes"></i><span>Sticky notes</span>
+        <i class="ti ti-notes"></i><span>Тэмдэглэл</span>
       </div>
       <div class="nav-item" onclick="showTab('calendar',this)">
-        <i class="ti ti-calendar"></i><span>Calendar</span>
+        <i class="ti ti-calendar"></i><span>Хуанли</span>
       </div>
       <div class="nav-item" onclick="showTab('vault',this)">
         <i class="ti ti-lock"></i><span>Нууц үгийн сан</span>
@@ -736,7 +736,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
           <div class="cal-detail-title"><i class="ti ti-calendar-event"></i> <span id="cal-detail-date">Өдөр сонгоно уу</span></div>
           <div id="cal-events-list"><p style="font-size:13px;color:#a0aab4;text-align:center;padding:20px">Календараас өдөр дарна уу</p></div>
           <div class="cal-add-form" id="cal-add-form" style="display:none">
-            <div class="cal-add-title"><i class="ti ti-plus"></i> Шинэ event нэмэх</div>
+            <div class="cal-add-title"><i class="ti ti-plus"></i> Шинэ үйл явдал нэмэх</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
               <div><label>Гарчиг <span class="req">*</span></label><input id="cal-new-title" placeholder="Event-ийн нэр"></div>
               <div><label>Цаг</label><input id="cal-new-time" type="time" value="09:00"></div>
@@ -750,7 +750,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
           </div>
           <div style="margin-top:10px;text-align:right">
             <button class="btn btn-sm" id="cal-show-add-btn" onclick="document.getElementById('cal-add-form').style.display='block';this.style.display='none'" style="display:none">
-              <i class="ti ti-plus"></i> Event нэмэх
+              <i class="ti ti-plus"></i> Үйл явдал нэмэх
             </button>
           </div>
         </div>
@@ -986,7 +986,7 @@ const FILE_NAME='ajliin_temdegel_2026.json';
 const STICKY_FILE_NAME='sticky_notes_2026.json';
 const VAULT_FILE_NAME='vault_2026.json';
 let driveFolderId=null;
-const PAGE_TITLES={dashboard:'Хяналтын самбар',add:'Ажил нэмэх',list:'Тэмдэглэлүүд',report:'Тайлан',sticky:'Sticky notes',calendar:'Google Calendar',vault:'Нууц үгийн сан',settings:'Тохиргоо'};
+const PAGE_TITLES={dashboard:'Хяналтын самбар',add:'Ажил нэмэх',list:'Тэмдэглэлүүд',report:'Тайлан',sticky:'Тэмдэглэл',calendar:'Хуанли',vault:'Нууц үгийн сан',settings:'Тохиргоо'};
 const MONTH_NAMES=['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
 const TAG_COLORS=['#E1F5EE:#0F6E56','#E6F1FB:#185FA5','#FAECE7:#993C1D','#FFF3E8:#9E5E3D','#F0F0FF:#4A3F9E','#FEFCE8:#7A6200'];
 
@@ -1320,7 +1320,7 @@ async function syncToDrive(){
     // Backup үүсгэх (async, sync-ийг саатуулахгүй)
     createBackup(folderId,entriesPayload,stickyPayload,vaultPayload);
 
-    setSyncBadge('Drive-д хадгалагдсан','#0F6E56');
+    setSyncBadge('Хадгалагдсан','#0F6E56');
     showAlert('Drive-д хадгалагдлаа!','success');
   }catch(e){
     console.error('[Drive sync алдаа]',e);
@@ -2613,7 +2613,7 @@ async function fetchCalEvents(){
     const res=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(start)}&timeMax=${encodeURIComponent(end)}&singleEvents=true&orderBy=startTime&maxResults=100`,
       {headers:{Authorization:'Bearer '+accessToken}});
     if(!res.ok){
-      if(res.status===403||res.status===401)showAlert('Calendar эрх хэрэгтэй. Гарч дахин нэвтэрнэ үү','error');
+      if(res.status===403||res.status===401)showAlert('Хуанлийн эрх хэрэгтэй. Гарч дахин нэвтэрнэ үү','error');
       calEvents=[];
     } else {
       const data=await res.json();
@@ -2752,7 +2752,7 @@ async function calAddEvent(){
     document.getElementById('cal-show-add-btn').style.display='inline-flex';
     await fetchCalEvents();
     renderDayEvents(calSelectedDate);
-  }catch(e){showAlert('Event нэмэхэд алдаа гарлаа','error');}
+  }catch(e){showAlert('Үйл явдал нэмэхэд алдаа гарлаа','error');}
 }
 
 function calPrevMonth(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}calSelectedDate=null;fetchCalEvents();}
