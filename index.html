@@ -131,6 +131,10 @@ body.theme-dark label{color:#A0A0C0}
 .todo-badge.urgent{background:#FFF0F0;color:#e74c3c}
 .todo-badge.important{background:#FFF8E8;color:#E67E22}
 .todo-badge.normal{background:#F0F4F8;color:#6b7a8d}
+.pri-badge{font-size:10px;padding:2px 8px;border-radius:6px;font-weight:500;flex-shrink:0}
+.pri-badge.important{background:#FFF0F0;color:#e74c3c;border:1px solid #FADBD8}
+.pri-badge.normal{background:#FFF8E8;color:#E67E22;border:1px solid #FAD7A0}
+.pri-badge.low{background:#F8F9FA;color:#7f8c8d;border:1px solid #E5E7E9}
 .todo-del{background:none;border:none;cursor:pointer;color:#dde3ec;font-size:13px;padding:2px 4px;border-radius:4px}
 .todo-del:hover{color:#e74c3c}
 
@@ -574,6 +578,24 @@ details[open] summary .chevron{transform:rotate(90deg)}
               <div id="err-result" class="field-error" style="display:none"><i class="ti ti-alert-circle"></i> Үр дүн сонгоно уу</div>
             </div>
           </div>
+          <!-- Эрэмбэ -->
+          <div style="margin-bottom:12px">
+            <label>Эрэмбэ</label>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:7px 14px;border-radius:9px;border:1.5px solid #dde3ec;flex:1;justify-content:center;font-size:13px;transition:all 0.15s" id="pri-important-label">
+                <input type="radio" name="entry-priority" id="pri-important" value="important" style="display:none" onchange="updatePriorityUI()">
+                <span style="width:8px;height:8px;border-radius:50%;background:#e74c3c;display:inline-block"></span> Чухал
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:7px 14px;border-radius:9px;border:1.5px solid #EBAD7C;background:#FFF3E8;flex:1;justify-content:center;font-size:13px;transition:all 0.15s" id="pri-normal-label">
+                <input type="radio" name="entry-priority" id="pri-normal" value="normal" checked style="display:none" onchange="updatePriorityUI()">
+                <span style="width:8px;height:8px;border-radius:50%;background:#F1C40F;display:inline-block"></span> Дунд
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:7px 14px;border-radius:9px;border:1.5px solid #dde3ec;flex:1;justify-content:center;font-size:13px;transition:all 0.15s" id="pri-low-label">
+                <input type="radio" name="entry-priority" id="pri-low" value="low" style="display:none" onchange="updatePriorityUI()">
+                <span style="width:8px;height:8px;border-radius:50%;background:#95a5a6;display:inline-block"></span> Энгийн
+              </label>
+            </div>
+          </div>
           <div style="margin-bottom:12px">
             <div style="display:flex;align-items:center;justify-content:space-between">
               <label><span class="req">*</span> Хийсэн ажил</label>
@@ -609,9 +631,17 @@ details[open] summary .chevron{transform:rotate(90deg)}
       <!-- LIST TAB -->
       <div id="tab-list" class="tab-content">
         <div class="card">
-          <div class="filter-row">
+          <div class="filter-row" style="grid-template-columns:1fr 1fr 1fr 1fr">
             <div><label>Сар</label><select id="filter-month" onchange="renderList()"><option value="">Бүгд</option></select></div>
             <div><label>Заалт</label><select id="filter-zaalt" onchange="renderList()"><option value="">Бүгд</option></select></div>
+            <div><label>Эрэмбэ</label>
+              <select id="filter-priority" onchange="renderList()">
+                <option value="">Бүгд</option>
+                <option value="important">🔴 Чухал</option>
+                <option value="normal">🟡 Дунд</option>
+                <option value="low">⚫ Энгийн</option>
+              </select>
+            </div>
             <div><label>Хайх</label><input type="text" id="filter-search" placeholder="Үг хайх..." oninput="renderList()"></div>
           </div>
           <div id="entries-count" style="font-size:12px;color:#8a97a8"></div>
@@ -1593,6 +1623,31 @@ function checkAndRestoreDraft(){
   showAlert('Ноорог сэргээгдлээ','success');
 }
 
+const PRI_COLORS={important:{border:'#e74c3c',bg:'#FFF0F0'},normal:{border:'#EBAD7C',bg:'#FFF3E8'},low:{border:'#dde3ec',bg:'white'}};
+const PRI_LABELS={important:'🔴 Чухал',normal:'🟡 Дунд',low:'⚫ Энгийн'};
+
+function updatePriorityUI(){
+  ['important','normal','low'].forEach(p=>{
+    const lbl=document.getElementById('pri-'+p+'-label');
+    const inp=document.getElementById('pri-'+p);
+    if(!lbl||!inp)return;
+    const sel=inp.checked;
+    lbl.style.border=`1.5px solid ${sel?PRI_COLORS[p].border:'#dde3ec'}`;
+    lbl.style.background=sel?PRI_COLORS[p].bg:'white';
+    lbl.style.fontWeight=sel?'600':'400';
+  });
+}
+
+function getEntryPriority(){
+  const el=document.querySelector('input[name="entry-priority"]:checked');
+  return el?el.value:'normal';
+}
+
+function setEntryPriority(p){
+  const el=document.getElementById('pri-'+(p||'normal'));
+  if(el){el.checked=true;updatePriorityUI();}
+}
+
 function saveEntry(){
   clearFieldErrors();
   const date=document.getElementById('entry-date').value;
@@ -1606,6 +1661,7 @@ function saveEntry(){
     .map(t=>t.dataset.tag)
     .filter(t=>t&&t.trim());
   const entry={id:editingId||Date.now(),date,zaalt,work,result,tags,
+    priority:getEntryPriority(),
     location:document.getElementById('entry-location').value.trim(),
     partner:document.getElementById('entry-partner').value.trim(),
     tool:document.getElementById('entry-tool').value.trim(),
@@ -1637,6 +1693,7 @@ function editEntry(id){
   const ropt=[...rsel.options].find(o=>o.value===e.result);
   if(ropt)rsel.value=e.result;else{rsel.value='custom-result';document.getElementById('custom-result').value=e.result;document.getElementById('custom-result-row').style.display='block';}
   document.querySelectorAll('.tag-chip').forEach(chip=>chip.classList.toggle('active',(e.tags||[]).includes(chip.dataset.tag)));
+  setEntryPriority(e.priority||'normal');
   showTab('add',document.querySelectorAll('.nav-item')[1]);
   showAlert('Засварлаж байна','info');
 }
@@ -1790,6 +1847,7 @@ function clearForm(){
   document.getElementById('custom-zaalt').value='';document.getElementById('custom-result').value='';
   document.getElementById('custom-zaalt-row').style.display='none';document.getElementById('custom-result-row').style.display='none';
   document.querySelectorAll('.tag-chip.active').forEach(c=>c.classList.remove('active'));
+  setEntryPriority('normal'); // Priority default-д буцаах
   clearFieldErrors();
 }
 
@@ -1810,21 +1868,36 @@ function populateFilters(){
 function renderList(){
   const month=document.getElementById('filter-month').value;
   const zaalt=document.getElementById('filter-zaalt').value;
+  const priority=document.getElementById('filter-priority')?.value||'';
   const search=document.getElementById('filter-search').value.toLowerCase();
   let filtered=entries.filter(e=>{
     if(month&&e.date.slice(5,7)!==month)return false;
     if(zaalt&&e.zaalt!==zaalt)return false;
+    if(priority){const ep=e.priority||'normal';if(ep!==priority)return false;}
     if(search&&!e.work.toLowerCase().includes(search)&&!e.result.toLowerCase().includes(search))return false;
     return true;
-  }).sort((a,b)=>b.date.localeCompare(a.date));
+  }).sort((a,b)=>{
+    // Чухал эхэнд, дараа нь огноогоор
+    const po={important:0,normal:1,low:2};
+    const pa=po[a.priority||'normal']??1;
+    const pb=po[b.priority||'normal']??1;
+    if(pa!==pb)return pa-pb;
+    return b.date.localeCompare(a.date);
+  });
   document.getElementById('entries-count').textContent=`Нийт ${filtered.length} бүртгэл`;
   const el=document.getElementById('entries-list');
   if(!filtered.length){el.innerHTML='<div class="empty"><i class="ti ti-inbox"></i><div>Тэмдэглэл олдсонгүй</div></div>';return;}
-  el.innerHTML=filtered.map(e=>`
-    <div class="entry-item">
+  el.innerHTML=filtered.map(e=>{
+    const pri=e.priority||'normal';
+    const priLabel={'important':'🔴 Чухал','normal':'🟡 Дунд','low':'⚫ Энгийн'};
+    const showPri=pri!=='normal'; // Дунд бол харуулахгүй (default тул)
+    return `<div class="entry-item" style="${pri==='important'?'border-left:3px solid #e74c3c':pri==='low'?'border-left:3px solid #dde3ec':''}">
       <div class="entry-header">
         <span class="entry-date"><i class="ti ti-calendar" style="font-size:11px"></i> ${e.date}</span>
-        <span class="entry-tag">${e.zaalt}</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${showPri?`<span class="pri-badge ${pri}">${priLabel[pri]}</span>`:''}
+          <span class="entry-tag">${e.zaalt}</span>
+        </div>
       </div>
       <div class="entry-work">${e.work}</div>
       <div class="entry-result"><i class="ti ti-check" style="font-size:11px"></i> ${e.result}${e.days?' — '+e.days+' хоног':''}</div>
@@ -1834,7 +1907,8 @@ function renderList(){
         <button class="btn btn-sm" onclick="editEntry(${e.id})"><i class="ti ti-edit"></i> Засах</button>
         <button class="btn btn-sm btn-danger" onclick="deleteEntry(${e.id})"><i class="ti ti-trash"></i> Устгах</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function generateReport(){
@@ -1868,18 +1942,23 @@ function generateReport(){
               <th style="padding:8px 10px;text-align:left;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3;white-space:nowrap;width:90px">Огноо</th>
               <th style="padding:8px 10px;text-align:left;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3">Хийсэн ажил</th>
               <th style="padding:8px 10px;text-align:left;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3;white-space:nowrap">Үр дүн</th>
+              <th style="padding:8px 10px;text-align:center;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3;white-space:nowrap;width:60px">Эрэмбэ</th>
               <th style="padding:8px 10px;text-align:left;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3;white-space:nowrap;width:70px">Хоног</th>
             </tr>
           </thead>
           <tbody>
-            ${items.map((e,i)=>`<tr style="background:${i%2===0?'white':'#fafbfc'}">
+            ${items.map((e,i)=>{
+              const pri=e.priority||'normal';
+              const priIcon={'important':'🔴','normal':'🟡','low':'⚫'};
+              return `<tr style="background:${i%2===0?'white':'#fafbfc'}${pri==='important'?';border-left:2px solid #e74c3c':''}">
               <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5;vertical-align:top">${e.date}</td>
               <td style="padding:7px 10px;color:#1a2332;border-bottom:1px solid #f0f2f5;line-height:1.5">${e.work}</td>
               <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5;vertical-align:top">
                 <span style="color:#27ae60;font-size:11px"><i class="ti ti-check" style="font-size:10px"></i> ${e.result||'—'}</span>
               </td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5;text-align:center;font-size:13px">${priIcon[pri]||'🟡'}</td>
               <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5;text-align:center">${e.days||'—'}</td>
-            </tr>`).join('')}
+            </tr>`;}).join('')}
           </tbody>
         </table>
       </div>
