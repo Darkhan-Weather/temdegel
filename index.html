@@ -135,6 +135,9 @@ body.theme-dark label{color:#A0A0C0}
 .pri-badge.important{background:#FFF0F0;color:#e74c3c;border:1px solid #FADBD8}
 .pri-badge.normal{background:#FFF8E8;color:#E67E22;border:1px solid #FAD7A0}
 .pri-badge.low{background:#F8F9FA;color:#7f8c8d;border:1px solid #E5E7E9}
+.report-period-btn{font-size:12px;padding:6px 14px;border-radius:20px;border:1.5px solid #dde3ec;background:white;cursor:pointer;color:#6b7a8d;transition:all 0.15s;white-space:nowrap}
+.report-period-btn:hover{border-color:#EBAD7C;color:#9E5E3D}
+.report-period-btn.active{background:linear-gradient(135deg,#EBAD7C,#9E5E3D);color:white;border-color:transparent;font-weight:500}
 .todo-del{background:none;border:none;cursor:pointer;color:#dde3ec;font-size:13px;padding:2px 4px;border-radius:4px}
 .todo-del:hover{color:#e74c3c}
 
@@ -662,28 +665,47 @@ details[open] summary .chevron{transform:rotate(90deg)}
         <div class="card">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
             <div class="card-title" style="margin:0"><i class="ti ti-file-text"></i> Тайлан гаргах</div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <div style="display:flex;align-items:center;gap:6px">
-                <label style="font-size:12px;color:#6b7a8d;white-space:nowrap">Эхний сар:</label>
-                <select id="report-from" style="padding:5px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none">
-                  <option value="01">1-р сар</option><option value="02">2-р сар</option><option value="03">3-р сар</option>
-                  <option value="04">4-р сар</option><option value="05">5-р сар</option><option value="06">6-р сар</option>
-                  <option value="07">7-р сар</option><option value="08">8-р сар</option><option value="09">9-р сар</option>
-                  <option value="10">10-р сар</option><option value="11">11-р сар</option><option value="12">12-р сар</option>
-                </select>
-              </div>
-              <div style="display:flex;align-items:center;gap:6px">
-                <label style="font-size:12px;color:#6b7a8d;white-space:nowrap">Дуусах сар:</label>
-                <select id="report-to" style="padding:5px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none">
-                  <option value="01">1-р сар</option><option value="02">2-р сар</option><option value="03">3-р сар</option>
-                  <option value="04">4-р сар</option><option value="05">5-р сар</option><option value="06" selected>6-р сар</option>
-                  <option value="07">7-р сар</option><option value="08">8-р сар</option><option value="09">9-р сар</option>
-                  <option value="10">10-р сар</option><option value="11">11-р сар</option><option value="12">12-р сар</option>
-                </select>
-              </div>
-              <button class="btn btn-primary" onclick="generateReport()"><i class="ti ti-chart-bar"></i> Үзэх</button>
-            </div>
+            <button class="btn btn-primary" onclick="generateReport()"><i class="ti ti-chart-bar"></i> Үзэх</button>
           </div>
+          <!-- Хугацааны сонгогч -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="report-period-btn active" data-period="7d" onclick="selectReportPeriod(this)">7 хоног</button>
+            <button class="report-period-btn" data-period="14d" onclick="selectReportPeriod(this)">14 хоног</button>
+            <button class="report-period-btn" data-period="month" onclick="selectReportPeriod(this)">Сар</button>
+            <button class="report-period-btn" data-period="quarter" onclick="selectReportPeriod(this)">Улирал</button>
+            <button class="report-period-btn" data-period="year" onclick="selectReportPeriod(this)">Жил</button>
+            <button class="report-period-btn" data-period="custom" onclick="selectReportPeriod(this)">Custom</button>
+          </div>
+          <!-- Сар сонгогч (зөвхөн Сар сонгосон үед) -->
+          <div id="report-month-row" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+            <label style="font-size:12px;color:#6b7a8d">Сар:</label>
+            <select id="report-month-sel" style="padding:5px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none">
+              <option value="01">1-р сар</option><option value="02">2-р сар</option><option value="03">3-р сар</option>
+              <option value="04">4-р сар</option><option value="05">5-р сар</option><option value="06">6-р сар</option>
+              <option value="07">7-р сар</option><option value="08">8-р сар</option><option value="09">9-р сар</option>
+              <option value="10">10-р сар</option><option value="11">11-р сар</option><option value="12">12-р сар</option>
+            </select>
+          </div>
+          <!-- Улирал сонгогч -->
+          <div id="report-quarter-row" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+            <label style="font-size:12px;color:#6b7a8d">Улирал:</label>
+            <select id="report-quarter-sel" style="padding:5px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none">
+              <option value="1">I улирал (1-3 сар)</option>
+              <option value="2">II улирал (4-6 сар)</option>
+              <option value="3">III улирал (7-9 сар)</option>
+              <option value="4">IV улирал (10-12 сар)</option>
+            </select>
+          </div>
+          <!-- Custom Range -->
+          <div id="report-custom-row" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+            <label style="font-size:12px;color:#6b7a8d">Эхлэх:</label>
+            <input type="date" id="report-custom-from" style="padding:5px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none">
+            <label style="font-size:12px;color:#6b7a8d">Дуусах:</label>
+            <input type="date" id="report-custom-to" style="padding:5px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none">
+          </div>
+          <!-- Хуучин report-from/to — exportToWord-д хэрэглэгддэг тул нуун хадгалах -->
+          <input type="hidden" id="report-from" value="01">
+          <input type="hidden" id="report-to" value="06">
         </div>
         <div id="report-output"></div>
       </div>
@@ -1979,23 +2001,98 @@ function renderList(){
   }).join('');
 }
 
+let currentReportPeriod='7d';
+
+function selectReportPeriod(btn){
+  document.querySelectorAll('.report-period-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentReportPeriod=btn.dataset.period;
+  document.getElementById('report-month-row').style.display=currentReportPeriod==='month'?'flex':'none';
+  document.getElementById('report-quarter-row').style.display=currentReportPeriod==='quarter'?'flex':'none';
+  document.getElementById('report-custom-row').style.display=currentReportPeriod==='custom'?'flex':'none';
+  if(currentReportPeriod==='month'){
+    const curM=String(new Date().getMonth()+1).padStart(2,'0');
+    document.getElementById('report-month-sel').value=curM;
+  }
+  if(currentReportPeriod==='quarter'){
+    const q=Math.ceil((new Date().getMonth()+1)/3);
+    document.getElementById('report-quarter-sel').value=q;
+  }
+  if(currentReportPeriod==='custom'){
+    const today=new Date().toISOString().slice(0,10);
+    const weekAgo=new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+    document.getElementById('report-custom-from').value=weekAgo;
+    document.getElementById('report-custom-to').value=today;
+  }
+}
+
+function getReportDateRange(){
+  const today=new Date();
+  const todayStr=today.toISOString().slice(0,10);
+  const year=today.getFullYear();
+  function pad(n){return String(n).padStart(2,'0');}
+  switch(currentReportPeriod){
+    case '7d':{
+      const from=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
+      return{from,to:todayStr,label:'Сүүлийн 7 хоног'};
+    }
+    case '14d':{
+      const from=new Date(Date.now()-13*86400000).toISOString().slice(0,10);
+      return{from,to:todayStr,label:'Сүүлийн 14 хоног'};
+    }
+    case 'month':{
+      const m=document.getElementById('report-month-sel').value;
+      const from=`${year}-${m}-01`;
+      const lastDay=new Date(year,parseInt(m),0).getDate();
+      const to=`${year}-${m}-${pad(lastDay)}`;
+      return{from,to,label:`${parseInt(m)}-р сар`};
+    }
+    case 'quarter':{
+      const q=parseInt(document.getElementById('report-quarter-sel').value);
+      const startM=(q-1)*3+1;
+      const endM=q*3;
+      const lastDay=new Date(year,endM,0).getDate();
+      const from=`${year}-${pad(startM)}-01`;
+      const to=`${year}-${pad(endM)}-${pad(lastDay)}`;
+      return{from,to,label:['I','II','III','IV'][q-1]+' улирал'};
+    }
+    case 'year':
+      return{from:`${year}-01-01`,to:`${year}-12-31`,label:`${year} он`};
+    case 'custom':{
+      const from=document.getElementById('report-custom-from').value;
+      const to=document.getElementById('report-custom-to').value;
+      if(!from||!to){showAlert('Огноо оруулна уу','error');return null;}
+      if(from>to){showAlert('Эхлэх огноо буруу','error');return null;}
+      return{from,to,label:`${from} — ${to}`};
+    }
+    default:return null;
+  }
+}
+
 function generateReport(){
-  const from=document.getElementById('report-from').value;
-  const to=document.getElementById('report-to').value;
-  const filtered=entries.filter(e=>{const m=e.date.slice(5,7);return m>=from&&m<=to;});
+  const range=getReportDateRange();
+  if(!range)return;
+  const filtered=entries.filter(e=>{
+    const p=e.date.split('-');
+    const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
+    return norm>=range.from&&norm<=range.to;
+  });
+  document.getElementById('report-from').value=range.from.slice(5,7);
+  document.getElementById('report-to').value=range.to.slice(5,7);
   if(!filtered.length){
-    document.getElementById('report-output').innerHTML='<div class="card"><div class="empty"><i class="ti ti-inbox"></i><div>Тэмдэглэл байхгүй байна</div></div></div>';
+    document.getElementById('report-output').innerHTML='<div class="card"><div class="empty"><i class="ti ti-inbox"></i><div>Энэ хугацаанд тэмдэглэл байхгүй байна</div></div></div>';
     return;
   }
   const groups={};
   filtered.forEach(e=>{if(!groups[e.zaalt])groups[e.zaalt]=[];groups[e.zaalt].push(e);});
-
   let html=`<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <div class="card-title" style="margin:0"><i class="ti ti-list-details"></i> Заалт бүрийн нэгтгэл</div>
+      <div>
+        <div class="card-title" style="margin:0"><i class="ti ti-list-details"></i> Заалт бүрийн нэгтгэл</div>
+        <div style="font-size:12px;color:#8a97a8;margin-top:2px">${range.label} · Нийт ${filtered.length} бүртгэл</div>
+      </div>
       <button class="btn btn-primary" onclick="exportToWord()"><i class="ti ti-file-word"></i> Word файл татах</button>
     </div>`;
-
   Object.keys(groups).sort().forEach(zaalt=>{
     const items=groups[zaalt].sort((a,b)=>a.date.localeCompare(b.date));
     html+=`<div style="margin-bottom:18px">
@@ -2005,88 +2102,61 @@ function generateReport(){
       </div>
       <div style="overflow-x:auto;border-radius:10px;border:1.5px solid #e8edf3">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead>
-            <tr style="background:#f5f7fa">
-              <th style="padding:8px 10px;text-align:left;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3;white-space:nowrap;width:90px">Огноо</th>
-              <th style="padding:8px 10px;text-align:left;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3">Хийсэн ажил</th>
-              <th style="padding:8px 10px;text-align:left;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3;white-space:nowrap">Үр дүн</th>
-              <th style="padding:8px 10px;text-align:center;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3;white-space:nowrap;width:60px">Эрэмбэ</th>
-              <th style="padding:8px 10px;text-align:left;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3;white-space:nowrap;width:70px">Хоног</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map((e,i)=>{
-              const pri=e.priority||'normal';
-              const priIcon={'important':'🔴','normal':'🟡','low':'⚫'};
-              return `<tr style="background:${i%2===0?'white':'#fafbfc'}${pri==='important'?';border-left:2px solid #e74c3c':''}">
-              <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5;vertical-align:top">${e.date}</td>
+          <thead><tr style="background:#f5f7fa">
+            <th style="padding:8px 10px;text-align:left;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3;width:90px">Огноо</th>
+            <th style="padding:8px 10px;text-align:left;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3">Хийсэн ажил</th>
+            <th style="padding:8px 10px;text-align:left;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3">Үр дүн</th>
+            <th style="padding:8px 10px;text-align:center;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3;width:60px">Эрэмбэ</th>
+            <th style="padding:8px 10px;text-align:center;color:#6b7a8d;font-weight:600;border-bottom:1.5px solid #e8edf3;width:70px">Хоног</th>
+          </tr></thead>
+          <tbody>${items.map((e,i)=>{
+            const pri=e.priority||'normal';
+            const priIcon={important:'🔴',normal:'🟡',low:'⚫'};
+            return `<tr style="background:${i%2===0?'white':'#fafbfc'}${pri==='important'?';border-left:2px solid #e74c3c':''}">
+              <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5">${e.date}</td>
               <td style="padding:7px 10px;color:#1a2332;border-bottom:1px solid #f0f2f5;line-height:1.5">${e.work}</td>
-              <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5;vertical-align:top">
-                <span style="color:#27ae60;font-size:11px"><i class="ti ti-check" style="font-size:10px"></i> ${e.result||'—'}</span>
-              </td>
-              <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5;text-align:center;font-size:13px">${priIcon[pri]||'🟡'}</td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5"><span style="color:#27ae60;font-size:11px"><i class="ti ti-check" style="font-size:10px"></i> ${e.result||'—'}</span></td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5;text-align:center">${priIcon[pri]||'🟡'}</td>
               <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5;text-align:center">${e.days||'—'}</td>
-            </tr>`;}).join('')}
-          </tbody>
+            </tr>`;
+          }).join('')}</tbody>
         </table>
       </div>
     </div>`;
   });
-
   html+='</div>';
-
-  // Заалтын давтамж + хөндөгдөөгүй хэсэг
-  const fromInt=parseInt(from),toInt=parseInt(to);
   const periodZaaltIds=new Set(filtered.map(e=>e.zaalt).filter(Boolean));
   const uncoveredZaalts=ZAALT_LIST.filter(z=>!periodZaaltIds.has(z.id));
   const coveredZaalts=ZAALT_LIST.filter(z=>periodZaaltIds.has(z.id));
-
   html+=`<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div class="card-title" style="margin:0"><i class="ti ti-chart-dots"></i> Заалтын дүн шинжилгээ</div>
-      <span style="font-size:12px;padding:3px 10px;border-radius:8px;background:${uncoveredZaalts.length===0?'#E1F5EE':'#FFF3E8'};color:${uncoveredZaalts.length===0?'#0F6E56':'#9E5E3D'}">${coveredZaalts.length}/${ZAALT_LIST.length} заалт хамрагдсан</span>
+      <span style="font-size:12px;padding:3px 10px;border-radius:8px;background:${uncoveredZaalts.length===0?'#E1F5EE':'#FFF3E8'};color:${uncoveredZaalts.length===0?'#0F6E56':'#9E5E3D'}">${coveredZaalts.length}/${ZAALT_LIST.length} хамрагдсан</span>
     </div>
-
-    ${uncoveredZaalts.length>0?`
-    <div style="background:#FFF8F0;border:1px solid #FDEBD0;border-radius:10px;padding:12px;margin-bottom:14px">
-      <div style="font-size:12px;font-weight:600;color:#9E5E3D;margin-bottom:8px"><i class="ti ti-alert-triangle"></i> Энэ хугацаанд хөндөгдөөгүй заалтууд (${uncoveredZaalts.length})</div>
+    ${uncoveredZaalts.length>0?`<div style="background:#FFF8F0;border:1px solid #FDEBD0;border-radius:10px;padding:12px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:600;color:#9E5E3D;margin-bottom:8px"><i class="ti ti-alert-triangle"></i> Хөндөгдөөгүй (${uncoveredZaalts.length})</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">
-        ${uncoveredZaalts.map(z=>{
-          const totalCnt=entries.filter(e=>e.zaalt===z.id).length;
-          return `<div style="background:white;border-radius:7px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:10px;color:#9E5E3D;font-weight:500">${z.id}</div>
-              <div style="font-size:11px;color:#1a2332">${z.name}</div>
-            </div>
-            <span style="font-size:10px;color:${totalCnt>0?'#8a97a8':'#e74c3c'};white-space:nowrap">${totalCnt>0?'Нийт '+totalCnt:'Огт хөндөгдөөгүй'}</span>
-          </div>`;
-        }).join('')}
+        ${uncoveredZaalts.map(z=>{const c=entries.filter(e=>e.zaalt===z.id).length;return`<div style="background:white;border-radius:7px;padding:6px 10px"><div style="font-size:10px;color:#9E5E3D">${z.id}</div><div style="font-size:11px;color:#1a2332">${z.name}</div><div style="font-size:10px;color:${c>0?'#8a97a8':'#e74c3c'}">${c>0?c+' бүртгэл':'Огт хөндөгдөөгүй'}</div></div>`;}).join('')}
       </div>
     </div>`:''}
-
-    <div style="font-size:12px;font-weight:600;color:#1a2332;margin-bottom:10px">Заалт бүрийн давтамж</div>
     <div style="display:grid;gap:6px">
-      ${ZAALT_LIST.map(z=>{
+      ${ZAALT_LIST.filter(z=>filtered.some(e=>e.zaalt===z.id)).map(z=>{
         const cnt=filtered.filter(e=>e.zaalt===z.id).length;
-        if(cnt===0)return'';
-        const icon=cnt>=5?'🟢':cnt>=2?'🟡':'🔴';
         const color=cnt>=5?'#27AE60':cnt>=2?'#E67E22':'#e74c3c';
+        const icon=cnt>=5?'🟢':cnt>=2?'🟡':'🔴';
         const maxCnt=Math.max(...ZAALT_LIST.map(zz=>filtered.filter(e=>e.zaalt===zz.id).length),1);
-        const pct=Math.round(cnt/maxCnt*100);
-        return `<div style="display:flex;align-items:center;gap:10px">
+        return`<div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:11px;color:#8a97a8;width:70px;flex-shrink:0">${z.id}</span>
-          <span style="font-size:12px;color:#1a2332;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${z.name}</span>
-          <div style="width:80px;flex-shrink:0;background:#f0f4f8;border-radius:10px;height:6px">
-            <div style="background:${color};height:6px;border-radius:10px;width:${pct}%"></div>
-          </div>
+          <span style="font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${z.name}</span>
+          <div style="width:80px;background:#f0f4f8;border-radius:10px;height:6px;flex-shrink:0"><div style="background:${color};height:6px;border-radius:10px;width:${Math.round(cnt/maxCnt*100)}%"></div></div>
           <span style="font-size:11px;color:${color};width:50px;text-align:right;flex-shrink:0">${icon} ${cnt}</span>
         </div>`;
       }).join('')}
     </div>
   </div>`;
-
   document.getElementById('report-output').innerHTML=html;
 }
+
 
 async function exportToWord(){
   const from=document.getElementById('report-from').value;
