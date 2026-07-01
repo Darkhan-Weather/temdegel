@@ -33,6 +33,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .sidebar-logo img{width:100%;height:100%;object-fit:contain;padding:3px}
 .sidebar-title{color:white;font-size:12px;font-weight:500;line-height:1.35}
 .sidebar-nav{padding:10px 8px;flex:1;display:flex;flex-direction:column;gap:3px}
+.nav-group-label{font-size:9px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:1.2px;padding:10px 12px 4px;margin-top:4px}
+.sidebar-nav>div:first-child.nav-group-label{margin-top:0;padding-top:4px}
 .nav-item{padding:9px 12px;display:flex;align-items:center;gap:10px;border-radius:10px;border-left:3px solid transparent;cursor:pointer;transition:all 0.2s;text-decoration:none}
 .nav-item span{font-size:13px;color:rgba(255,255,255,0.65)}
 .nav-item i{font-size:16px;color:rgba(255,255,255,0.65)}
@@ -302,7 +304,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
 
 @media(max-width:768px){
   .sidebar{width:60px}
-  .sidebar-title,.nav-item span,.sidebar-user-name,.sidebar-user-role{display:none}
+  .sidebar-title,.nav-item span,.sidebar-user-name,.sidebar-user-role,.nav-group-label{display:none}
   .main-content{margin-left:60px;width:calc(100% - 60px);overflow-x:hidden}
   .content{padding:10px;overflow-x:hidden;width:100%;box-sizing:border-box}
   .stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}
@@ -358,6 +360,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
       <span class="sidebar-title">ХСТИ Гүйцэтгэлийн систем</span>
     </div>
     <nav class="sidebar-nav">
+      <div class="nav-group-label">АЖЛЫН САМБАР</div>
       <div class="nav-item active" onclick="showTab('dashboard',this)">
         <i class="ti ti-layout-dashboard"></i><span>Хяналтын самбар</span>
       </div>
@@ -367,9 +370,11 @@ details[open] summary .chevron{transform:rotate(90deg)}
       <div class="nav-item" onclick="showTab('list',this)">
         <i class="ti ti-list"></i><span>Тэмдэглэлүүд</span>
       </div>
+      <div class="nav-group-label">ТАЙЛАН</div>
       <div class="nav-item" onclick="showTab('report',this)">
         <i class="ti ti-file-text"></i><span>Тайлан</span>
       </div>
+      <div class="nav-group-label">ХЭРЭГСЛҮҮД</div>
       <div class="nav-item" onclick="showTab('sticky',this)">
         <i class="ti ti-notes"></i><span>Sticky notes</span>
       </div>
@@ -379,6 +384,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
       <div class="nav-item" onclick="showTab('vault',this)">
         <i class="ti ti-lock"></i><span>Нууц үгийн сан</span>
       </div>
+      <div class="nav-group-label">СИСТЕМ</div>
       <div class="nav-item" onclick="showTab('settings',this)">
         <i class="ti ti-settings"></i><span>Тохиргоо</span>
       </div>
