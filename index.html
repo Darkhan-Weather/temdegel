@@ -1039,6 +1039,17 @@ details[open] summary .chevron{transform:rotate(90deg)}
           </div>
         </div>
         <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="card-title" style="margin:0"><i class="ti ti-list-check"></i> Заалт засварлах</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm" onclick="addZaaltRow()"><i class="ti ti-plus"></i> Нэмэх</button>
+              <button class="btn btn-sm btn-primary" onclick="saveZaaltList()"><i class="ti ti-device-floppy"></i> Хадгалах</button>
+            </div>
+          </div>
+          <p style="font-size:12px;color:#8a97a8;margin-bottom:10px">Заалтын нэр, дугаарыг засаад "Хадгалах" дарна. 2027 он болоход шинэ заалт нэмж эсвэл хасаж болно.</p>
+          <div id="zaalt-editor-list" style="max-height:400px;overflow-y:auto"></div>
+        </div>
+        <div class="card">
           <div class="card-title"><i class="ti ti-info-circle"></i> Мэдээлэл</div>
           <p style="font-size:13px;color:#6b7a8d">Нийт тэмдэглэл: <b id="total-count">0</b></p>
         </div>
@@ -1127,7 +1138,8 @@ const TAG_COLORS=['#E1F5EE:#0F6E56','#E6F1FB:#185FA5','#FAECE7:#993C1D','#FFF3E8
 let entries=[],accessToken=null,driveFileId=null,currentUser=null,editingId=null,tokenClient=null;
 let stickyFileId=null,vaultFileId=null;
 
-const ZAALT_LIST=[
+// Заалтын анхны жагсаалт (default) — localStorage-д байхгүй үед энэ ашиглагдана
+const ZAALT_LIST_DEFAULT=[
   {id:'1.2.1.1',name:'Сүлжээний хяналт, удирдлага'},
   {id:'1.2.2.1',name:'AWS310 автомат станц'},
   {id:'1.2.2.2',name:'Дархан бороо систем'},
@@ -1157,6 +1169,18 @@ const ZAALT_LIST=[
   {id:'1.1',name:'Хагас жилийн тайлан'},
   {id:'2.1',name:'Жилийн тайлан'},
 ];
+
+// Идэвхтэй ашиглагдах жагсаалт — localStorage-оос ачаална
+let ZAALT_LIST=(function(){
+  try{
+    const saved=localStorage.getItem('zaalt_list_hsti');
+    if(saved){
+      const parsed=JSON.parse(saved);
+      if(Array.isArray(parsed)&&parsed.length>0)return parsed;
+    }
+  }catch(e){}
+  return [...ZAALT_LIST_DEFAULT];
+})();
 
 // Seed demo data for months 1-5
 const SEED_DATA=[
@@ -1203,6 +1227,10 @@ function init(){
   });
   if(tagsCleaned){
     localStorage.setItem('hsti_v3',JSON.stringify(entries));
+  }
+  // Хэрэв хэрэглэгч заалтын жагсаалтыг өөрчилсөн бол dropdown-г шинэчлэх
+  if(localStorage.getItem('zaalt_list_hsti')){
+    rebuildZaaltSelect();
   }
   const tok=localStorage.getItem('hsti_tok'),usr=localStorage.getItem('hsti_usr');
   if(tok&&usr){accessToken=tok;currentUser=JSON.parse(usr);showMain();setTimeout(loadFromDrive,800);}
@@ -2406,6 +2434,97 @@ document.addEventListener('keydown',function(e){
   }
 });
 
+// ── ЗААЛТ ЗАСВАРЛАХ ───────────────────────────────────────
+function renderZaaltEditor(){
+  const el=document.getElementById('zaalt-editor-list');
+  if(!el)return;
+  el.innerHTML=ZAALT_LIST.map((z,i)=>`
+    <div class="zaalt-editor-row" data-idx="${i}" style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #f0f2f5">
+      <input value="${(z.id||'').replace(/"/g,'&quot;')}" placeholder="1.2.3" style="width:80px;padding:6px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none;flex-shrink:0" data-field="id">
+      <input value="${(z.name||'').replace(/"/g,'&quot;')}" placeholder="Заалтын нэр" style="flex:1;min-width:0;padding:6px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none" data-field="name">
+      <button onclick="removeZaaltRow(${i})" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:14px;flex-shrink:0;padding:4px" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'" title="Устгах"><i class="ti ti-trash"></i></button>
+    </div>`).join('');
+}
+
+function addZaaltRow(){
+  // Одоогийн засварласан утгуудыг эхлээд уншиж авах (алдагдахаас сэргийлэх)
+  collectZaaltEditor();
+  ZAALT_LIST.push({id:'',name:''});
+  renderZaaltEditor();
+  // Шинэ мөрийн эхний input руу focus хийх
+  const rows=document.querySelectorAll('.zaalt-editor-row');
+  const lastRow=rows[rows.length-1];
+  if(lastRow)lastRow.querySelector('input[data-field="id"]').focus();
+}
+
+function removeZaaltRow(idx){
+  collectZaaltEditor();
+  ZAALT_LIST.splice(idx,1);
+  renderZaaltEditor();
+}
+
+// DOM-оос засварласан утгуудыг ZAALT_LIST руу цуглуулах
+function collectZaaltEditor(){
+  const rows=document.querySelectorAll('.zaalt-editor-row');
+  const newList=[];
+  rows.forEach(row=>{
+    const id=row.querySelector('input[data-field="id"]').value.trim();
+    const name=row.querySelector('input[data-field="name"]').value.trim();
+    if(id||name)newList.push({id,name});
+  });
+  if(newList.length)ZAALT_LIST=newList;
+}
+
+function saveZaaltList(){
+  collectZaaltEditor();
+  // Хоосон id-тай мөр байвал анхааруулах
+  const emptyId=ZAALT_LIST.some(z=>!z.id);
+  if(emptyId){
+    showAlert('Заалтын дугаар хоосон байж болохгүй','error');
+    return;
+  }
+  // Давхардсан id шалгах
+  const ids=ZAALT_LIST.map(z=>z.id);
+  const dup=ids.find((id,i)=>ids.indexOf(id)!==i);
+  if(dup){
+    showAlert('Давхардсан дугаар байна: '+dup,'error');
+    return;
+  }
+  try{
+    localStorage.setItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST));
+  }catch(e){
+    showAlert('Хадгалахад алдаа гарлаа','error');
+    return;
+  }
+  // Dropdown-г шинэчлэх
+  rebuildZaaltSelect();
+  showAlert('Заалтын жагсаалт хадгалагдлаа','success');
+}
+
+// zaalt-select dropdown-г ZAALT_LIST-ээс дахин үүсгэх
+function rebuildZaaltSelect(){
+  const sel=document.getElementById('zaalt-select');
+  if(!sel)return;
+  const cur=sel.value; // одоогийн сонголтыг хадгалах
+
+  // Тусгай (нэмэлт) сонголтуудыг хадгалах
+  const specialOpts=`
+    <option value="nemel">Нэмэлт үүрэг даалгавар</option>
+    <option value="medleg">Мэдлэг чадвар дээшлүүлэх</option>
+    <option value="eelje">Ээлж хүлээлцэх</option>
+    <option value="custom">Өөр (гараар бичих)</option>`;
+
+  let html='<option value="">-- Жагсаалтаас сонгох --</option>';
+  ZAALT_LIST.forEach(z=>{
+    html+=`<option value="${z.id}">${z.id} ${z.name}</option>`;
+  });
+  html+=specialOpts;
+  sel.innerHTML=html;
+
+  // Сонголтыг сэргээх
+  if(cur)sel.value=cur;
+}
+
 // ── ACCORDION ─────────────────────────────────────────────
 function toggleAcc(header){
   const body=header.nextElementSibling;
@@ -2901,6 +3020,7 @@ function showTab(name,el){
   if(name==='calendar'){initCalendar();}
   if(name==='vault'){initVault();}
   if(name==='add'){setTimeout(()=>{checkAndRestoreDraft();updateAccBadge();},150);}
+  if(name==='settings'){renderZaaltEditor();}
 }
 
 // ── STICKY NOTES ──────────────────────────────────────────
