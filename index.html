@@ -471,6 +471,18 @@ details[open] summary .chevron{transform:rotate(90deg)}
           </div>
         </div>
 
+        <!-- ХУРДАН НЭМЭХ (шаблон) -->
+        <div id="quick-add-row" style="display:none;margin-bottom:14px">
+          <div class="card" style="padding:12px 14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <i class="ti ti-bolt" style="color:#EBAD7C;font-size:15px"></i>
+              <span style="font-size:13px;font-weight:600;color:#1a2332">Хурдан нэмэх</span>
+              <span style="font-size:11px;color:#a0aab4">— нэг товшилтоор өнөөдрийн бүртгэл үүсгэнэ</span>
+            </div>
+            <div id="quick-add-buttons" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+          </div>
+        </div>
+
         <div class="stats-grid" id="stats-grid"></div>
 
         <!-- Хөндөгдөөгүй заалт toggle panel -->
@@ -1050,6 +1062,34 @@ details[open] summary .chevron{transform:rotate(90deg)}
           <div id="zaalt-editor-list" style="max-height:400px;overflow-y:auto"></div>
         </div>
         <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="card-title" style="margin:0"><i class="ti ti-bolt"></i> Давтагддаг ажлууд (Шаблон)</div>
+            <button class="btn btn-sm btn-primary" onclick="openTemplateForm()"><i class="ti ti-plus"></i> Шаблон нэмэх</button>
+          </div>
+          <p style="font-size:12px;color:#8a97a8;margin-bottom:10px">Өдөр бүр давтагддаг ажлыг шаблон болгож хадгалаарай. Хяналтын самбар дээр нэг товшилтоор өнөөдрийн бүртгэл үүснэ.</p>
+          <!-- Шаблон нэмэх форм -->
+          <div id="template-form" style="display:none;background:#f8fafc;border-radius:10px;border:1.5px dashed #c9d4e0;padding:14px;margin-bottom:12px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div><label>Шаблоны нэр (товч дээр харагдана)</label><input id="tpl-name" placeholder="Ээлж хүлээлцэх"></div>
+              <div><label>Заалт</label>
+                <select id="tpl-zaalt"><option value="">-- Сонгох --</option></select>
+              </div>
+            </div>
+            <div style="margin-bottom:10px"><label>Хийсэн ажил (текст)</label><input id="tpl-work" placeholder="Ээлж хүлээлцэж, мэдээлэл солилцох"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div><label>Үр дүн</label><input id="tpl-result" placeholder="Хийгдсэн"></div>
+              <div><label>Эрэмбэ</label>
+                <select id="tpl-priority"><option value="normal">Дунд</option><option value="important">Чухал</option><option value="low">Энгийн</option></select>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button class="btn btn-sm" onclick="document.getElementById('template-form').style.display='none'">Болих</button>
+              <button class="btn btn-sm btn-primary" onclick="saveTemplate()"><i class="ti ti-check"></i> Хадгалах</button>
+            </div>
+          </div>
+          <div id="template-list"></div>
+        </div>
+        <div class="card">
           <div class="card-title"><i class="ti ti-info-circle"></i> Мэдээлэл</div>
           <p style="font-size:13px;color:#6b7a8d">Нийт тэмдэглэл: <b id="total-count">0</b></p>
         </div>
@@ -1452,8 +1492,13 @@ async function syncToDrive(){
   try{
     const folderId=await getOrCreateFolder();
 
-    // 1. Ажлын тэмдэглэл — тусдаа файл
-    const entriesPayload={entries,updated:new Date().toISOString()};
+    // 1. Ажлын тэмдэглэл — тусдаа файл (шаблон, заалтын жагсаалт хамт)
+    const entriesPayload={
+      entries,
+      templates:userTemplates,
+      zaalt_list:(localStorage.getItem('zaalt_list_hsti')?JSON.parse(localStorage.getItem('zaalt_list_hsti')):null),
+      updated:new Date().toISOString()
+    };
     if(!driveFileId)driveFileId=await findFileInFolder(FILE_NAME,folderId);
     driveFileId=await uploadToFile(FILE_NAME,driveFileId,folderId,entriesPayload);
 
@@ -1522,6 +1567,18 @@ async function loadFromDrive(){
         }
         document.getElementById('total-count').textContent=entries.length;
         populateFilters();renderDashboard();
+      }
+      // Шаблон — Drive-аас үргэлж шинэчлэх
+      if(content.templates&&Array.isArray(content.templates)){
+        userTemplates=content.templates;
+        localStorage.setItem('templates_hsti',JSON.stringify(userTemplates));
+        renderQuickAdd();
+      }
+      // Заалтын жагсаалт — Drive дээр байвал шинэчлэх
+      if(content.zaalt_list&&Array.isArray(content.zaalt_list)&&content.zaalt_list.length>0){
+        ZAALT_LIST=content.zaalt_list;
+        localStorage.setItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST));
+        rebuildZaaltSelect();
       }
     }
   }catch(e){
@@ -1649,6 +1706,7 @@ function renderDashboard(){
   renderTodos();
   renderAttention();
   renderUncoveredPanel();
+  renderQuickAdd();
   renderHeatmap();
   setTimeout(renderPieChart,50);
   const thisM=entries.filter(e=>e.date.slice(5,7)===curM).length;
@@ -2434,6 +2492,120 @@ document.addEventListener('keydown',function(e){
   }
 });
 
+// ── ДАВТАГДДАГ АЖЛУУД (Шаблон) ────────────────────────────
+let userTemplates=[];
+
+function loadTemplates(){
+  try{const s=localStorage.getItem('templates_hsti');if(s)userTemplates=JSON.parse(s);}catch(e){userTemplates=[];}
+}
+function saveTemplates(){
+  try{localStorage.setItem('templates_hsti',JSON.stringify(userTemplates));}catch(e){}
+  if(accessToken)syncToDrive();
+}
+
+function openTemplateForm(){
+  const f=document.getElementById('template-form');
+  f.style.display=f.style.display==='none'?'block':'none';
+  if(f.style.display==='block'){
+    // Заалт dropdown-г ZAALT_LIST-ээс бөглөх
+    const sel=document.getElementById('tpl-zaalt');
+    sel.innerHTML='<option value="">-- Сонгох --</option>'+
+      ZAALT_LIST.map(z=>`<option value="${z.id}">${z.id} ${z.name}</option>`).join('')+
+      '<option value="eelje">Ээлж хүлээлцэх</option><option value="nemel">Нэмэлт үүрэг</option>';
+    ['tpl-name','tpl-work','tpl-result'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('tpl-name').focus();
+  }
+}
+
+function saveTemplate(){
+  const name=document.getElementById('tpl-name').value.trim();
+  const work=document.getElementById('tpl-work').value.trim();
+  if(!name||!work){showAlert('Шаблоны нэр болон хийсэн ажлыг бөглөнө үү','error');return;}
+  userTemplates.push({
+    id:Date.now(),
+    name,
+    work,
+    zaalt:document.getElementById('tpl-zaalt').value||'eelje',
+    result:document.getElementById('tpl-result').value.trim()||'Хийгдсэн',
+    priority:document.getElementById('tpl-priority').value||'normal'
+  });
+  saveTemplates();
+  document.getElementById('template-form').style.display='none';
+  renderTemplateList();
+  renderQuickAdd();
+  showAlert('Шаблон хадгалагдлаа','success');
+}
+
+function deleteTemplate(id){
+  userTemplates=userTemplates.filter(t=>t.id!==id);
+  saveTemplates();
+  renderTemplateList();
+  renderQuickAdd();
+}
+
+function renderTemplateList(){
+  loadTemplates();
+  const el=document.getElementById('template-list');
+  if(!el)return;
+  if(!userTemplates.length){
+    el.innerHTML='<div style="font-size:12px;color:#a0aab4;text-align:center;padding:12px">Шаблон байхгүй байна</div>';
+    return;
+  }
+  el.innerHTML=userTemplates.map(t=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:#fafbfc;border:1.5px solid #f0f2f5;margin-bottom:7px">
+      <i class="ti ti-bolt" style="color:#EBAD7C;font-size:14px;flex-shrink:0"></i>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;color:#1a2332">${t.name}</div>
+        <div style="font-size:11px;color:#8a97a8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.zaalt} · ${t.work}</div>
+      </div>
+      <button onclick="deleteTemplate(${t.id})" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:14px;flex-shrink:0" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'"><i class="ti ti-trash"></i></button>
+    </div>`).join('');
+}
+
+// Хяналтын самбарын хурдан нэмэх мөр
+function renderQuickAdd(){
+  loadTemplates();
+  const row=document.getElementById('quick-add-row');
+  const btns=document.getElementById('quick-add-buttons');
+  if(!row||!btns)return;
+  if(!userTemplates.length){row.style.display='none';return;}
+  row.style.display='block';
+  btns.innerHTML=userTemplates.map(t=>`
+    <button class="template-btn" onclick="quickAddFromTemplate(${t.id})" style="border-style:solid">
+      <i class="ti ti-bolt" style="font-size:13px"></i> ${t.name}
+    </button>`).join('');
+}
+
+// Нэг товшилтоор шаблоноос бүртгэл үүсгэх
+function quickAddFromTemplate(id){
+  loadTemplates();
+  const t=userTemplates.find(x=>x.id===id);
+  if(!t)return;
+  const today=new Date().toISOString().slice(0,10);
+  // Өнөөдөр ижил шаблонаар аль хэдийн нэмсэн эсэхийг шалгах
+  const dup=entries.find(e=>e.date===today&&e.work===t.work);
+  if(dup){
+    if(!confirm(`"${t.name}" өнөөдөр аль хэдийн нэмэгдсэн байна. Дахин нэмэх үү?`))return;
+  }
+  const entry={
+    id:Date.now(),
+    date:today,
+    zaalt:t.zaalt,
+    work:t.work,
+    result:t.result,
+    tags:[],
+    priority:t.priority||'normal',
+    location:'',partner:'',tool:'',days:''
+  };
+  entries.push(entry);
+  localStorage.setItem('hsti_v3',JSON.stringify(entries));
+  document.getElementById('total-count').textContent=entries.length;
+  populateFilters();
+  renderDashboard();
+  showAlert(`"${t.name}" нэмэгдлээ ✓`,'success');
+  if(accessToken)syncToDrive();
+}
+
 // ── ЗААЛТ ЗАСВАРЛАХ ───────────────────────────────────────
 function renderZaaltEditor(){
   const el=document.getElementById('zaalt-editor-list');
@@ -3020,7 +3192,7 @@ function showTab(name,el){
   if(name==='calendar'){initCalendar();}
   if(name==='vault'){initVault();}
   if(name==='add'){setTimeout(()=>{checkAndRestoreDraft();updateAccBadge();},150);}
-  if(name==='settings'){renderZaaltEditor();}
+  if(name==='settings'){renderZaaltEditor();renderTemplateList();}
 }
 
 // ── STICKY NOTES ──────────────────────────────────────────
