@@ -1178,6 +1178,17 @@ const TAG_COLORS=['#E1F5EE:#0F6E56','#E6F1FB:#185FA5','#FAECE7:#993C1D','#FFF3E8
 let entries=[],accessToken=null,driveFileId=null,currentUser=null,editingId=null,tokenClient=null;
 let stickyFileId=null,vaultFileId=null;
 
+// XSS хамгаалалт — хэрэглэгчийн текстийг innerHTML-д оруулахын өмнө escape хийнэ
+function escapeHtml(str){
+  if(str==null)return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
 // Заалтын анхны жагсаалт (default) — localStorage-д байхгүй үед энэ ашиглагдана
 const ZAALT_LIST_DEFAULT=[
   {id:'1.2.1.1',name:'Сүлжээний хяналт, удирдлага'},
@@ -1733,10 +1744,10 @@ function renderDashboard(){
     } else {
       todayEl.innerHTML=todayEntries.map(e=>`
         <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-radius:9px;background:#fafbfc;border:1.5px solid #f0f2f5;margin-bottom:7px">
-          <span style="background:#FFF3E8;color:#9E5E3D;font-size:10px;padding:2px 7px;border-radius:8px;white-space:nowrap;flex-shrink:0;margin-top:2px">${e.zaalt}</span>
+          <span style="background:#FFF3E8;color:#9E5E3D;font-size:10px;padding:2px 7px;border-radius:8px;white-space:nowrap;flex-shrink:0;margin-top:2px">${escapeHtml(e.zaalt)}</span>
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:#1a2332;line-height:1.5">${e.work}</div>
-            ${e.result?`<div style="font-size:11px;color:#27ae60;margin-top:2px"><i class="ti ti-check" style="font-size:10px"></i> ${e.result}</div>`:''}
+            <div style="font-size:13px;color:#1a2332;line-height:1.5">${escapeHtml(e.work)}</div>
+            ${e.result?`<div style="font-size:11px;color:#27ae60;margin-top:2px"><i class="ti ti-check" style="font-size:10px"></i> ${escapeHtml(e.result)}</div>`:''}
           </div>
           <button onclick="editEntry(${e.id})" style="background:none;border:none;cursor:pointer;color:#c9d4e0;font-size:13px;flex-shrink:0;padding:2px"><i class="ti ti-edit"></i></button>
         </div>`).join('');
@@ -1833,8 +1844,8 @@ function renderDashboard(){
     recentEl.innerHTML=recent.map(e=>`
       <div class="recent-item">
         <span class="recent-date">${e.date}</span>
-        <span class="recent-work">${e.work}</span>
-        <span class="recent-tag" style="background:#FFF3E8;color:#9E5E3D">${e.zaalt}</span>
+        <span class="recent-work">${escapeHtml(e.work)}</span>
+        <span class="recent-tag" style="background:#FFF3E8;color:#9E5E3D">${escapeHtml(e.zaalt)}</span>
       </div>`).join('');
   }
 
@@ -1863,7 +1874,7 @@ function renderDashboard(){
         ${uncovered.map(z=>`
           <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:6px;margin-bottom:3px;background:white">
             <span style="font-size:11px;color:#6b7a8d">${z.id}</span>
-            <span style="font-size:11px;color:#1a2332;flex:1;margin:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${z.name}</span>
+            <span style="font-size:11px;color:#1a2332;flex:1;margin:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(z.name)}</span>
             <span style="font-size:10px;color:#a0aab4">${zaaltCounts[z.id]>0?zaaltCounts[z.id]+' удаа':'Огт хөндөгдөөгүй'}</span>
           </div>`).join('')}
       </div>`:'<div style="background:#E8FAF0;border-radius:9px;padding:8px;text-align:center;font-size:12px;color:#0F6E56;margin-bottom:10px"><i class="ti ti-check"></i> Энэ сард бүх заалт хамрагдсан!</div>'}
@@ -1876,7 +1887,7 @@ function renderDashboard(){
         const pct2=Math.min(cnt/Math.max(...Object.values(zaaltCounts))*100,100);
         return `<div style="margin-bottom:7px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-            <span style="font-size:11px;color:#1a2332">${icon} ${z.name}</span>
+            <span style="font-size:11px;color:#1a2332">${icon} ${escapeHtml(z.name)}</span>
             <span style="font-size:10px;color:${color};font-weight:500">${cnt} удаа</span>
           </div>
           <div style="background:#f0f4f8;border-radius:20px;height:5px">
@@ -2431,9 +2442,13 @@ function renderSearchEmpty(){
 }
 
 function highlight(text,q){
-  if(!q)return text;
-  const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
-  return text.replace(re,'<mark class="search-result-mark">$1</mark>');
+  // Эхлээд escape хийж XSS-ээс хамгаална, дараа нь highlight нэмнэ
+  const safe=escapeHtml(text);
+  if(!q)return safe;
+  // q-г ч escape хийж, escape хийсэн текстээс хайна
+  const safeQ=escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const re=new RegExp('('+safeQ+')','gi');
+  return safe.replace(re,'<mark class="search-result-mark">$1</mark>');
 }
 
 function runSearch(q){
@@ -2447,7 +2462,7 @@ function runSearch(q){
     .slice(0,5).forEach(e=>{
       results.push({type:'entry',icon:'ti-notebook',iconBg:'#EBF3FB',iconColor:'#185FA5',
         title:highlight(e.work.slice(0,60),q),
-        sub:`${e.date} · ${e.zaalt}`,
+        sub:`${e.date} · ${escapeHtml(e.zaalt)}`,
         action:()=>{closeSearch();showTab('list',document.querySelectorAll('.nav-item')[2]);
           setTimeout(()=>{const s=document.getElementById('filter-search');if(s){s.value=q;renderList();}},100);}
       });
@@ -2479,7 +2494,7 @@ function runSearch(q){
       .slice(0,3).forEach(v=>{
         results.push({type:'vault',icon:'ti-lock',iconBg:'#F3E5F5',iconColor:'#6A1B9A',
           title:highlight(v.name,q),
-          sub:`${v.url||''} · ${v.user||''}`,
+          sub:`${escapeHtml(v.url||'')} · ${escapeHtml(v.user||'')}`,
           action:()=>{closeSearch();showTab('vault',document.querySelectorAll('.nav-item')[6]);}
         });
       });
@@ -2557,7 +2572,7 @@ function openTemplateForm(){
     // Заалт dropdown-г ZAALT_LIST-ээс бөглөх
     const sel=document.getElementById('tpl-zaalt');
     sel.innerHTML='<option value="">-- Сонгох --</option>'+
-      ZAALT_LIST.map(z=>`<option value="${z.id}">${z.id} ${z.name}</option>`).join('')+
+      ZAALT_LIST.map(z=>`<option value="${escapeHtml(z.id)}">${escapeHtml(z.id)} ${escapeHtml(z.name)}</option>`).join('')+
       '<option value="eelje">Ээлж хүлээлцэх</option><option value="nemel">Нэмэлт үүрэг</option>';
     ['tpl-name','tpl-work','tpl-result'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('tpl-name').focus();
@@ -2602,8 +2617,8 @@ function renderTemplateList(){
     <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:#fafbfc;border:1.5px solid #f0f2f5;margin-bottom:7px">
       <i class="ti ti-bolt" style="color:#EBAD7C;font-size:14px;flex-shrink:0"></i>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;color:#1a2332">${t.name}</div>
-        <div style="font-size:11px;color:#8a97a8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.zaalt} · ${t.work}</div>
+        <div style="font-size:13px;font-weight:500;color:#1a2332">${escapeHtml(t.name)}</div>
+        <div style="font-size:11px;color:#8a97a8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.zaalt)} · ${escapeHtml(t.work)}</div>
       </div>
       <button onclick="deleteTemplate(${t.id})" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:14px;flex-shrink:0" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'"><i class="ti ti-trash"></i></button>
     </div>`).join('');
@@ -2619,7 +2634,7 @@ function renderQuickAdd(){
   row.style.display='block';
   btns.innerHTML=userTemplates.map(t=>`
     <button class="template-btn" onclick="quickAddFromTemplate(${t.id})" style="border-style:solid">
-      <i class="ti ti-bolt" style="font-size:13px"></i> ${t.name}
+      <i class="ti ti-bolt" style="font-size:13px"></i> ${escapeHtml(t.name)}
     </button>`).join('');
 }
 
@@ -2736,7 +2751,7 @@ function rebuildZaaltSelect(){
 
   let html='<option value="">-- Жагсаалтаас сонгох --</option>';
   ZAALT_LIST.forEach(z=>{
-    html+=`<option value="${z.id}">${z.id} ${z.name}</option>`;
+    html+=`<option value="${escapeHtml(z.id)}">${escapeHtml(z.id)} ${escapeHtml(z.name)}</option>`;
   });
   html+=specialOpts;
   sel.innerHTML=html;
@@ -2834,12 +2849,12 @@ function renderList(){
         <span class="entry-date"><i class="ti ti-calendar" style="font-size:11px"></i> ${e.date}</span>
         <div style="display:flex;gap:6px;align-items:center">
           ${showPri?`<span class="pri-badge ${pri}">${priLabel[pri]}</span>`:''}
-          <span class="entry-tag">${e.zaalt}</span>
+          <span class="entry-tag">${escapeHtml(e.zaalt)}</span>
         </div>
       </div>
-      <div class="entry-work">${e.work}</div>
-      <div class="entry-result"><i class="ti ti-check" style="font-size:11px"></i> ${e.result}${e.days?' — '+e.days+' хоног':''}</div>
-      ${e.tags&&e.tags.length?`<div class="tag-row" style="margin-top:6px">${e.tags.filter(t=>t&&t.trim()).map(t=>`<span class="tag-chip active" style="cursor:default;padding:2px 9px;font-size:11px">${t}</span>`).join('')}</div>`:''}
+      <div class="entry-work">${escapeHtml(e.work)}</div>
+      <div class="entry-result"><i class="ti ti-check" style="font-size:11px"></i> ${escapeHtml(e.result)}${e.days?' — '+escapeHtml(e.days)+' хоног':''}</div>
+      ${e.tags&&e.tags.length?`<div class="tag-row" style="margin-top:6px">${e.tags.filter(t=>t&&t.trim()).map(t=>`<span class="tag-chip active" style="cursor:default;padding:2px 9px;font-size:11px">${escapeHtml(t)}</span>`).join('')}</div>`:''}
       ${e.location||e.partner||e.tool?`<div class="entry-meta">${[e.location&&'📍'+e.location,e.partner&&'👤'+e.partner,e.tool&&'🔧'+e.tool].filter(Boolean).join(' · ')}</div>`:''}
       <div class="entry-actions">
         <button class="btn btn-sm" onclick="editEntry(${e.id})"><i class="ti ti-edit"></i> Засах</button>
@@ -2963,7 +2978,7 @@ function generateReport(){
             const priIcon={important:'🔴',normal:'🟡',low:'⚫'};
             return `<tr style="background:${i%2===0?'white':'#fafbfc'}${pri==='important'?';border-left:2px solid #e74c3c':''}">
               <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5">${e.date}</td>
-              <td style="padding:7px 10px;color:#1a2332;border-bottom:1px solid #f0f2f5;line-height:1.5">${e.work}</td>
+              <td style="padding:7px 10px;color:#1a2332;border-bottom:1px solid #f0f2f5;line-height:1.5">${escapeHtml(e.work)}</td>
               <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5"><span style="color:#27ae60;font-size:11px"><i class="ti ti-check" style="font-size:10px"></i> ${e.result||'—'}</span></td>
               <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5;text-align:center">${priIcon[pri]||'🟡'}</td>
               <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5;text-align:center">${e.days||'—'}</td>
@@ -2985,7 +3000,7 @@ function generateReport(){
     ${uncoveredZaalts.length>0?`<div style="background:#FFF8F0;border:1px solid #FDEBD0;border-radius:10px;padding:12px;margin-bottom:14px">
       <div style="font-size:12px;font-weight:600;color:#9E5E3D;margin-bottom:8px"><i class="ti ti-alert-triangle"></i> Хөндөгдөөгүй (${uncoveredZaalts.length})</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">
-        ${uncoveredZaalts.map(z=>{const c=activeEntries().filter(e=>e.zaalt===z.id).length;return`<div style="background:white;border-radius:7px;padding:6px 10px"><div style="font-size:10px;color:#9E5E3D">${z.id}</div><div style="font-size:11px;color:#1a2332">${z.name}</div><div style="font-size:10px;color:${c>0?'#8a97a8':'#e74c3c'}">${c>0?c+' бүртгэл':'Огт хөндөгдөөгүй'}</div></div>`;}).join('')}
+        ${uncoveredZaalts.map(z=>{const c=activeEntries().filter(e=>e.zaalt===z.id).length;return`<div style="background:white;border-radius:7px;padding:6px 10px"><div style="font-size:10px;color:#9E5E3D">${z.id}</div><div style="font-size:11px;color:#1a2332">${escapeHtml(z.name)}</div><div style="font-size:10px;color:${c>0?'#8a97a8':'#e74c3c'}">${c>0?c+' бүртгэл':'Огт хөндөгдөөгүй'}</div></div>`;}).join('')}
       </div>
     </div>`:''}
     <div style="display:grid;gap:6px">
@@ -2996,7 +3011,7 @@ function generateReport(){
         const maxCnt=Math.max(...ZAALT_LIST.map(zz=>filtered.filter(e=>e.zaalt===zz.id).length),1);
         return`<div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:11px;color:#8a97a8;width:70px;flex-shrink:0">${z.id}</span>
-          <span style="font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${z.name}</span>
+          <span style="font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(z.name)}</span>
           <div style="width:80px;background:#f0f4f8;border-radius:10px;height:6px;flex-shrink:0"><div style="background:${color};height:6px;border-radius:10px;width:${Math.round(cnt/maxCnt*100)}%"></div></div>
           <span style="font-size:11px;color:${color};width:50px;text-align:right;flex-shrink:0">${icon} ${cnt}</span>
         </div>`;
@@ -3429,7 +3444,7 @@ function renderStickyNotes(){
         </div>
       </div>
       ${noteLabels?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${noteLabels}</div>`:''}
-      <textarea class="sticky-note-text" placeholder="Энд бичнэ үү..." oninput="updateStickyText(${n.id},this.value)">${n.text}</textarea>
+      <textarea class="sticky-note-text" placeholder="Энд бичнэ үү..." oninput="updateStickyText(${n.id},this.value)">${escapeHtml(n.text)}</textarea>
     </div>`;
   }).join('');
 }
@@ -3581,8 +3596,8 @@ function renderDayEvents(ds){
     html+=`<div class="cal-event-item">
       <div class="cal-event-time">${st}${en}</div>
       <div class="cal-event-info">
-        <div class="cal-event-name">${e.summary||'(Нэргүй)'}</div>
-        ${e.location?`<div class="cal-event-loc"><i class="ti ti-map-pin" style="font-size:10px"></i> ${e.location}</div>`:''}
+        <div class="cal-event-name">${escapeHtml(e.summary||'(Нэргүй)')}</div>
+        ${e.location?`<div class="cal-event-loc"><i class="ti ti-map-pin" style="font-size:10px"></i> ${escapeHtml(e.location)}</div>`:''}
         ${e.description?`<div class="cal-event-loc">${e.description}</div>`:''}
       </div>
       <span class="cal-event-badge" style="background:#E6F1FB;color:#185FA5">Google</span>
@@ -3593,10 +3608,10 @@ function renderDayEvents(ds){
     html+=`<div class="cal-event-item" style="border-left:3px solid ${wc.color};background:${wc.bg}">
       <div class="cal-event-time" style="color:${wc.color}">${wc.label}</div>
       <div class="cal-event-info">
-        <div class="cal-event-name">${w.work}</div>
-        ${w.result?`<div class="cal-event-loc" style="color:#27ae60"><i class="ti ti-check" style="font-size:10px"></i> ${w.result}</div>`:''}
+        <div class="cal-event-name">${escapeHtml(w.work)}</div>
+        ${w.result?`<div class="cal-event-loc" style="color:#27ae60"><i class="ti ti-check" style="font-size:10px"></i> ${escapeHtml(w.result)}</div>`:''}
       </div>
-      <span class="cal-event-badge" style="background:${wc.color}22;color:${wc.color}">${w.zaalt||''}</span>
+      <span class="cal-event-badge" style="background:${wc.color}22;color:${wc.color}">${escapeHtml(w.zaalt||'')}</span>
     </div>`;
   });
   const list=document.getElementById('cal-events-list');
@@ -3751,7 +3766,7 @@ function renderAttention(){
       icon:'ti-alert-triangle',
       color:'#e74c3c',
       title:e.work,
-      sub:`🔴 Чухал · ${e.zaalt}`,
+      sub:`🔴 Чухал · ${escapeHtml(e.zaalt)}`,
       bg:'#FFF0F0'
     });
   });
@@ -3815,7 +3830,7 @@ function renderUncoveredPanel(){
       const total=activeEntries().filter(e=>e.zaalt===z.id).length;
       return `<div style="background:white;border-radius:7px;padding:7px 10px;cursor:pointer" onclick="showTab('add',document.querySelectorAll('.nav-item')[1])">
         <div style="font-size:10px;color:#9E5E3D;font-weight:600">${z.id}</div>
-        <div style="font-size:12px;color:#1a2332">${z.name}</div>
+        <div style="font-size:12px;color:#1a2332">${escapeHtml(z.name)}</div>
         <div style="font-size:10px;color:${total>0?'#8a97a8':'#e74c3c'};margin-top:2px">${total>0?'Нийт '+total+' бүртгэл':'Огт хөндөгдөөгүй'}</div>
       </div>`;
     }).join('')}
@@ -3847,7 +3862,7 @@ function renderTodos(){
     return `<div class="todo-item${t.done?' done':''}" style="${st&&!t.done?'border-color:'+st.color+'44':''}">
       <div class="todo-check${t.done?' checked':''}" onclick="todoToggle(${t.id})"></div>
       <div style="flex:1;min-width:0">
-        <div class="todo-text">${t.text}</div>
+        <div class="todo-text">${escapeHtml(t.text)}</div>
         ${t.deadline&&!t.done&&st?`<div style="font-size:11px;color:${st.color};margin-top:2px"><i class="ti ti-calendar-due" style="font-size:10px"></i> ${t.deadline} · ${st.label}</div>`:''}
         ${t.deadline&&t.done?`<div style="font-size:11px;color:#a0aab4;margin-top:2px;text-decoration:line-through"><i class="ti ti-calendar" style="font-size:10px"></i> ${t.deadline}</div>`:''}
         ${t.date!==today&&!t.done?`<span style="font-size:10px;color:#a0aab4">${t.date.slice(5).replace('-','/')} →</span>`:''}
