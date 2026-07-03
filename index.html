@@ -1327,25 +1327,101 @@ function init(){
     rebuildZaaltSelect();
   }
   const tok=localStorage.getItem('hsti_tok'),usr=localStorage.getItem('hsti_usr');
-  if(tok&&usr){accessToken=tok;currentUser=JSON.parse(usr);showMain();setTimeout(loadFromDrive,800);}
+  if(tok&&usr){
+    accessToken=tok;currentUser=JSON.parse(usr);
+    // Хадгалсан token хугацааг сэргээх
+    const savedExp=localStorage.getItem('hsti_tok_exp');
+    if(savedExp)tokenExpiresAt=parseInt(savedExp);
+    showMain();setTimeout(loadFromDrive,800);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
-//  AUTH — Google нэвтрэлт
+//  AUTH — Google нэвтрэлт (silent refresh дэмжинэ)
 // ═══════════════════════════════════════════════════════════
+let tokenExpiresAt=0;       // Token дуусах цаг (ms)
+let silentRefreshInProgress=false;
+
 function initGSI(){
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:CLIENT_ID,scope:SCOPES,
     callback:async(resp)=>{
-      if(resp.error){alert('Нэвтрэх алдаа: '+resp.error);return;}
+      if(resp.error){
+        // Silent refresh амжилтгүй бол чимээгүй өнгөрөх (popup-гүй үед)
+        if(silentRefreshInProgress){
+          silentRefreshInProgress=false;
+          console.error('[Auth] Silent refresh амжилтгүй:',resp.error);
+          return;
+        }
+        alert('Нэвтрэх алдаа: '+resp.error);return;
+      }
       accessToken=resp.access_token;
+      // Token дуусах цагийг хадгалах (expires_in секунд → ms)
+      const expiresIn=resp.expires_in?parseInt(resp.expires_in):3600;
+      tokenExpiresAt=Date.now()+expiresIn*1000;
       localStorage.setItem('hsti_tok',accessToken);
+      localStorage.setItem('hsti_tok_exp',String(tokenExpiresAt));
+
+      // Silent refresh байсан бол userinfo дахин татахгүй, зүгээр үргэлжлүүлнэ
+      if(silentRefreshInProgress){
+        silentRefreshInProgress=false;
+        setSyncBadge('Синктэй','#0F6E56');
+        return;
+      }
       try{const info=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
         currentUser=info;localStorage.setItem('hsti_usr',JSON.stringify(info));}
       catch(e){currentUser={name:'Хэрэглэгч'}}
       showMain();await loadFromDrive();
     }
   });
+}
+
+// Token дуусах дөхсөн эсэхийг шалгах (1 минутын нөөцтэйгээр)
+function isTokenExpiringSoon(){
+  if(!tokenExpiresAt){
+    // Хадгалсан хугацаа байвал уншиж авах
+    const saved=localStorage.getItem('hsti_tok_exp');
+    if(saved)tokenExpiresAt=parseInt(saved);
+  }
+  if(!tokenExpiresAt)return true; // Мэдэгдэхгүй бол дуусна гэж үзэх
+  return Date.now()>tokenExpiresAt-60000; // 1 минут өмнө
+}
+
+// Чимээгүй (popup-гүй) token шинэчлэх
+// prompt:'' → Google-д аль хэдийн нэвтэрсэн бол popup гарахгүй
+function silentRefresh(){
+  return new Promise((resolve)=>{
+    if(!tokenClient){initGSI();}
+    if(!tokenClient){resolve(false);return;}
+    silentRefreshInProgress=true;
+    setSyncBadge('Холболт сэргээж байна...','#f39c12');
+    // Callback-д resolve дуудагдахын тулд түр хугацааны шалгалт
+    const startExp=tokenExpiresAt;
+    const checkDone=setInterval(()=>{
+      if(!silentRefreshInProgress||tokenExpiresAt>startExp){
+        clearInterval(checkDone);
+        resolve(tokenExpiresAt>startExp);
+      }
+    },200);
+    // 5 секундын дараа timeout
+    setTimeout(()=>{clearInterval(checkDone);silentRefreshInProgress=false;resolve(false);},5000);
+    try{
+      tokenClient.requestAccessToken({prompt:''});
+    }catch(e){
+      clearInterval(checkDone);
+      silentRefreshInProgress=false;
+      resolve(false);
+    }
+  });
+}
+
+// Token баталгаатай хүчинтэй эсэхийг хангах — sync-ийн өмнө дуудна
+async function ensureValidToken(){
+  if(!accessToken)return false;
+  if(isTokenExpiringSoon()){
+    return await silentRefresh();
+  }
+  return true;
 }
 
 function signIn(){
@@ -1356,10 +1432,23 @@ function signIn(){
 
 function signOut(){
   if(!confirm('Гарах уу?'))return;
-  accessToken=null;currentUser=null;driveFileId=null;
+  accessToken=null;currentUser=null;driveFileId=null;tokenExpiresAt=0;
   localStorage.removeItem('hsti_tok');localStorage.removeItem('hsti_usr');
+  localStorage.removeItem('hsti_tok_exp');
+  if(tokenRefreshTimer)clearInterval(tokenRefreshTimer);
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('main-app').style.display='none';
+}
+
+// Background timer — 10 минут тутам token дуусах эсэхийг шалгаж, шаардвал чимээгүй шинэчлэх
+let tokenRefreshTimer=null;
+function startTokenRefreshTimer(){
+  if(tokenRefreshTimer)clearInterval(tokenRefreshTimer);
+  tokenRefreshTimer=setInterval(async()=>{
+    if(accessToken&&isTokenExpiringSoon()){
+      await silentRefresh();
+    }
+  },10*60*1000); // 10 минут
 }
 
 function showMain(){
@@ -1372,6 +1461,7 @@ function showMain(){
   document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
   populateFilters();
   renderDashboard();
+  startTokenRefreshTimer(); // Token автомат шинэчлэх timer эхлүүлэх
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1548,6 +1638,8 @@ function closeBackupModal(){
 
 async function syncToDrive(){
   if(!accessToken){showAlert('Нэвтэрнэ үү','error');return;}
+  // Token дуусах дөхсөн бол эхлээд чимээгүй шинэчлэх
+  await ensureValidToken();
   setSyncBadge('Хадгалж байна...','#f39c12');
   try{
     const folderId=await getOrCreateFolder();
@@ -1598,6 +1690,8 @@ async function syncToDrive(){
 
 async function loadFromDrive(){
   if(!accessToken)return;
+  // Token дуусах дөхсөн бол эхлээд чимээгүй шинэчлэх
+  await ensureValidToken();
   setSyncBadge('Уншиж байна...','#f39c12');
   let hadError=false;
 
