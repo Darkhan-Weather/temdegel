@@ -1164,6 +1164,30 @@ details[open] summary .chevron{transform:rotate(90deg)}
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
+/* ═══════════════════════════════════════════════════════════
+   ХСТИ ГҮЙЦЭТГЭЛИЙН СИСТЕМ — КОДЫН АГУУЛГА
+   ───────────────────────────────────────────────────────────
+   Хайхдаа Ctrl+F дараад доорх нэрийг бичнэ үү (жишээ: "SECTION")
+   ───────────────────────────────────────────────────────────
+   1.  CONFIG & GLOBALS     — тохиргоо, глобал хувьсагч, escapeHtml
+   2.  INIT                 — эхлүүлэх, migration
+   3.  AUTH                 — Google нэвтрэлт
+   4.  DRIVE SYNC           — Google Drive синк, backup
+   5.  ENTRIES              — ажлын тэмдэглэл (нэмэх/засах/устгах)
+   6.  DASHBOARD            — хяналтын самбар
+   7.  STATISTICS           — heatmap, pie chart
+   8.  SEARCH               — глобал хайлт (Ctrl+K)
+   9.  TEMPLATES            — давтагддаг ажлын шаблон
+   10. ZAALT EDITOR         — заалт засварлах
+   11. UI HELPERS           — accordion, форм туслах
+   12. LIST                 — тэмдэглэлүүдийн жагсаалт, шүүлтүүр
+   13. REPORT               — тайлан гаргах, Word export
+   14. CALENDAR             — Google Calendar (хуанли)
+   15. THEME                — өнгөний загвар
+   16. TODO & ATTENTION     — даалгавар, анхаарал хандуулах
+   17. VAULT                — нууц үгийн сан (AES шифрлэлт)
+   ═══════════════════════════════════════════════════════════ */
+
 const CLIENT_ID='318160635801-6970fmqoqafpp6j9nm216skqe0945fvm.apps.googleusercontent.com';
 const SCOPES='https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/calendar';
 const FOLDER_NAME='ХСТИ Систем';
@@ -1179,6 +1203,9 @@ let entries=[],accessToken=null,driveFileId=null,currentUser=null,editingId=null
 let stickyFileId=null,vaultFileId=null;
 
 // XSS хамгаалалт — хэрэглэгчийн текстийг innerHTML-д оруулахын өмнө escape хийнэ
+// ═══════════════════════════════════════════════════════════
+//  CONFIG & GLOBALS — тохиргоо, глобал хувьсагч, туслах
+// ═══════════════════════════════════════════════════════════
 function escapeHtml(str){
   if(str==null)return '';
   return String(str)
@@ -1257,6 +1284,9 @@ const SEED_DATA=[
   {id:1020,date:'2026-05-25',zaalt:'1.4.1',work:'Гүйцэтгэлийн удирдлагын нэгдсэн системд төлөвлөгөө боловсруулсан',result:'Батлагдсан, хүргүүлсэн',tags:['Баримт бичиг'],location:'',partner:'',tool:'',days:''},
 ];
 
+// ═══════════════════════════════════════════════════════════
+//  INIT — эхлүүлэх, migration
+// ═══════════════════════════════════════════════════════════
 function init(){
   initTheme();
   document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];
@@ -1300,6 +1330,9 @@ function init(){
   if(tok&&usr){accessToken=tok;currentUser=JSON.parse(usr);showMain();setTimeout(loadFromDrive,800);}
 }
 
+// ═══════════════════════════════════════════════════════════
+//  AUTH — Google нэвтрэлт
+// ═══════════════════════════════════════════════════════════
 function initGSI(){
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:CLIENT_ID,scope:SCOPES,
@@ -1341,6 +1374,9 @@ function showMain(){
   renderDashboard();
 }
 
+// ═══════════════════════════════════════════════════════════
+//  DRIVE SYNC — Google Drive синк, backup
+// ═══════════════════════════════════════════════════════════
 async function getOrCreateFolder(){
   if(driveFolderId)return driveFolderId;
   const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(FOLDER_NAME)}' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive`,{
@@ -1712,10 +1748,16 @@ function setSyncBadge(txt,color){
 
 // DASHBOARD
 // Устгагдаагүй (идэвхтэй) бүртгэлүүд — tombstone-г шүүнэ
+// ═══════════════════════════════════════════════════════════
+//  ENTRIES — ажлын тэмдэглэл (нэмэх, засах, устгах)
+// ═══════════════════════════════════════════════════════════
 function activeEntries(){
   return entries.filter(e=>!e.deleted);
 }
 
+// ═══════════════════════════════════════════════════════════
+//  DASHBOARD — хяналтын самбар
+// ═══════════════════════════════════════════════════════════
 function renderDashboard(){
   const A=activeEntries(); // Устгагдаагүй бүртгэлүүд
   const total=A.length;
@@ -2228,6 +2270,9 @@ function clearForm(){
 }
 
 // ── HEATMAP ───────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  STATISTICS — heatmap, pie chart
+// ═══════════════════════════════════════════════════════════
 function renderHeatmap(){
   const grid=document.getElementById('heatmap-grid');
   if(!grid)return;
@@ -2418,6 +2463,9 @@ function renderPieChart(){
 // ── GLOBAL SEARCH (Ctrl+K) ────────────────────────────────
 let searchSelectedIdx=-1;
 
+// ═══════════════════════════════════════════════════════════
+//  SEARCH — глобал хайлт (Ctrl+K)
+// ═══════════════════════════════════════════════════════════
 function openSearch(){
   const modal=document.getElementById('search-modal');
   modal.style.display='flex';
@@ -2557,6 +2605,9 @@ document.addEventListener('keydown',function(e){
 // ── ДАВТАГДДАГ АЖЛУУД (Шаблон) ────────────────────────────
 let userTemplates=[];
 
+// ═══════════════════════════════════════════════════════════
+//  TEMPLATES — давтагддаг ажлын шаблон
+// ═══════════════════════════════════════════════════════════
 function loadTemplates(){
   try{const s=localStorage.getItem('templates_hsti');if(s)userTemplates=JSON.parse(s);}catch(e){userTemplates=[];}
 }
@@ -2670,6 +2721,9 @@ function quickAddFromTemplate(id){
 }
 
 // ── ЗААЛТ ЗАСВАРЛАХ ───────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  ZAALT EDITOR — заалт засварлах
+// ═══════════════════════════════════════════════════════════
 function renderZaaltEditor(){
   const el=document.getElementById('zaalt-editor-list');
   if(!el)return;
@@ -2761,6 +2815,9 @@ function rebuildZaaltSelect(){
 }
 
 // ── ACCORDION ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  UI HELPERS — accordion, форм туслах
+// ═══════════════════════════════════════════════════════════
 function toggleAcc(header){
   const body=header.nextElementSibling;
   const isOpen=header.classList.contains('open');
@@ -2806,6 +2863,9 @@ function updateAccBadge(){
 function changeDate(d){const inp=document.getElementById('entry-date');const dt=new Date(inp.value);dt.setDate(dt.getDate()+d);inp.value=dt.toISOString().split('T')[0];updateAccBadge();}
 function setToday(){document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];updateAccBadge();}
 
+// ═══════════════════════════════════════════════════════════
+//  LIST — тэмдэглэлүүдийн жагсаалт, шүүлтүүр
+// ═══════════════════════════════════════════════════════════
 function populateFilters(){
   const mN=['','1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
   const months=[...new Set(activeEntries().map(e=>e.date.slice(5,7)))].sort();
@@ -2866,6 +2926,9 @@ function renderList(){
 
 let currentReportPeriod='7d';
 
+// ═══════════════════════════════════════════════════════════
+//  REPORT — тайлан гаргах, Word export
+// ═══════════════════════════════════════════════════════════
 function selectReportPeriod(btn){
   document.querySelectorAll('.report-period-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
@@ -3455,6 +3518,9 @@ let calSelectedDate=null,calEvents=[];
 const CAL_DAY_NAMES=['Да','Мя','Лх','Пү','Ба','Бя','Ня'];
 const CAL_MONTH_MN=['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
 
+// ═══════════════════════════════════════════════════════════
+//  CALENDAR — Google Calendar (хуанли)
+// ═══════════════════════════════════════════════════════════
 async function initCalendar(){
   renderCalGrid();
   await fetchCalEvents();
@@ -3663,6 +3729,9 @@ function calRefresh(){fetchCalEvents();}
 // ── THEME ─────────────────────────────────────────────────
 const THEMES=['brown','blue','green','ocean','sky','violet'];
 
+// ═══════════════════════════════════════════════════════════
+//  THEME — өнгөний загвар
+// ═══════════════════════════════════════════════════════════
 function setTheme(theme){
   THEMES.forEach(t=>document.body.classList.remove('theme-'+t));
   document.body.classList.add('theme-'+theme);
@@ -3680,6 +3749,9 @@ function initTheme(){
 // ── ӨНӨӨДРИЙН ДААЛГАВАР (ToDo) ───────────────────────────
 let todos=[];
 
+// ═══════════════════════════════════════════════════════════
+//  TODO & ATTENTION — даалгавар, анхаарал хандуулах
+// ═══════════════════════════════════════════════════════════
 function loadTodos(){
   try{const s=localStorage.getItem('todos_hsti');if(s)todos=JSON.parse(s);}catch(e){todos=[];}
 }
@@ -3877,6 +3949,9 @@ function renderTodos(){
 let vaultKey=null;
 let vaultItems=[];
 
+// ═══════════════════════════════════════════════════════════
+//  VAULT — нууц үгийн сан (AES шифрлэлт)
+// ═══════════════════════════════════════════════════════════
 async function deriveKey(password,salt){
   const enc=new TextEncoder();
   const keyMaterial=await crypto.subtle.importKey('raw',enc.encode(password),{name:'PBKDF2'},false,['deriveKey']);
