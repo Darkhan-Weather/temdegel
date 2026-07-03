@@ -4,15 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ХСТИ Гүйцэтгэлийн систем</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.30.0/dist/tabler-icons.min.css" integrity="sha384-9pcqeAMNPuuw0/mltfCMqqVUmfHeTASX43egMosvWSN+Dh5eUCFi9Iz3yIW5sIsM" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js" integrity="sha384-4xaIisuLEy2lo2HkB2C4rEf7v8jbTb2kuogX6TkuEt9feTWKBSFSOzsqNNbV+sKh" crossorigin="anonymous"></script>
 <style>
 html{overflow-x:hidden}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;min-height:100vh;overflow-x:hidden}
 
 /* LOGIN */
-.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background-image:url('bg-login.jpg.jpg');background-size:cover;background-position:center}
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background-image:url('bg-login.jpg');background-size:cover;background-position:center}
 .login-card{background:rgba(255,255,255,0.85);backdrop-filter:blur(10px);border-radius:16px;border:0.5px solid rgba(212,175,106,0.35);padding:2.5rem;width:100%;max-width:380px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.1)}
 .login-logo{width:64px;height:64px;border-radius:16px;background:white;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
 .login-logo img{width:100%;height:100%;object-fit:contain;padding:4px}
@@ -951,6 +951,13 @@ details[open] summary .chevron{transform:rotate(90deg)}
             <button class="btn btn-primary" style="margin-top:4px" onclick="vaultUnlock()"><i class="ti ti-lock-open"></i> Нээх</button>
             <div id="vault-lock-err" style="font-size:12px;color:#e74c3c;margin-top:8px;display:none">Нууц үг буруу байна</div>
             <div style="font-size:11px;color:#a0aab4;margin-top:16px">Анх удаа нээж байгаа бол дурын нууц үг оруулна — тэр нь master болно</div>
+            <!-- Мартвал сэргээх боломжгүй анхааруулга -->
+            <div style="background:#FFF8F0;border:1px solid #FDEBD0;border-radius:9px;padding:10px 12px;margin-top:14px;text-align:left;display:flex;gap:8px;align-items:flex-start">
+              <i class="ti ti-alert-triangle" style="color:#E67E22;font-size:15px;flex-shrink:0;margin-top:1px"></i>
+              <div style="font-size:11px;color:#9E5E3D;line-height:1.6">
+                <b>Санамж:</b> Энэ нууц үг таны төхөөрөмж дээр шифрлэгдэж хадгалагдана. Хэн ч (та өөрөө ч, апп ч) сэргээж чадахгүй. <b>Мартвал бүх хадгалсан нууц үг үүрд алдагдана.</b> Найдвартай газар тэмдэглэж авахыг зөвлөж байна.
+              </div>
+            </div>
           </div>
         </div>
 
@@ -4096,6 +4103,26 @@ async function vaultUnlock(){
   const stored=localStorage.getItem('vault_meta_hsti');
   if(!stored){
     // Анх удаа — master үүсгэх
+    // Богино нууц үгэнд анхааруулах
+    if(pw.length<6){
+      if(!confirm('Таны master нууц үг маш богино байна ('+pw.length+' тэмдэгт).\n\nАюулгүй байдлын үүднээс дор хаяж 8 тэмдэгт ашиглахыг зөвлөж байна. Ийм богино нууц үгээр үргэлжлүүлэх үү?')){
+        return;
+      }
+    }
+    // Мартвал сэргээх боломжгүй гэдгийг сүүлийн удаа баталгаажуулах
+    const confirmed=confirm(
+      '⚠ ЧУХАЛ САНАМЖ\n\n'+
+      'Та энэ нууц үгийг master болгож тохируулах гэж байна:\n'+
+      '"'+pw+'"\n\n'+
+      '• Энэ нууц үгийг хэн ч (та өөрөө ч, апп ч) сэргээж чадахгүй\n'+
+      '• Мартвал бүх хадгалсан нууц үг ҮҮРД алдагдана\n'+
+      '• Найдвартай газар (тэмдэглэлийн дэвтэр гэх мэт) бичиж авсан уу?\n\n'+
+      'Үргэлжлүүлэх үү?'
+    );
+    if(!confirmed){
+      document.getElementById('vault-master-input').value='';
+      return;
+    }
     const salt=crypto.getRandomValues(new Uint8Array(16));
     vaultKey=await deriveKey(pw,salt);
     // Шалгах утга хадгалах
@@ -4103,6 +4130,7 @@ async function vaultUnlock(){
     localStorage.setItem('vault_meta_hsti',JSON.stringify({salt:Array.from(salt),check}));
     localStorage.setItem('vault_data_hsti',JSON.stringify(await encryptData(vaultKey,[])));
     vaultItems=[];
+    showAlert('Master нууц үг тохирогдлоо. Битгий мартаарай!','success');
   } else {
     const meta=JSON.parse(stored);
     const salt=new Uint8Array(meta.salt);
