@@ -1268,6 +1268,19 @@ function init(){
   if(tagsCleaned){
     localStorage.setItem('hsti_v3',JSON.stringify(entries));
   }
+  // Migration: хуучин бүртгэлүүдэд updatedAt онооx (синкийн зөрчил засварт зориулсан)
+  // id нь Date.now()-оос үүссэн тул ойролцоо цаг болгож ашиглана
+  let updatedAtAdded=false;
+  entries=entries.map(e=>{
+    if(!e.updatedAt){
+      updatedAtAdded=true;
+      return{...e,updatedAt:e.id||Date.now()};
+    }
+    return e;
+  });
+  if(updatedAtAdded){
+    localStorage.setItem('hsti_v3',JSON.stringify(entries));
+  }
   // Хэрэв хэрэглэгч заалтын жагсаалтыг өөрчилсөн бол dropdown-г шинэчлэх
   if(localStorage.getItem('zaalt_list_hsti')){
     rebuildZaaltSelect();
@@ -1312,7 +1325,7 @@ function showMain(){
   if(currentUser?.picture)av.innerHTML=`<img src="${currentUser.picture}" alt="">`;
   else av.textContent=(currentUser?.name||'М').charAt(0);
   document.getElementById('user-name').textContent=currentUser?.given_name||currentUser?.name||'М.Төмөрчөдөр';
-  document.getElementById('total-count').textContent=entries.length;
+  document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
   populateFilters();
   renderDashboard();
 }
@@ -1557,15 +1570,36 @@ async function loadFromDrive(){
         throw new Error('JSON_PARSE_FAILED');
       }
       if(content.entries&&content.entries.length){
-        const localIds=new Set(entries.map(e=>e.id));
-        const driveOnly=content.entries.filter(e=>!localIds.has(e.id));
-        if(driveOnly.length>0){
-          entries=[...entries,...driveOnly];
-          entries.sort((a,b)=>b.date.localeCompare(a.date));
-          localStorage.setItem('hsti_v3',JSON.stringify(entries));
-          showAlert('Drive-аас '+driveOnly.length+' шинэ бүртгэл нэмэгдлээ','success');
-        }
-        document.getElementById('total-count').textContent=entries.length;
+        // ── LAST-WRITER-WINS MERGE ──────────────────────────
+        // Хоёр талын бүртгэлийг id-гаар map болгож, updatedAt их-ийг сонгоно.
+        // Ингэснээр: устгал (tombstone) тархана, засвар дарж бичигдэнэ.
+        const byId={};
+        // Эхлээд локал бүртгэлүүдийг map-д хийх
+        entries.forEach(e=>{byId[e.id]={...e,updatedAt:e.updatedAt||e.id||0};});
+        // Дараа нь Drive бүртгэлүүдтэй харьцуулах
+        let changed=0,newCount=0;
+        content.entries.forEach(de=>{
+          const dUpdated=de.updatedAt||de.id||0;
+          const local=byId[de.id];
+          if(!local){
+            // Локалд байхгүй — нэмэх
+            byId[de.id]=de;
+            if(!de.deleted)newCount++;
+          } else {
+            // Хоёуланд байгаа — сүүлд өөрчилсөн нь давамгайлна
+            const lUpdated=local.updatedAt||local.id||0;
+            if(dUpdated>lUpdated){
+              byId[de.id]=de;
+              changed++;
+            }
+          }
+        });
+        // Map-аас массив руу буцаах
+        entries=Object.values(byId);
+        entries.sort((a,b)=>b.date.localeCompare(a.date));
+        localStorage.setItem('hsti_v3',JSON.stringify(entries));
+        if(newCount>0)showAlert('Drive-аас '+newCount+' шинэ бүртгэл нэмэгдлээ','success');
+        document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
         populateFilters();renderDashboard();
       }
       // Шаблон — Drive-аас үргэлж шинэчлэх
@@ -1666,14 +1700,20 @@ function setSyncBadge(txt,color){
 }
 
 // DASHBOARD
+// Устгагдаагүй (идэвхтэй) бүртгэлүүд — tombstone-г шүүнэ
+function activeEntries(){
+  return entries.filter(e=>!e.deleted);
+}
+
 function renderDashboard(){
-  const total=entries.length;
+  const A=activeEntries(); // Устгагдаагүй бүртгэлүүд
+  const total=A.length;
   const now=new Date();
   const todayStr=now.toISOString().slice(0,10); // "2026-06-26"
   const curM=String(now.getMonth()+1).padStart(2,'0');
 
   // Өнөөдрийн тэмдэглэлүүд
-  const todayEntries=entries.filter(e=>{
+  const todayEntries=A.filter(e=>{
     const p=e.date.split('-');
     const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
     return norm===todayStr;
@@ -1709,11 +1749,11 @@ function renderDashboard(){
   renderQuickAdd();
   renderHeatmap();
   setTimeout(renderPieChart,50);
-  const thisM=entries.filter(e=>e.date.slice(5,7)===curM).length;
-  const zaaltSet=new Set(entries.map(e=>e.zaalt).filter(v=>v&&v!=='custom'&&v!=='nemel'&&v!=='medleg'&&v!=='eelje'));
+  const thisM=A.filter(e=>e.date.slice(5,7)===curM).length;
+  const zaaltSet=new Set(A.map(e=>e.zaalt).filter(v=>v&&v!=='custom'&&v!=='nemel'&&v!=='medleg'&&v!=='eelje'));
   const covered=zaaltSet.size;
   const total28=28;
-  const done=entries.filter(e=>e.result&&/100%|биелэгдсэн|хамрагдсан|оруулсан|өгсөн|хүргэгдсэн|дээшилсэн|оролцсон|хийгдсэн/.test(e.result)).length;
+  const done=A.filter(e=>e.result&&/100%|биелэгдсэн|хамрагдсан|оруулсан|өгсөн|хүргэгдсэн|дээшилсэн|оролцсон|хийгдсэн/.test(e.result)).length;
   const pct=total?Math.round(done/total*100):0;
 
   document.getElementById('stats-grid').innerHTML=[
@@ -1728,7 +1768,7 @@ function renderDashboard(){
 
   // Chart: bar + line
   const counts=Array(12).fill(0);
-  entries.forEach(e=>{const m=parseInt(e.date.slice(5,7))-1;if(m>=0&&m<12)counts[m]++;});
+  A.forEach(e=>{const m=parseInt(e.date.slice(5,7))-1;if(m>=0&&m<12)counts[m]++;});
   const maxM=now.getMonth();
   const showCounts=counts.slice(0,maxM+1);
   const maxC=Math.max(...showCounts,1);
@@ -1766,8 +1806,8 @@ function renderDashboard(){
   const last7End=dateStr(today);
   const prev7Start=dateStr(new Date(today-13*msDay));
   const prev7End=dateStr(new Date(today-7*msDay));
-  const last7Count=entries.filter(e=>{const d=normDate(e.date);return d>=last7Start&&d<=last7End;}).length;
-  const prev7Count=entries.filter(e=>{const d=normDate(e.date);return d>=prev7Start&&d<=prev7End;}).length;
+  const last7Count=A.filter(e=>{const d=normDate(e.date);return d>=last7Start&&d<=last7End;}).length;
+  const prev7Count=A.filter(e=>{const d=normDate(e.date);return d>=prev7Start&&d<=prev7End;}).length;
   const badge=document.getElementById('chart-badge');
   if(prev7Count===0&&last7Count===0){
     badge.textContent='Сүүлийн 7 хоног: 0 бичлэг';
@@ -1785,7 +1825,7 @@ function renderDashboard(){
 
   // Recent week
   const weekAgo=new Date(now);weekAgo.setDate(now.getDate()-7);
-  const recent=entries.filter(e=>new Date(e.date)>=weekAgo).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+  const recent=A.filter(e=>new Date(e.date)>=weekAgo).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
   const recentEl=document.getElementById('recent-list');
   if(!recent.length){
     recentEl.innerHTML='<div class="empty" style="padding:20px"><i class="ti ti-inbox"></i><div style="font-size:13px">Энэ долоо хоногт тэмдэглэл байхгүй</div></div>';
@@ -1799,12 +1839,12 @@ function renderDashboard(){
   }
 
   // ── ЗААЛТЫН ХАМРАГДАЛТ ──────────────────────────────────
-  const curMEntries=entries.filter(e=>e.date.slice(5,7)===curM);
+  const curMEntries=A.filter(e=>e.date.slice(5,7)===curM);
   const curMZaaltIds=new Set(curMEntries.map(e=>e.zaalt).filter(Boolean));
 
   // Нийт бүртгэлийн заалтын давтамж
   const zaaltCounts={};
-  ZAALT_LIST.forEach(z=>{zaaltCounts[z.id]=entries.filter(e=>e.zaalt===z.id).length;});
+  ZAALT_LIST.forEach(z=>{zaaltCounts[z.id]=A.filter(e=>e.zaalt===z.id).length;});
 
   // Хамрагдаагүй (одоогийн сард)
   const uncovered=ZAALT_LIST.filter(z=>!curMZaaltIds.has(z.id));
@@ -1983,11 +2023,12 @@ function saveEntry(){
     location:document.getElementById('entry-location').value.trim(),
     partner:document.getElementById('entry-partner').value.trim(),
     tool:document.getElementById('entry-tool').value.trim(),
-    days:document.getElementById('entry-days').value||''};
+    days:document.getElementById('entry-days').value||'',
+    updatedAt:Date.now()};
   if(editingId){entries=entries.map(e=>e.id===editingId?entry:e);editingId=null;}
   else entries.push(entry);
   localStorage.setItem('hsti_v3',JSON.stringify(entries));
-  document.getElementById('total-count').textContent=entries.length;
+  document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
   clearForm();populateFilters();
   clearDraft();
   showAlert('Хадгалагдлаа!','success');
@@ -2018,9 +2059,15 @@ function editEntry(id){
 
 function deleteEntry(id){
   if(!confirm('Устгах уу?'))return;
-  entries=entries.filter(e=>e.id!==id);
+  // Tombstone — жагсаалтаас хасахгүй, deleted:true болгож тэмдэглэнэ
+  // Ингэснээр устгал бусад төхөөрөмж рүү синкээр тархана
+  const e=entries.find(x=>x.id===id);
+  if(e){
+    e.deleted=true;
+    e.updatedAt=Date.now();
+  }
   localStorage.setItem('hsti_v3',JSON.stringify(entries));
-  document.getElementById('total-count').textContent=entries.length;
+  document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
   if(accessToken)syncToDrive();
   renderList();populateFilters();
 }
@@ -2188,7 +2235,7 @@ function renderHeatmap(){
 
   // entries-г огноогоор map болгох
   const countByDate={};
-  entries.forEach(e=>{
+  activeEntries().forEach(e=>{
     const p=e.date.split('-');
     const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
     countByDate[norm]=(countByDate[norm]||0)+1;
@@ -2292,7 +2339,7 @@ function renderPieChart(){
 
   // Заалтаар тоолох
   const counts={};
-  entries.forEach(e=>{
+  activeEntries().forEach(e=>{
     const z=e.zaalt||'other';
     counts[z]=(counts[z]||0)+1;
   });
@@ -2396,7 +2443,7 @@ function runSearch(q){
   const results=[];
 
   // 1. Ажлын тэмдэглэл
-  entries.filter(e=>(e.work||'').toLowerCase().includes(ql)||(e.result||'').toLowerCase().includes(ql)||(e.zaalt||'').toLowerCase().includes(ql))
+  activeEntries().filter(e=>(e.work||'').toLowerCase().includes(ql)||(e.result||'').toLowerCase().includes(ql)||(e.zaalt||'').toLowerCase().includes(ql))
     .slice(0,5).forEach(e=>{
       results.push({type:'entry',icon:'ti-notebook',iconBg:'#EBF3FB',iconColor:'#185FA5',
         title:highlight(e.work.slice(0,60),q),
@@ -2595,11 +2642,12 @@ function quickAddFromTemplate(id){
     result:t.result,
     tags:[],
     priority:t.priority||'normal',
-    location:'',partner:'',tool:'',days:''
+    location:'',partner:'',tool:'',days:'',
+    updatedAt:Date.now()
   };
   entries.push(entry);
   localStorage.setItem('hsti_v3',JSON.stringify(entries));
-  document.getElementById('total-count').textContent=entries.length;
+  document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
   populateFilters();
   renderDashboard();
   showAlert(`"${t.name}" нэмэгдлээ ✓`,'success');
@@ -2745,13 +2793,13 @@ function setToday(){document.getElementById('entry-date').value=new Date().toISO
 
 function populateFilters(){
   const mN=['','1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
-  const months=[...new Set(entries.map(e=>e.date.slice(5,7)))].sort();
+  const months=[...new Set(activeEntries().map(e=>e.date.slice(5,7)))].sort();
   const ms=document.getElementById('filter-month');const mv=ms.value;
   ms.innerHTML='<option value="">Бүгд</option>';
   months.forEach(m=>ms.innerHTML+=`<option value="${m}"${m===mv?' selected':''}>${mN[parseInt(m)]}</option>`);
   const zs=document.getElementById('filter-zaalt');const zv=zs.value;
   zs.innerHTML='<option value="">Бүгд</option>';
-  [...new Set(entries.map(e=>e.zaalt))].filter(Boolean).sort().forEach(z=>zs.innerHTML+=`<option value="${z}"${z===zv?' selected':''}>${z}</option>`);
+  [...new Set(activeEntries().map(e=>e.zaalt))].filter(Boolean).sort().forEach(z=>zs.innerHTML+=`<option value="${z}"${z===zv?' selected':''}>${z}</option>`);
 }
 
 function renderList(){
@@ -2760,6 +2808,7 @@ function renderList(){
   const priority=document.getElementById('filter-priority')?.value||'';
   const search=document.getElementById('filter-search').value.toLowerCase();
   let filtered=entries.filter(e=>{
+    if(e.deleted)return false;
     if(month&&e.date.slice(5,7)!==month)return false;
     if(zaalt&&e.zaalt!==zaalt)return false;
     if(priority){const ep=e.priority||'normal';if(ep!==priority)return false;}
@@ -2872,6 +2921,7 @@ function generateReport(){
   const range=getReportDateRange();
   if(!range)return;
   const filtered=entries.filter(e=>{
+    if(e.deleted)return false;
     const p=e.date.split('-');
     const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
     return norm>=range.from&&norm<=range.to;
@@ -2935,7 +2985,7 @@ function generateReport(){
     ${uncoveredZaalts.length>0?`<div style="background:#FFF8F0;border:1px solid #FDEBD0;border-radius:10px;padding:12px;margin-bottom:14px">
       <div style="font-size:12px;font-weight:600;color:#9E5E3D;margin-bottom:8px"><i class="ti ti-alert-triangle"></i> Хөндөгдөөгүй (${uncoveredZaalts.length})</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">
-        ${uncoveredZaalts.map(z=>{const c=entries.filter(e=>e.zaalt===z.id).length;return`<div style="background:white;border-radius:7px;padding:6px 10px"><div style="font-size:10px;color:#9E5E3D">${z.id}</div><div style="font-size:11px;color:#1a2332">${z.name}</div><div style="font-size:10px;color:${c>0?'#8a97a8':'#e74c3c'}">${c>0?c+' бүртгэл':'Огт хөндөгдөөгүй'}</div></div>`;}).join('')}
+        ${uncoveredZaalts.map(z=>{const c=activeEntries().filter(e=>e.zaalt===z.id).length;return`<div style="background:white;border-radius:7px;padding:6px 10px"><div style="font-size:10px;color:#9E5E3D">${z.id}</div><div style="font-size:11px;color:#1a2332">${z.name}</div><div style="font-size:10px;color:${c>0?'#8a97a8':'#e74c3c'}">${c>0?c+' бүртгэл':'Огт хөндөгдөөгүй'}</div></div>`;}).join('')}
       </div>
     </div>`:''}
     <div style="display:grid;gap:6px">
@@ -2960,7 +3010,7 @@ function generateReport(){
 async function exportToWord(){
   const from=document.getElementById('report-from').value;
   const to=document.getElementById('report-to').value;
-  const filtered=entries.filter(e=>{const m=e.date.slice(5,7);return m>=from&&m<=to;});
+  const filtered=entries.filter(e=>{if(e.deleted)return false;const m=e.date.slice(5,7);return m>=from&&m<=to;});
   if(!filtered.length){showAlert('Тэмдэглэл байхгүй байна','error');return;}
 
   showAlert('Word файл үүсгэж байна...','info');
@@ -3689,7 +3739,7 @@ function renderAttention(){
   });
 
   // 2. Чухал эрэмбэтэй өнөөдрийн тэмдэглэл
-  const todayImportant=entries.filter(e=>{
+  const todayImportant=activeEntries().filter(e=>{
     if(e.priority!=='important')return false;
     const p=e.date.split('-');
     const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
@@ -3707,8 +3757,8 @@ function renderAttention(){
   });
 
   // 3. Энэ сард хөндөгдөөгүй + нийт 0 бүртгэлтэй заалтууд (critical)
-  const curMZaaltIds=new Set(entries.filter(e=>e.date.slice(5,7)===curM).map(e=>e.zaalt));
-  const neverTouched=ZAALT_LIST.filter(z=>entries.filter(e=>e.zaalt===z.id).length===0);
+  const curMZaaltIds=new Set(activeEntries().filter(e=>e.date.slice(5,7)===curM).map(e=>e.zaalt));
+  const neverTouched=ZAALT_LIST.filter(z=>activeEntries().filter(e=>e.zaalt===z.id).length===0);
   if(neverTouched.length>0){
     items.push({
       type:'zaalt',
@@ -3752,7 +3802,7 @@ function toggleUncoveredPanel(){
 
 function renderUncoveredPanel(){
   const curM=String(new Date().getMonth()+1).padStart(2,'0');
-  const curMZaaltIds=new Set(entries.filter(e=>e.date.slice(5,7)===curM).map(e=>e.zaalt));
+  const curMZaaltIds=new Set(activeEntries().filter(e=>e.date.slice(5,7)===curM).map(e=>e.zaalt));
   const uncovered=ZAALT_LIST.filter(z=>!curMZaaltIds.has(z.id));
   const list=document.getElementById('uncovered-list');
   if(!list)return;
@@ -3762,7 +3812,7 @@ function renderUncoveredPanel(){
   }
   list.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">
     ${uncovered.map(z=>{
-      const total=entries.filter(e=>e.zaalt===z.id).length;
+      const total=activeEntries().filter(e=>e.zaalt===z.id).length;
       return `<div style="background:white;border-radius:7px;padding:7px 10px;cursor:pointer" onclick="showTab('add',document.querySelectorAll('.nav-item')[1])">
         <div style="font-size:10px;color:#9E5E3D;font-weight:600">${z.id}</div>
         <div style="font-size:12px;color:#1a2332">${z.name}</div>
