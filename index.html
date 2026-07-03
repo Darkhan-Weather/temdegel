@@ -6,13 +6,14 @@
 <title>ХСТИ Гүйцэтгэлийн систем</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.30.0/dist/tabler-icons.min.css" integrity="sha384-9pcqeAMNPuuw0/mltfCMqqVUmfHeTASX43egMosvWSN+Dh5eUCFi9Iz3yIW5sIsM" crossorigin="anonymous">
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js" integrity="sha384-4xaIisuLEy2lo2HkB2C4rEf7v8jbTb2kuogX6TkuEt9feTWKBSFSOzsqNNbV+sKh" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <style>
 html{overflow-x:hidden}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;min-height:100vh;overflow-x:hidden}
 
 /* LOGIN */
-.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background-image:url('bg-login.jpg');background-size:cover;background-position:center}
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:linear-gradient(135deg,#17A8C4,#2C3E8C);background-image:url('bg-login.jpg');background-size:cover;background-position:center}
 .login-card{background:rgba(255,255,255,0.85);backdrop-filter:blur(10px);border-radius:16px;border:0.5px solid rgba(212,175,106,0.35);padding:2.5rem;width:100%;max-width:380px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.1)}
 .login-logo{width:64px;height:64px;border-radius:16px;background:white;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
 .login-logo img{width:100%;height:100%;object-fit:contain;padding:4px}
@@ -368,7 +369,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
 <!-- LOGIN -->
 <div id="login-screen" class="login-screen">
   <div class="login-card">
-    <div class="login-logo"><img src="logo.png" alt="УЦУОШТ лого"></div>
+    <div class="login-logo"><img src="logo.png" alt="УЦУОШТ лого" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=&quot;width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,#EBAD7C,#9E5E3D);display:flex;align-items:center;justify-content:center;color:white;font-size:24px;font-weight:700&quot;>ХСТИ</div>'"></div>
     <div class="login-title">ХСТИ Гүйцэтгэлийн систем</div>
     <svg class="login-divider" width="150" height="15" viewBox="0 0 150 15">
       <line x1="0" y1="7.5" x2="58" y2="7.5" stroke="#d4af6a" stroke-width="1"/>
@@ -391,7 +392,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
   <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-logo"><img src="logo.png" alt="лого"></div>
+      <div class="sidebar-logo"><img src="logo.png" alt="лого" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=&quot;width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#EBAD7C,#9E5E3D);display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:700&quot;>ХС</div>'"></div>
       <span class="sidebar-title">ХСТИ Гүйцэтгэлийн систем</span>
     </div>
     <nav class="sidebar-nav">
@@ -3119,7 +3120,10 @@ function generateReport(){
         <div class="card-title" style="margin:0"><i class="ti ti-list-details"></i> Заалт бүрийн нэгтгэл</div>
         <div style="font-size:12px;color:#8a97a8;margin-top:2px">${range.label} · Нийт ${filtered.length} бүртгэл</div>
       </div>
-      <button class="btn btn-primary" onclick="exportToWord()"><i class="ti ti-file-word"></i> Word файл татах</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="exportToWord()"><i class="ti ti-file-word"></i> Word татах</button>
+        <button class="btn" onclick="exportToExcel()" style="border-color:#1E8449;color:#1E8449"><i class="ti ti-file-spreadsheet"></i> Excel татах</button>
+      </div>
     </div>`;
   Object.keys(groups).sort().forEach(zaalt=>{
     const items=groups[zaalt].sort((a,b)=>a.date.localeCompare(b.date));
@@ -3355,6 +3359,90 @@ async function exportToWord(){
   }catch(err){
     console.error(err);
     showAlert('Word үүсгэхэд алдаа гарлаа: '+err.message,'error');
+  }
+}
+
+// Excel export — SheetJS ашиглан .xlsx файл үүсгэх
+function exportToExcel(){
+  if(typeof XLSX==='undefined'){
+    showAlert('Excel сан ачаалагдаагүй байна. Хуудсыг дахин ачаалаад оролдоно уу.','error');
+    return;
+  }
+  const range=getReportDateRange();
+  if(!range)return;
+  // Тухайн хугацааны бүртгэлийг шүүх (устгагдаагүй)
+  const filtered=entries.filter(e=>{
+    if(e.deleted)return false;
+    const p=e.date.split('-');
+    const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
+    return norm>=range.from&&norm<=range.to;
+  }).sort((a,b)=>a.date.localeCompare(b.date));
+
+  if(!filtered.length){showAlert('Энэ хугацаанд тэмдэглэл байхгүй байна','error');return;}
+
+  const priLabel={important:'Чухал',normal:'Дунд',low:'Энгийн'};
+
+  // ── Sheet 1: Бүх бүртгэл (дэлгэрэнгүй) ──
+  const mainData=filtered.map((e,i)=>({
+    '№':i+1,
+    'Огноо':e.date,
+    'Заалт':e.zaalt||'',
+    'Хийсэн ажил':e.work||'',
+    'Үр дүн':e.result||'',
+    'Эрэмбэ':priLabel[e.priority||'normal'],
+    'Байршил':e.location||'',
+    'Хамтарсан':e.partner||'',
+    'Багаж/Программ':e.tool||'',
+    'Хоног':e.days||''
+  }));
+  const ws1=XLSX.utils.json_to_sheet(mainData);
+  // Багана өргөн тохируулах
+  ws1['!cols']=[
+    {wch:4},{wch:12},{wch:10},{wch:45},{wch:28},
+    {wch:8},{wch:18},{wch:15},{wch:20},{wch:7}
+  ];
+
+  // ── Sheet 2: Заалтын нэгтгэл (давтамж) ──
+  const zaaltCounts={};
+  filtered.forEach(e=>{const z=e.zaalt||'(хоосон)';zaaltCounts[z]=(zaaltCounts[z]||0)+1;});
+  const summaryData=Object.entries(zaaltCounts)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([zaalt,count])=>{
+      // Заалтын нэрийг ZAALT_LIST-ээс олох
+      const z=ZAALT_LIST.find(x=>x.id===zaalt);
+      return{
+        'Заалт':zaalt,
+        'Нэр':z?z.name:'',
+        'Тоо':count
+      };
+    });
+  const ws2=XLSX.utils.json_to_sheet(summaryData);
+  ws2['!cols']=[{wch:10},{wch:35},{wch:8}];
+
+  // ── Sheet 3: Хөндөгдөөгүй заалтууд ──
+  const coveredIds=new Set(filtered.map(e=>e.zaalt));
+  const uncovered=ZAALT_LIST.filter(z=>!coveredIds.has(z.id)).map(z=>({
+    'Заалт':z.id,
+    'Нэр':z.name,
+    'Тайлбар':'Энэ хугацаанд хөндөгдөөгүй'
+  }));
+  const ws3=XLSX.utils.json_to_sheet(uncovered.length?uncovered:[{'Заалт':'','Нэр':'Бүх заалт хамрагдсан','Тайлбар':''}]);
+  ws3['!cols']=[{wch:10},{wch:35},{wch:28}];
+
+  // Workbook үүсгэх
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws1,'Бүх бүртгэл');
+  XLSX.utils.book_append_sheet(wb,ws2,'Заалтын нэгтгэл');
+  XLSX.utils.book_append_sheet(wb,ws3,'Хөндөгдөөгүй');
+
+  // Татах
+  const fileName=`ХСТИ_тайлан_${range.from}_${range.to}.xlsx`;
+  try{
+    XLSX.writeFile(wb,fileName);
+    showAlert('Excel файл татагдлаа!','success');
+  }catch(e){
+    console.error('[Excel] Алдаа:',e);
+    showAlert('Excel үүсгэхэд алдаа гарлаа','error');
   }
 }
 
