@@ -1241,6 +1241,12 @@ function escapeHtml(str){
     .replace(/'/g,'&#39;');
 }
 
+// Давхцахгүй ID үүсгэх — цаг + санамсаргүй тэмдэгт
+// Date.now() ганцаараа бол нэг мс-д 2 бүртгэл үүсвэл давхцана
+function genId(){
+  return Date.now()+'-'+Math.random().toString(36).slice(2,6);
+}
+
 // Заалтын анхны жагсаалт (default) — localStorage-д байхгүй үед энэ ашиглагдана
 const ZAALT_LIST_DEFAULT=[
   {id:'1.2.1.1',name:'Сүлжээний хяналт, удирдлага'},
@@ -1321,7 +1327,8 @@ function init(){
   entries=entries.map(e=>{
     if(!e.updatedAt){
       updatedAtAdded=true;
-      return{...e,updatedAt:e.id||Date.now()};
+      // updatedAt байхгүй бол: хуучин тоон id-г ашиглах, текст id бол 0
+      return{...e,updatedAt:e.updatedAt||(typeof e.id==='number'?e.id:0)};
     }
     return e;
   });
@@ -1727,11 +1734,11 @@ async function loadFromDrive(){
         // Ингэснээр: устгал (tombstone) тархана, засвар дарж бичигдэнэ.
         const byId={};
         // Эхлээд локал бүртгэлүүдийг map-д хийх
-        entries.forEach(e=>{byId[e.id]={...e,updatedAt:e.updatedAt||e.id||0};});
+        entries.forEach(e=>{byId[e.id]={...e,updatedAt:e.updatedAt||(typeof e.id==='number'?e.id:0)};});
         // Дараа нь Drive бүртгэлүүдтэй харьцуулах
         let changed=0,newCount=0;
         content.entries.forEach(de=>{
-          const dUpdated=de.updatedAt||de.id||0;
+          const dUpdated=de.updatedAt||(typeof de.id==='number'?de.id:0);
           const local=byId[de.id];
           if(!local){
             // Локалд байхгүй — нэмэх
@@ -1739,7 +1746,7 @@ async function loadFromDrive(){
             if(!de.deleted)newCount++;
           } else {
             // Хоёуланд байгаа — сүүлд өөрчилсөн нь давамгайлна
-            const lUpdated=local.updatedAt||local.id||0;
+            const lUpdated=local.updatedAt||(typeof local.id==='number'?local.id:0);
             if(dUpdated>lUpdated){
               byId[de.id]=de;
               changed++;
@@ -2177,7 +2184,7 @@ function saveEntry(){
   const tags=[...document.querySelectorAll('#tab-add .tag-chip.active')]
     .map(t=>t.dataset.tag)
     .filter(t=>t&&t.trim());
-  const entry={id:editingId||Date.now(),date,zaalt,work,result,tags,
+  const entry={id:editingId||genId(),date,zaalt,work,result,tags,
     priority:getEntryPriority(),
     location:document.getElementById('entry-location').value.trim(),
     partner:document.getElementById('entry-partner').value.trim(),
@@ -2744,7 +2751,7 @@ function saveTemplate(){
   const work=document.getElementById('tpl-work').value.trim();
   if(!name||!work){showAlert('Шаблоны нэр болон хийсэн ажлыг бөглөнө үү','error');return;}
   userTemplates.push({
-    id:Date.now(),
+    id:genId(),
     name,
     work,
     zaalt:document.getElementById('tpl-zaalt').value||'eelje',
@@ -2810,7 +2817,7 @@ function quickAddFromTemplate(id){
     if(!confirm(`"${t.name}" өнөөдөр аль хэдийн нэмэгдсэн байна. Дахин нэмэх үү?`))return;
   }
   const entry={
-    id:Date.now(),
+    id:genId(),
     date:today,
     zaalt:t.zaalt,
     work:t.work,
@@ -2899,7 +2906,11 @@ async function loadYearData(){
     showYearBanner(selectedYear);
   }catch(e){
     console.error('[Он ачаалах] Алдаа:',e);
-    statusEl.innerHTML='<span style="color:#e74c3c">Ачаалахад алдаа гарлаа</span>';
+    statusEl.innerHTML='<span style="color:#e74c3c">Ачаалахад алдаа гарлаа. Одоогийн он руу буцлаа.</span>';
+    // Завсрын төлөвт үлдэхээс сэргийлэх — одоогийн он руу буцаах
+    await backToCurrentYear();
+    // backToCurrentYear статусыг дарж бичсэн тул алдааны мессежийг сэргээх
+    statusEl.innerHTML='<span style="color:#e74c3c">⚠ '+selectedYear+' он ачаалахад алдаа гарлаа. Интернэт холболтоо шалгаад дахин оролдоно уу.</span>';
   }
 }
 
@@ -3726,7 +3737,7 @@ function selectStickyColor(btn){
   selectedStickyColor=btn.dataset.color;
 }
 function addStickyNote(){
-  const note={id:Date.now(),text:'',color:selectedStickyColor,date:new Date().toLocaleDateString('mn-MN'),labels:[]};
+  const note={id:genId(),text:'',color:selectedStickyColor,date:new Date().toLocaleDateString('mn-MN'),labels:[]};
   stickyNotes.unshift(note);
   saveStickyNotes();
   renderStickyNotes();
@@ -4151,7 +4162,7 @@ function todoAdd(){
   const pri=document.getElementById('todo-priority').value;
   const deadline=document.getElementById('todo-deadline').value||null;
   const today=new Date().toISOString().slice(0,10);
-  todos.unshift({id:Date.now(),text,priority:pri,done:false,date:today,deadline});
+  todos.unshift({id:genId(),text,priority:pri,done:false,date:today,deadline});
   saveTodos();
   inp.value='';
   document.getElementById('todo-deadline').value='';
@@ -4475,7 +4486,7 @@ async function vaultSave(){
   const name=document.getElementById('v-name').value.trim();
   if(!name){showAlert('Нэр оруулна уу','error');return;}
   const item={
-    id:Date.now(),name,
+    id:genId(),name,
     url:document.getElementById('v-url').value.trim(),
     user:document.getElementById('v-user').value.trim(),
     pw:document.getElementById('v-pw').value,
