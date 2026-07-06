@@ -2165,6 +2165,7 @@ function setEntryPriority(p){
 }
 
 function saveEntry(){
+  if(viewingOldYear){showAlert('Архив горим — засах боломжгүй. Одоогийн он руу буцна уу.','info');return;}
   clearFieldErrors();
   const date=document.getElementById('entry-date').value;
   const zaalt=getZaalt(),work=document.getElementById('entry-work').value.trim(),result=getResult();
@@ -2194,6 +2195,7 @@ function saveEntry(){
 }
 
 function editEntry(id){
+  if(viewingOldYear){showAlert('Архив горим — засах боломжгүй. Одоогийн он руу буцна уу.','info');return;}
   const e=entries.find(x=>x.id===id);if(!e)return;
   editingId=id;
   const ds=document.getElementById('draft-status');if(ds)ds.style.display='none';
@@ -2216,6 +2218,7 @@ function editEntry(id){
 }
 
 function deleteEntry(id){
+  if(viewingOldYear){showAlert('Архив горим — устгах боломжгүй. Одоогийн он руу буцна уу.','info');return;}
   if(!confirm('Устгах уу?'))return;
   // Tombstone — жагсаалтаас хасахгүй, deleted:true болгож тэмдэглэнэ
   // Ингэснээр устгал бусад төхөөрөмж рүү синкээр тархана
@@ -2231,6 +2234,7 @@ function deleteEntry(id){
 }
 
 function importJSON(input){
+  if(viewingOldYear){showAlert('Архив горим — импорт хийх боломжгүй. Одоогийн он руу буцна уу.','info');return;}
   const file=input.files[0];
   if(!file)return;
   const reader=new FileReader();
@@ -2903,6 +2907,7 @@ async function loadYearData(){
 function showYearBanner(year){
   document.getElementById('back-to-current-btn').style.display='inline-flex';
   document.getElementById('delete-year-btn').style.display='inline-flex';
+  setArchiveUILock(true); // Мутаци UI-г идэвхгүй болгох
   // Header дээр анхааруулга
   const headerSub=document.getElementById('header-year-sub');
   if(headerSub){
@@ -2915,6 +2920,7 @@ async function backToCurrentYear(){
   activeYear=YEAR;
   viewingOldYear=false;
   driveFileId=null;stickyFileId=null;vaultFileId=null;
+  setArchiveUILock(false); // Архив банер нуух, мутаци UI сэргээх
   // localStorage-оос одоогийн оны өгөгдлийг сэргээх
   const saved=localStorage.getItem('hsti_v3');
   entries=saved?JSON.parse(saved):[];
@@ -2966,6 +2972,36 @@ async function deleteYearData(){
   }catch(e){
     console.error('[Он устгах] Алдаа:',e);
     statusEl.innerHTML='<span style="color:#e74c3c">Устгахад алдаа гарлаа</span>';
+  }
+}
+
+// Архив горимд мутаци UI-г идэвхгүй болгох / буцаах
+function setArchiveUILock(locked){
+  // Sidebar-ийн "Ажил нэмэх" цэсийг идэвхгүй болгох
+  const addNav=document.querySelectorAll('.nav-item')[1]; // 2 дахь — Ажил нэмэх
+  if(addNav){
+    addNav.style.opacity=locked?'0.4':'1';
+    addNav.style.pointerEvents=locked?'none':'auto';
+  }
+  // Архив банер (дэлгэцийн дээд талд)
+  let banner=document.getElementById('archive-banner');
+  if(locked){
+    if(!banner){
+      banner=document.createElement('div');
+      banner.id='archive-banner';
+      banner.style.cssText='position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#E67E22,#D35400);color:white;text-align:center;padding:8px;font-size:13px;font-weight:500;z-index:3000;box-shadow:0 2px 8px rgba(0,0,0,0.15)';
+      document.body.appendChild(banner);
+    }
+    banner.innerHTML=`<i class="ti ti-archive" style="margin-right:6px"></i> ${activeYear} оны архив — зөвхөн харах горим. Засах/устгах боломжгүй. <span style="text-decoration:underline;cursor:pointer;margin-left:8px" onclick="backToCurrentYear()">Одоогийн он руу буцах</span>`;
+    banner.style.display='block';
+    document.body.style.paddingTop='36px';
+  } else {
+    if(banner){banner.style.display='none';}
+    document.body.style.paddingTop='0';
+  }
+  // Тэмдэглэлүүд жагсаалт дахин render (засах/устгах товч нуух/харуулах)
+  if(document.getElementById('tab-list')?.classList.contains('active')){
+    renderList();
   }
 }
 
@@ -3161,10 +3197,10 @@ function renderList(){
       <div class="entry-result"><i class="ti ti-check" style="font-size:11px"></i> ${escapeHtml(e.result)}${e.days?' — '+escapeHtml(e.days)+' хоног':''}</div>
       ${e.tags&&e.tags.length?`<div class="tag-row" style="margin-top:6px">${e.tags.filter(t=>t&&t.trim()).map(t=>`<span class="tag-chip active" style="cursor:default;padding:2px 9px;font-size:11px">${escapeHtml(t)}</span>`).join('')}</div>`:''}
       ${e.location||e.partner||e.tool?`<div class="entry-meta">${[e.location&&'📍'+e.location,e.partner&&'👤'+e.partner,e.tool&&'🔧'+e.tool].filter(Boolean).join(' · ')}</div>`:''}
-      <div class="entry-actions">
+      ${viewingOldYear?'':`<div class="entry-actions">
         <button class="btn btn-sm" onclick="editEntry(${e.id})"><i class="ti ti-edit"></i> Засах</button>
         <button class="btn btn-sm btn-danger" onclick="deleteEntry(${e.id})"><i class="ti ti-trash"></i> Устгах</button>
-      </div>
+      </div>`}
     </div>`;
   }).join('');
 }
