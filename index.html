@@ -1045,6 +1045,17 @@ details[open] summary .chevron{transform:rotate(90deg)}
           </div>
         </div>
         <div class="card">
+          <div class="card-title"><i class="ti ti-calendar-stats"></i> Он сонгох (хуучин тайлан харах)</div>
+          <p style="font-size:13px;color:#6b7a8d;margin-bottom:12px;line-height:1.6">Өнгөрсөн жилийн тайланг харахын тулд он сонгоно уу. <b>Зөвхөн харах</b> — хуучин оны өгөгдөл засварлагдахгүй.</p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="year-select" style="padding:7px 12px;border:1.5px solid #dde3ec;border-radius:8px;font-size:13px;outline:none"></select>
+            <button class="btn btn-primary" onclick="loadYearData()"><i class="ti ti-eye"></i> Харах</button>
+            <button class="btn" onclick="backToCurrentYear()" id="back-to-current-btn" style="display:none"><i class="ti ti-arrow-back-up"></i> Одоогийн он руу буцах</button>
+            <button class="btn btn-danger" onclick="deleteYearData()" id="delete-year-btn" style="display:none"><i class="ti ti-trash"></i> Энэ оны файл устгах</button>
+          </div>
+          <div id="year-status" style="font-size:12px;margin-top:10px;display:none"></div>
+        </div>
+        <div class="card">
           <div class="card-title"><i class="ti ti-database"></i> Backup / Сэргээх</div>
           <p style="font-size:13px;color:#6b7a8d;margin-bottom:12px;line-height:1.6">Хадгалах бүрт автоматаар backup үүснэ (сүүлийн 10-г хадгална). Алдаа гарвал өмнөх хувилбар руу буцаж болно.</p>
           <button class="btn btn-primary" onclick="openBackupModal()"><i class="ti ti-history"></i> Backup-аас сэргээх</button>
@@ -1201,9 +1212,13 @@ const SCOPES='https://www.googleapis.com/auth/drive.file https://www.googleapis.
 const FOLDER_NAME='ХСТИ Систем';
 // Оныг нэг л газраас авна — жил бүр автоматаар шинэчлэгдэнэ
 const YEAR=new Date().getFullYear();
-const FILE_NAME=`ajliin_temdegel_${YEAR}.json`;
-const STICKY_FILE_NAME=`sticky_notes_${YEAR}.json`;
-const VAULT_FILE_NAME=`vault_${YEAR}.json`;
+// Идэвхтэй харагдаж буй он — default нь одоогийн он, "Он сонгох"-оор өөрчилж болно
+let activeYear=YEAR;
+let viewingOldYear=false; // Хуучин он харж байгаа эсэх (архив горим)
+// Файлын нэрийг идэвхтэй оноор тооцоолно (const биш, функц)
+function getFileName(){return `ajliin_temdegel_${activeYear}.json`;}
+function getStickyFileName(){return `sticky_notes_${activeYear}.json`;}
+function getVaultFileName(){return `vault_${activeYear}.json`;}
 let driveFolderId=null;
 const PAGE_TITLES={dashboard:'Хяналтын самбар',add:'Ажил нэмэх',list:'Тэмдэглэлүүд',report:'Тайлан',sticky:'Тэмдэглэл',calendar:'Хуанли',vault:'Нууц үгийн сан',settings:'Тохиргоо'};
 const MONTH_NAMES=['1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
@@ -1629,6 +1644,11 @@ function closeBackupModal(){
 
 async function syncToDrive(){
   if(!accessToken){showAlert('Нэвтэрнэ үү','error');return;}
+  // Хуучин он харж байвал хадгалахгүй — архивыг санамсаргүй дарж бичихээс сэргийлэх
+  if(viewingOldYear){
+    showAlert('Хуучин оны архив зөвхөн харах горимд байна. Хадгалахын тулд одоогийн он руу буцна уу.','info');
+    return;
+  }
   // Token дуусах дөхсөн бол эхлээд чимээгүй шинэчлэх
   await ensureValidToken();
   setSyncBadge('Хадгалж байна...','#f39c12');
@@ -1642,8 +1662,8 @@ async function syncToDrive(){
       zaalt_list:(localStorage.getItem('zaalt_list_hsti')?JSON.parse(localStorage.getItem('zaalt_list_hsti')):null),
       updated:new Date().toISOString()
     };
-    if(!driveFileId)driveFileId=await findFileInFolder(FILE_NAME,folderId);
-    driveFileId=await uploadToFile(FILE_NAME,driveFileId,folderId,entriesPayload);
+    if(!driveFileId)driveFileId=await findFileInFolder(getFileName(),folderId);
+    driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
 
     // 2. Sticky notes + labels — тусдаа файл
     const stickyData=localStorage.getItem('sticky_notes_hsti');
@@ -1653,8 +1673,8 @@ async function syncToDrive(){
       sticky_labels:stickyLabelsData?JSON.parse(stickyLabelsData):[],
       updated:new Date().toISOString()
     };
-    if(!stickyFileId)stickyFileId=await findFileInFolder(STICKY_FILE_NAME,folderId);
-    stickyFileId=await uploadToFile(STICKY_FILE_NAME,stickyFileId,folderId,stickyPayload);
+    if(!stickyFileId)stickyFileId=await findFileInFolder(getStickyFileName(),folderId);
+    stickyFileId=await uploadToFile(getStickyFileName(),stickyFileId,folderId,stickyPayload);
 
     // 3. Vault — тусдаа файл (шифрлэгдсэн)
     const vaultMeta=localStorage.getItem('vault_meta_hsti');
@@ -1664,8 +1684,8 @@ async function syncToDrive(){
       vault_data:vaultData?JSON.parse(vaultData):null,
       updated:new Date().toISOString()
     };
-    if(!vaultFileId)vaultFileId=await findFileInFolder(VAULT_FILE_NAME,folderId);
-    vaultFileId=await uploadToFile(VAULT_FILE_NAME,vaultFileId,folderId,vaultPayload);
+    if(!vaultFileId)vaultFileId=await findFileInFolder(getVaultFileName(),folderId);
+    vaultFileId=await uploadToFile(getVaultFileName(),vaultFileId,folderId,vaultPayload);
 
     // Backup үүсгэх (async, sync-ийг саатуулахгүй)
     createBackup(folderId,entriesPayload,stickyPayload,vaultPayload);
@@ -1689,7 +1709,7 @@ async function loadFromDrive(){
   // 1. Ажлын тэмдэглэл — алдаа гарвал бусдыг гацаахгүй
   try{
     const folderId=await getOrCreateFolder();
-    if(!driveFileId)driveFileId=await findFileInFolder(FILE_NAME,folderId);
+    if(!driveFileId)driveFileId=await findFileInFolder(getFileName(),folderId);
     if(driveFileId){
       const res=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
         headers:{Authorization:'Bearer '+accessToken}});
@@ -1762,7 +1782,7 @@ async function loadFromDrive(){
   // 2. Sticky notes + labels — тус тусдаа алдаа барина
   try{
     const folderId=await getOrCreateFolder();
-    if(!stickyFileId)stickyFileId=await findFileInFolder(STICKY_FILE_NAME,folderId);
+    if(!stickyFileId)stickyFileId=await findFileInFolder(getStickyFileName(),folderId);
     if(stickyFileId){
       const res=await fetch(`https://www.googleapis.com/drive/v3/files/${stickyFileId}?alt=media`,{
         headers:{Authorization:'Bearer '+accessToken}});
@@ -1798,7 +1818,7 @@ async function loadFromDrive(){
   // 3. Vault (шифрлэгдсэн) — тус тусдаа алдаа барина
   try{
     const folderId=await getOrCreateFolder();
-    if(!vaultFileId)vaultFileId=await findFileInFolder(VAULT_FILE_NAME,folderId);
+    if(!vaultFileId)vaultFileId=await findFileInFolder(getVaultFileName(),folderId);
     if(vaultFileId){
       const res=await fetch(`https://www.googleapis.com/drive/v3/files/${vaultFileId}?alt=media`,{
         headers:{Authorization:'Bearer '+accessToken}});
@@ -2809,6 +2829,146 @@ function quickAddFromTemplate(id){
 // ═══════════════════════════════════════════════════════════
 //  ZAALT EDITOR — заалт засварлах
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  ОН СОНГОХ — хуучин жилийн тайлан харах (read-only)
+// ═══════════════════════════════════════════════════════════
+
+// Он сонгогч dropdown-г бөглөх (одоогийн оноос 4 жил ухраан)
+function populateYearSelect(){
+  const sel=document.getElementById('year-select');
+  if(!sel)return;
+  let html='';
+  for(let y=YEAR;y>=YEAR-4;y--){
+    html+=`<option value="${y}"${y===activeYear?' selected':''}>${y} он${y===YEAR?' (одоогийн)':''}</option>`;
+  }
+  sel.innerHTML=html;
+}
+
+// Сонгосон оны өгөгдлийг Drive-аас унших
+async function loadYearData(){
+  const sel=document.getElementById('year-select');
+  const selectedYear=parseInt(sel.value);
+  const statusEl=document.getElementById('year-status');
+
+  if(selectedYear===YEAR){
+    // Одоогийн он сонгосон бол буцах
+    backToCurrentYear();
+    return;
+  }
+
+  if(!accessToken){showAlert('Эхлээд Google-ээр нэвтэрнэ үү','error');return;}
+
+  // Одоогийн (идэвхтэй) өгөгдлийг эхлээд Drive-д хадгалах — алдагдахаас сэргийлэх
+  if(!viewingOldYear){
+    statusEl.style.display='block';
+    statusEl.innerHTML='<span style="color:#f39c12">Одоогийн өгөгдлийг хадгалж байна...</span>';
+    await syncToDrive();
+  }
+
+  activeYear=selectedYear;
+  viewingOldYear=true;
+  // File ID cache-г цэвэрлэх (шинэ оны файл хайлгах)
+  driveFileId=null;stickyFileId=null;vaultFileId=null;
+
+  statusEl.innerHTML=`<span style="color:#f39c12">${selectedYear} оны өгөгдөл ачаалж байна...</span>`;
+
+  try{
+    const folderId=await getOrCreateFolder();
+    const fid=await findFileInFolder(getFileName(),folderId);
+    if(!fid){
+      statusEl.innerHTML=`<span style="color:#e74c3c">${selectedYear} онд тайлан олдсонгүй (тэр онд бүртгэл байхгүй)</span>`;
+      // Хоосон харуулах
+      entries=[];
+      document.getElementById('total-count').textContent=0;
+      populateFilters();renderDashboard();
+      showYearBanner(selectedYear);
+      return;
+    }
+    const res=await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`,{
+      headers:{Authorization:'Bearer '+accessToken}});
+    const content=await res.json();
+    entries=(content.entries||[]).filter(e=>!e.deleted);
+    driveFileId=fid;
+    document.getElementById('total-count').textContent=entries.length;
+    populateFilters();renderDashboard();
+    statusEl.innerHTML=`<span style="color:#0F6E56">✓ ${selectedYear} оны ${entries.length} бүртгэл ачаалагдлаа (зөвхөн харах)</span>`;
+    showYearBanner(selectedYear);
+  }catch(e){
+    console.error('[Он ачаалах] Алдаа:',e);
+    statusEl.innerHTML='<span style="color:#e74c3c">Ачаалахад алдаа гарлаа</span>';
+  }
+}
+
+// Хуучин он харж байгааг мэдэгдэх banner + товчнууд
+function showYearBanner(year){
+  document.getElementById('back-to-current-btn').style.display='inline-flex';
+  document.getElementById('delete-year-btn').style.display='inline-flex';
+  // Header дээр анхааруулга
+  const headerSub=document.getElementById('header-year-sub');
+  if(headerSub){
+    headerSub.innerHTML=`<span style="color:#E67E22;font-weight:600">⚠ ${year} оны архив (зөвхөн харах)</span> — М.Төмөрчөдөр`;
+  }
+}
+
+// Одоогийн он руу буцах
+async function backToCurrentYear(){
+  activeYear=YEAR;
+  viewingOldYear=false;
+  driveFileId=null;stickyFileId=null;vaultFileId=null;
+  // localStorage-оос одоогийн оны өгөгдлийг сэргээх
+  const saved=localStorage.getItem('hsti_v3');
+  entries=saved?JSON.parse(saved):[];
+  document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
+  populateFilters();renderDashboard();
+  // Товчнуудыг нуух
+  document.getElementById('back-to-current-btn').style.display='none';
+  document.getElementById('delete-year-btn').style.display='none';
+  const statusEl=document.getElementById('year-status');
+  statusEl.innerHTML='<span style="color:#0F6E56">✓ Одоогийн он руу буцлаа</span>';
+  populateYearSelect();
+  // Header сэргээх
+  const headerSub=document.getElementById('header-year-sub');
+  if(headerSub)headerSub.textContent=`${YEAR} он — М.Төмөрчөдөр`;
+  // Drive-аас одоогийн оныг дахин ачаалах
+  if(accessToken)await loadFromDrive();
+}
+
+// Хуучин оны файлыг Drive-аас бүрмөсөн устгах
+async function deleteYearData(){
+  if(!viewingOldYear){showAlert('Зөвхөн хуучин оны файл устгаж болно','error');return;}
+  const yearToDelete=activeYear;
+
+  if(!confirm(`${yearToDelete} оны БҮХ өгөгдлийг Drive-аас бүрмөсөн устгах уу?\n\n• ${yearToDelete} оны ажлын тэмдэглэл, sticky notes, vault файл устана\n• Энэ үйлдэл буцаах боломжгүй\n\nҮргэлжлүүлэх үү?`)){
+    return;
+  }
+
+  const statusEl=document.getElementById('year-status');
+  statusEl.style.display='block';
+  statusEl.innerHTML='<span style="color:#f39c12">Устгаж байна...</span>';
+
+  try{
+    const folderId=await getOrCreateFolder();
+    // 3 файлыг хайж устгах
+    const filesToDelete=[getFileName(),getStickyFileName(),getVaultFileName()];
+    let deletedCount=0;
+    for(const fname of filesToDelete){
+      const fid=await findFileInFolder(fname,folderId);
+      if(fid){
+        await fetch(`https://www.googleapis.com/drive/v3/files/${fid}`,{
+          method:'DELETE',headers:{Authorization:'Bearer '+accessToken}});
+        deletedCount++;
+      }
+    }
+    statusEl.innerHTML=`<span style="color:#0F6E56">✓ ${yearToDelete} оны ${deletedCount} файл устгагдлаа</span>`;
+    showAlert(`${yearToDelete} оны өгөгдөл устгагдлаа`,'success');
+    // Одоогийн он руу буцах
+    setTimeout(()=>backToCurrentYear(),1500);
+  }catch(e){
+    console.error('[Он устгах] Алдаа:',e);
+    statusEl.innerHTML='<span style="color:#e74c3c">Устгахад алдаа гарлаа</span>';
+  }
+}
+
 function renderZaaltEditor(){
   const el=document.getElementById('zaalt-editor-list');
   if(!el)return;
@@ -3492,7 +3652,7 @@ function showTab(name,el){
   if(name==='calendar'){initCalendar();}
   if(name==='vault'){initVault();}
   if(name==='add'){setTimeout(()=>{checkAndRestoreDraft();updateAccBadge();},150);}
-  if(name==='settings'){renderZaaltEditor();renderTemplateList();}
+  if(name==='settings'){renderZaaltEditor();renderTemplateList();populateYearSelect();}
 }
 
 // ── STICKY NOTES ──────────────────────────────────────────
@@ -4218,7 +4378,7 @@ async function vaultUnlock(){
     if(accessToken){
       try{
         const folderId=await getOrCreateFolder();
-        if(!vaultFileId)vaultFileId=await findFileInFolder(VAULT_FILE_NAME,folderId);
+        if(!vaultFileId)vaultFileId=await findFileInFolder(getVaultFileName(),folderId);
         if(vaultFileId){
           const content=await fetch(`https://www.googleapis.com/drive/v3/files/${vaultFileId}?alt=media`,{
             headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
