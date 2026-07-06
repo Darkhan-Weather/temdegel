@@ -1268,29 +1268,6 @@ let ZAALT_LIST=(function(){
   return [...ZAALT_LIST_DEFAULT];
 })();
 
-// Seed demo data for months 1-5
-const SEED_DATA=[
-  {id:1001,date:'2026-01-15',zaalt:'1.2.2.4',work:'Компьютерийн үзлэг хийсэн',result:'Хэвийн ажиллагаанд оруулсан',tags:['Засвар'],location:'Төв байр',partner:'',tool:'',days:''},
-  {id:1002,date:'2026-01-22',zaalt:'1.4.2',work:'ERP системийн цахим сургалтанд хамрагдсан',result:'Мэдлэг дээшилсэн',tags:['Сургалт'],location:'',partner:'',tool:'',days:''},
-  {id:1003,date:'2026-01-27',zaalt:'1.2.1.1',work:'Дархан өртөөний сүлжээний тохиргоо',result:'Хэвийн ажиллагаанд оруулсан',tags:['Засвар'],location:'Дархан өртөө',partner:'',tool:'',days:''},
-  {id:1004,date:'2026-02-05',zaalt:'1.2.3.1',work:'Namem сайтад 2 мэдээ байршуулсан',result:'100% биелэгдсэн',tags:['Баримт бичиг'],location:'',partner:'',tool:'Canva',days:''},
-  {id:1005,date:'2026-02-11',zaalt:'1.2.3.2',work:'Кибер аюулгүй байдлын сургалтанд хамрагдсан',result:'Мэдлэг дээшилсэн',tags:['Сургалт'],location:'',partner:'',tool:'',days:''},
-  {id:1006,date:'2026-02-16',zaalt:'1.2.2.4',work:'Дархан өртөөний тоног төхөөрөмжийн шалгалт',result:'Хэвийн ажиллагаанд оруулсан',tags:['Засвар','Хяналт'],location:'Дархан өртөө',partner:'А.Сүхчимэг',tool:'',days:''},
-  {id:1007,date:'2026-03-05',zaalt:'1.2.2.3',work:'Солонгосын AWS цахим сургалтанд хамрагдсан',result:'Мэдлэг дээшилсэн',tags:['Сургалт'],location:'',partner:'',tool:'',days:''},
-  {id:1008,date:'2026-03-10',zaalt:'2.1',work:'ХАБЭА-н 8 цагийн сургалтанд хамрагдсан',result:'100% хамрагдсан',tags:['Сургалт'],location:'ШУТИС',partner:'',tool:'',days:''},
-  {id:1009,date:'2026-03-20',zaalt:'1.3.2',work:'Ойн баярын тоног төхөөрөмж угсралт, бичлэг эвлүүлэг',result:'Хийгдсэн',tags:['Уулзалт'],location:'Төв байр',partner:'',tool:'',days:'3'},
-  {id:1010,date:'2026-03-26',zaalt:'1.2.2.3',work:'AWS310 газардуулгын засвар, эсэргүүцэл 48.7→10 Ом болгосон',result:'Стандартын шаардлага хангагдсан',tags:['Засвар'],location:'Шаазгайт өртөө',partner:'Э.Ариунболд',tool:'HABOTEST HT2302',days:'2'},
-  {id:1011,date:'2026-03-27',zaalt:'1.4.4',work:'Төвийн байрны гадна талбайн их цэвэрлэгээ 7 хүнтэй',result:'100% оролцсон',tags:['Цэвэрлэгээ'],location:'Төв байр',partner:'',tool:'',days:''},
-  {id:1012,date:'2026-04-01',zaalt:'1.4.1',work:'1-р улирлын тайлан боловсруулж ерөнхий инженерт хүргүүлсэн',result:'Батлагдсан, хүргүүлсэн',tags:['Баримт бичиг'],location:'',partner:'',tool:'',days:''},
-  {id:1013,date:'2026-04-06',zaalt:'1.4.9',work:'ӨХБЗ-ийн хурлын тэмдэглэл боловсруулсан',result:'Хийгдсэн',tags:['Уулзалт','Баримт бичиг'],location:'',partner:'',tool:'',days:''},
-  {id:1014,date:'2026-04-14',zaalt:'1.4.11',work:'Төрийн өмчийн цахим сургалтанд хамрагдсан',result:'Мэдлэг дээшилсэн',tags:['Сургалт'],location:'',partner:'',tool:'',days:''},
-  {id:1015,date:'2026-04-22',zaalt:'1.4.4',work:'Дархан сумын Чулуутын гүүрэн дээр Хараа голын хог цэвэрлэгээ',result:'100% оролцсон',tags:['Цэвэрлэгээ'],location:'Дархан сум',partner:'',tool:'',days:''},
-  {id:1016,date:'2026-04-27',zaalt:'1.4.6',work:'Ёс зүйн сургалтанд 2 өдөр хамрагдсан',result:'100% хамрагдсан',tags:['Сургалт'],location:'',partner:'',tool:'',days:'2'},
-  {id:1017,date:'2026-05-07',zaalt:'1.2.3.2',work:'Дархан өртөөний компьютерт вирусны програм суулгасан',result:'Хэвийн ажиллагаанд оруулсан',tags:['Засвар'],location:'Дархан өртөө',partner:'',tool:'Kaspersky',days:''},
-  {id:1018,date:'2026-05-12',zaalt:'1.4.7',work:'"Тэрбум мод" хөдөлгөөний хүрээнд Морин хуурын уулын хажууд 2 мод тарьсан',result:'100% биелэгдсэн',tags:['Цэвэрлэгээ'],location:'Морин хуурын уул',partner:'Шинэ иргэний төгөл',tool:'',days:''},
-  {id:1019,date:'2026-05-14',zaalt:'1.2.2.3',work:'AWS310 станцын салхины мэдрүүрийн 2 шааргыг солиж засвар хийсэн',result:'Хэвийн ажиллагаанд оруулсан',tags:['Засвар'],location:'Дархан өртөө',partner:'',tool:'',days:''},
-  {id:1020,date:'2026-05-25',zaalt:'1.4.1',work:'Гүйцэтгэлийн удирдлагын нэгдсэн системд төлөвлөгөө боловсруулсан',result:'Батлагдсан, хүргүүлсэн',tags:['Баримт бичиг'],location:'',partner:'',tool:'',days:''},
-];
 
 // ═══════════════════════════════════════════════════════════
 //  INIT — эхлүүлэх, migration
@@ -1300,10 +1277,7 @@ function init(){
   document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];
   let saved=localStorage.getItem('hsti_v3');
   if(saved){try{entries=JSON.parse(saved)}catch(e){entries=[]}}
-  if(!entries.length){
-    entries=[...SEED_DATA];
-    localStorage.setItem('hsti_v3',JSON.stringify(entries));
-  }
+  // Демо өгөгдөл байхгүй — хоосон эхэлнэ, Drive-аас жинхэнэ өгөгдөл татна
   // Migration: хуучин буруу null/хоосон tags-г цэвэрлэх
   let tagsCleaned=false;
   entries=entries.map(e=>{
