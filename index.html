@@ -997,7 +997,8 @@ details[open] summary .chevron{transform:rotate(90deg)}
               <div><label>Нэвтрэх нэр</label><input id="v-user" placeholder="username / email"></div>
               <div><label>Нууц үг</label>
                 <div style="position:relative">
-                  <input id="v-pw" type="password" placeholder="••••••••" style="padding-right:36px">
+                  <input id="v-pw" type="password" placeholder="••••••••" style="padding-right:64px">
+                  <button onclick="genVaultPassword()" type="button" title="Хүчтэй нууц үг үүсгэх" style="position:absolute;right:36px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#7B4F9E;font-size:14px"><i class="ti ti-wand"></i></button>
                   <button onclick="toggleVaultPwVis('v-pw',this)" type="button" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#8a97a8;font-size:14px"><i class="ti ti-eye"></i></button>
                 </div>
               </div>
@@ -4667,6 +4668,48 @@ function toggleVaultPwVis(inputId,btn){
   const inp=document.getElementById(inputId);
   if(inp.type==='password'){inp.type='text';btn.innerHTML='<i class="ti ti-eye-off"></i>';}
   else{inp.type='password';btn.innerHTML='<i class="ti ti-eye"></i>';}
+}
+
+// Хүчтэй нууц үг үүсгэх — crypto.getRandomValues (Math.random-оос аюулгүй)
+function genVaultPassword(){
+  const LENGTH=16;
+  // 4 бүлэг тэмдэгт — тус бүрээс дор хаяж нэг орох баталгаа
+  const upper='ABCDEFGHJKLMNPQRSTUVWXYZ';   // I, O хассан (төөрөгддөг)
+  const lower='abcdefghijkmnpqrstuvwxyz';   // l, o хассан
+  const digits='23456789';                   // 0, 1 хассан
+  const symbols='!@#$%^&*-_=+';
+  const all=upper+lower+digits+symbols;
+
+  // Аюулгүй санамсаргүй индекс авах туслах
+  function pick(charset){
+    const arr=new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return charset[arr[0]%charset.length];
+  }
+
+  // Эхлээд 4 бүлгээс тус бүр нэг тэмдэгт (хүчтэй байх баталгаа)
+  let chars=[pick(upper),pick(lower),pick(digits),pick(symbols)];
+  // Үлдсэнийг бүх тэмдэгтээс дүүргэх
+  for(let i=chars.length;i<LENGTH;i++){
+    chars.push(pick(all));
+  }
+  // Тэмдэгтүүдийг холих (Fisher-Yates, crypto-той)
+  for(let i=chars.length-1;i>0;i--){
+    const arr=new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    const j=arr[0]%(i+1);
+    [chars[i],chars[j]]=[chars[j],chars[i]];
+  }
+  const pw=chars.join('');
+
+  // Талбарт оруулж, харагдацыг нээх (шинэ нууц үгээ хараарай)
+  const inp=document.getElementById('v-pw');
+  inp.value=pw;
+  inp.type='text';
+  // Нүд товчны icon-г шинэчлэх
+  const eyeBtn=inp.parentElement.querySelector('button:last-child');
+  if(eyeBtn)eyeBtn.innerHTML='<i class="ti ti-eye-off"></i>';
+  showAlert('Хүчтэй нууц үг үүсгэлээ','success');
 }
 function copyVaultField(text){
   navigator.clipboard.writeText(text).then(()=>showAlert('Хуулагдлаа!','success'));
