@@ -3467,12 +3467,27 @@ function copyDraftText(btn){
 }
 
 async function exportToWord(){
-  const from=document.getElementById('report-from').value;
-  const to=document.getElementById('report-to').value;
-  const filtered=entries.filter(e=>{if(e.deleted)return false;const m=e.date.slice(5,7);return m>=from&&m<=to;});
-  if(!filtered.length){showAlert('Тэмдэглэл байхгүй байна','error');return;}
+  const range=getReportDateRange();
+  if(!range)return;
+  const filtered=entries.filter(e=>{
+    if(e.deleted)return false;
+    const p=e.date.split('-');
+    const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
+    return norm>=range.from&&norm<=range.to;
+  });
+  if(!filtered.length){showAlert('Энэ хугацаанд тэмдэглэл байхгүй байна','error');return;}
 
   showAlert('Word файл үүсгэж байна...','info');
+
+  // Заалтын кодыг нэр болгох туслах
+  function zaaltName(id){
+    if(!id)return '';
+    const z=ZAALT_LIST.find(x=>x.id===id);
+    if(z)return z.name;
+    const special={'eelje':'Ээлж хүлээлцэх','nemel':'Нэмэлт үүрэг даалгавар','medleg':'Мэдлэг чадвар дээшлүүлэх','custom':'Бусад'};
+    return special[id]||'';
+  }
+  const priLabelW={important:'Чухал',normal:'Дунд',low:'Энгийн'};
 
   // Заалтаар бүлэглэх
   const groups={};
@@ -3505,26 +3520,21 @@ async function exportToWord(){
   const cellMargins={top:80,bottom:80,left:120,right:120};
 
   // Хүснэгтийн толгой мөр
+  function headerCell(text,width){
+    return new TableCell({borders,width:{size:width,type:WidthType.DXA},margins:cellMargins,
+      shading:{fill:'2C5F8A',type:ShadingType.CLEAR},
+      verticalAlign:VerticalAlign.CENTER,
+      children:[new Paragraph({children:[new TextRun({text,bold:true,size:18,color:'FFFFFF'})]})]
+    });
+  }
   function makeHeader(){
     return new TableRow({
       tableHeader:true,
       children:[
-        new TableCell({borders,width:{size:C1[0],type:WidthType.DXA},margins:cellMargins,
-          shading:{fill:'D5E8F0',type:ShadingType.CLEAR},
-          children:[new Paragraph({children:[new TextRun({text:'Заалт',bold:true,size:18})]})]
-        }),
-        new TableCell({borders,width:{size:C1[1],type:WidthType.DXA},margins:cellMargins,
-          shading:{fill:'D5E8F0',type:ShadingType.CLEAR},
-          children:[new Paragraph({children:[new TextRun({text:'Хийсэн ажил',bold:true,size:18})]})]
-        }),
-        new TableCell({borders,width:{size:C1[2],type:WidthType.DXA},margins:cellMargins,
-          shading:{fill:'D5E8F0',type:ShadingType.CLEAR},
-          children:[new Paragraph({children:[new TextRun({text:'Үр дүн',bold:true,size:18})]})]
-        }),
-        new TableCell({borders,width:{size:C1[3],type:WidthType.DXA},margins:cellMargins,
-          shading:{fill:'D5E8F0',type:ShadingType.CLEAR},
-          children:[new Paragraph({children:[new TextRun({text:'Огноо',bold:true,size:18})]})]
-        }),
+        headerCell('Заалт',C1[0]),
+        headerCell('Хийсэн ажил',C1[1]),
+        headerCell('Үр дүн',C1[2]),
+        headerCell('Огноо',C1[3]),
       ]
     });
   }
@@ -3541,7 +3551,10 @@ async function exportToWord(){
           new TableCell({borders,width:{size:C1[0],type:WidthType.DXA},margins:cellMargins,
             shading:{fill:i===0?'FFF8F0':'FFFFFF',type:ShadingType.CLEAR},
             verticalAlign:VerticalAlign.TOP,
-            children:[new Paragraph({children:[new TextRun({text:i===0?zaalt:'',size:16,color:i===0?'9E5E3D':'FFFFFF'})]})]
+            children:i===0?[
+              new Paragraph({children:[new TextRun({text:zaalt,bold:true,size:16,color:'9E5E3D'})]}),
+              new Paragraph({children:[new TextRun({text:zaaltName(zaalt),size:14,color:'8A97A8'})]})
+            ]:[new Paragraph({children:[new TextRun({text:'',size:16})]})]
           }),
           new TableCell({borders,width:{size:C1[1],type:WidthType.DXA},margins:cellMargins,
             children:[new Paragraph({children:[new TextRun({text:e.work,size:16})]})]
@@ -3562,14 +3575,8 @@ async function exportToWord(){
     new TableRow({
       tableHeader:true,
       children:[
-        new TableCell({borders,width:{size:C2[0],type:WidthType.DXA},margins:cellMargins,
-          shading:{fill:'D5E8F0',type:ShadingType.CLEAR},
-          children:[new Paragraph({children:[new TextRun({text:'Заалт',bold:true,size:18})]})]
-        }),
-        new TableCell({borders,width:{size:C2[1],type:WidthType.DXA},margins:cellMargins,
-          shading:{fill:'D5E8F0',type:ShadingType.CLEAR},
-          children:[new Paragraph({children:[new TextRun({text:'Хүрсэн түвшин / биелэлт',bold:true,size:18})]})]
-        }),
+        headerCell('Заалт',C2[0]),
+        headerCell('Хүрсэн түвшин / биелэлт',C2[1]),
       ]
     })
   ];
@@ -3585,7 +3592,12 @@ async function exportToWord(){
       children:[
         new TableCell({borders,width:{size:C2[0],type:WidthType.DXA},margins:cellMargins,
           shading:{fill:'FFF8F0',type:ShadingType.CLEAR},
-          children:[new Paragraph({children:[new TextRun({text:zaalt+(rowNum?` (мөр ${rowNum})`:''),size:16,color:'9E5E3D'})]})]
+          verticalAlign:VerticalAlign.TOP,
+          children:[
+            new Paragraph({children:[new TextRun({text:zaalt,bold:true,size:16,color:'9E5E3D'})]}),
+            new Paragraph({children:[new TextRun({text:zaaltName(zaalt),size:13,color:'8A97A8'})]}),
+            ...(rowNum?[new Paragraph({children:[new TextRun({text:`(мөр ${rowNum})`,size:12,color:'B0B0B0'})]})]:[])
+          ]
         }),
         new TableCell({borders,width:{size:C2[1],type:WidthType.DXA},margins:cellMargins,
           children:parts.map(p=>new Paragraph({spacing:{after:80},children:[new TextRun({text:p,size:16})]}))
@@ -3593,8 +3605,6 @@ async function exportToWord(){
       ]
     }));
   });
-
-  const mN=['','1-р сар','2-р сар','3-р сар','4-р сар','5-р сар','6-р сар','7-р сар','8-р сар','9-р сар','10-р сар','11-р сар','12-р сар'];
 
   const doc=new Document({
     styles:{
@@ -3606,7 +3616,7 @@ async function exportToWord(){
         new Paragraph({heading:HeadingLevel.HEADING_1,
           children:[new TextRun({text:'ХСТИ Гүйцэтгэлийн тайлан',bold:true,size:28,font:'Arial'})]}),
         new Paragraph({spacing:{after:120},
-          children:[new TextRun({text:`Хугацаа: ${mN[parseInt(from)]} — ${mN[parseInt(to)]} | Нийт: ${filtered.length} бүртгэл`,size:18,color:'6B7A8D'})]}),
+          children:[new TextRun({text:`Хугацаа: ${range.label} | Нийт: ${filtered.length} бүртгэл`,size:18,color:'6B7A8D'})]}),
 
         new Paragraph({heading:HeadingLevel.HEADING_2,spacing:{before:200,after:120},
           children:[new TextRun({text:'1. Тэмдэглэлүүд (хүснэгт)',bold:true,size:22})]}),
@@ -3626,9 +3636,8 @@ async function exportToWord(){
     const buffer=await Packer.toBlob(doc);
     const url=URL.createObjectURL(buffer);
     const a=document.createElement('a');
-    const yr=new Date().getFullYear();
     a.href=url;
-    a.download=`ХСТИ_тайлан_${yr}_${from}-${to}сар.docx`;
+    a.download=`ХСТИ_тайлан_${range.from}_${range.to}.docx`;
     a.click();
     URL.revokeObjectURL(url);
     showAlert('Word файл татагдлаа!','success');
@@ -3658,11 +3667,27 @@ function exportToExcel(){
 
   const priLabel={important:'Чухал',normal:'Дунд',low:'Энгийн'};
 
+  // Заалтын кодыг нэр болгох туслах — eelje/nemel зэрэг тусгай кодуудыг ч харна
+  function zaaltName(id){
+    if(!id)return '';
+    const z=ZAALT_LIST.find(x=>x.id===id);
+    if(z)return z.name;
+    // Тусгай кодууд (ZAALT_LIST-д байхгүй)
+    const special={
+      'eelje':'Ээлж хүлээлцэх',
+      'nemel':'Нэмэлт үүрэг даалгавар',
+      'medleg':'Мэдлэг чадвар дээшлүүлэх',
+      'custom':'Бусад'
+    };
+    return special[id]||'';
+  }
+
   // ── Sheet 1: Бүх бүртгэл (дэлгэрэнгүй) ──
   const mainData=filtered.map((e,i)=>({
     '№':i+1,
     'Огноо':e.date,
     'Заалт':e.zaalt||'',
+    'Заалтын нэр':zaaltName(e.zaalt),
     'Хийсэн ажил':e.work||'',
     'Үр дүн':e.result||'',
     'Эрэмбэ':priLabel[e.priority||'normal'],
@@ -3672,28 +3697,35 @@ function exportToExcel(){
     'Хоног':e.days||''
   }));
   const ws1=XLSX.utils.json_to_sheet(mainData);
-  // Багана өргөн тохируулах
+  // Багана өргөн — "Хийсэн ажил" болон "Заалтын нэр"-д илүү өргөн
   ws1['!cols']=[
-    {wch:4},{wch:12},{wch:10},{wch:45},{wch:28},
-    {wch:8},{wch:18},{wch:15},{wch:20},{wch:7}
+    {wch:4},   // №
+    {wch:12},  // Огноо
+    {wch:10},  // Заалт
+    {wch:32},  // Заалтын нэр
+    {wch:50},  // Хийсэн ажил
+    {wch:28},  // Үр дүн
+    {wch:8},   // Эрэмбэ
+    {wch:18},  // Байршил
+    {wch:18},  // Хамтарсан
+    {wch:20},  // Багаж/Программ
+    {wch:7}    // Хоног
   ];
+  // Толгой мөрийг хөлдөөх (scroll хийхэд дээр үлдэнэ)
+  ws1['!freeze']={xSplit:0,ySplit:1};
 
   // ── Sheet 2: Заалтын нэгтгэл (давтамж) ──
   const zaaltCounts={};
   filtered.forEach(e=>{const z=e.zaalt||'(хоосон)';zaaltCounts[z]=(zaaltCounts[z]||0)+1;});
   const summaryData=Object.entries(zaaltCounts)
     .sort((a,b)=>b[1]-a[1])
-    .map(([zaalt,count])=>{
-      // Заалтын нэрийг ZAALT_LIST-ээс олох
-      const z=ZAALT_LIST.find(x=>x.id===zaalt);
-      return{
-        'Заалт':zaalt,
-        'Нэр':z?z.name:'',
-        'Тоо':count
-      };
-    });
+    .map(([zaalt,count])=>({
+      'Заалт':zaalt,
+      'Нэр':zaaltName(zaalt),
+      'Тоо':count
+    }));
   const ws2=XLSX.utils.json_to_sheet(summaryData);
-  ws2['!cols']=[{wch:10},{wch:35},{wch:8}];
+  ws2['!cols']=[{wch:10},{wch:40},{wch:8}];
 
   // ── Sheet 3: Хөндөгдөөгүй заалтууд ──
   const coveredIds=new Set(filtered.map(e=>e.zaalt));
@@ -3703,7 +3735,7 @@ function exportToExcel(){
     'Тайлбар':'Энэ хугацаанд хөндөгдөөгүй'
   }));
   const ws3=XLSX.utils.json_to_sheet(uncovered.length?uncovered:[{'Заалт':'','Нэр':'Бүх заалт хамрагдсан','Тайлбар':''}]);
-  ws3['!cols']=[{wch:10},{wch:35},{wch:28}];
+  ws3['!cols']=[{wch:10},{wch:40},{wch:28}];
 
   // Workbook үүсгэх
   const wb=XLSX.utils.book_new();
