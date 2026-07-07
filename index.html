@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ХСТИ Гүйцэтгэлийн систем</title>
+<!-- PWA: manifest, icon, theme -->
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#17A8C4">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Performance">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.30.0/dist/tabler-icons.min.css" integrity="sha384-9pcqeAMNPuuw0/mltfCMqqVUmfHeTASX43egMosvWSN+Dh5eUCFi9Iz3yIW5sIsM" crossorigin="anonymous">
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js" integrity="sha384-4xaIisuLEy2lo2HkB2C4rEf7v8jbTb2kuogX6TkuEt9feTWKBSFSOzsqNNbV+sKh" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" integrity="sha384-OUW9euuUyxyHcAhTqbhI+Iyb8LMssXt/cpz0yXhs9UWG2/R/uaWdakx/4cfww7Vb" crossorigin="anonymous"></script>
@@ -4715,6 +4724,15 @@ function toggleVaultItemPw(id,pw){
 }
 
 window.addEventListener('load',init);
+
+// ── PWA: Service Worker бүртгэх (offline дэмжлэг) ──
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js')
+      .then(reg=>console.log('[PWA] Service Worker бүртгэгдлээ:',reg.scope))
+      .catch(err=>console.warn('[PWA] Service Worker бүртгэл амжилтгүй:',err));
+  });
+}
 </script>
 </body>
 </html>
