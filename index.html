@@ -135,6 +135,55 @@ body.theme-violet .tag-chip.active{background:linear-gradient(135deg,#7B1FA2,#45
 body.theme-violet .cal-day.today{border-color:#7B1FA2;background:#F3E5F5}
 body.theme-violet .cal-day.today .cal-day-num{background:linear-gradient(135deg,#7B1FA2,#4527A0)}
 
+/* THEME: Харанхуй (Dark Mode) — бүх дэлгэц харанхуй */
+body.theme-dark{background:#0F1620;color:#C8D0DA}
+body.theme-dark .main-content,body.theme-dark .content{background:#0F1620}
+body.theme-dark .sidebar{background:linear-gradient(180deg,#1A2634 0%,#0D1119 100%)}
+body.theme-dark .btn-primary{background:linear-gradient(135deg,#2980B9,#1A5276)}
+body.theme-dark .nav-item.active{background:rgba(255,255,255,0.12)}
+body.theme-dark .content-header{background:#161F2B;border-color:#2A3644}
+body.theme-dark .content-header-title{color:#E8EDF3}
+body.theme-dark .content-header-sub{color:#8A97A8}
+body.theme-dark .card{background:#161F2B;border-color:#2A3644;color:#C8D0DA}
+body.theme-dark .card-title{color:#E8EDF3}
+body.theme-dark input,body.theme-dark select,body.theme-dark textarea{background:#1E2A38;border-color:#2A3644;color:#E8EDF3}
+body.theme-dark input::placeholder,body.theme-dark textarea::placeholder{color:#5A6674}
+body.theme-dark .btn{background:#1E2A38;border-color:#2A3644;color:#C8D0DA}
+body.theme-dark .btn:hover{background:#2A3644}
+body.theme-dark .entry-item{background:#161F2B;border-color:#2A3644}
+body.theme-dark .entry-work{color:#E8EDF3}
+body.theme-dark .entry-tag{background:#1E3A4A;color:#7FD4E8}
+body.theme-dark .recent-item{background:#1E2A38}
+body.theme-dark .recent-work{color:#C8D0DA}
+body.theme-dark .stat-card{background:#161F2B;border-color:#2A3644}
+body.theme-dark .stat-value{color:#E8EDF3}
+body.theme-dark .stat-label{color:#8A97A8}
+body.theme-dark .cal-day{background:#161F2B;border-color:#2A3644}
+body.theme-dark .cal-day-num{color:#C8D0DA}
+body.theme-dark .cal-day.other{background:#0D1119}
+body.theme-dark .cal-day.today{border-color:#2980B9;background:#1E3A4A}
+body.theme-dark .cal-day.today .cal-day-num{background:linear-gradient(135deg,#2980B9,#1A5276)}
+body.theme-dark .tag-chip{background:#1E2A38;border-color:#2A3644;color:#C8D0DA}
+body.theme-dark .tag-chip.active{background:linear-gradient(135deg,#2980B9,#1A5276);color:white}
+body.theme-dark label{color:#A0AAB8}
+body.theme-dark table{color:#C8D0DA}
+body.theme-dark th{background:#1E2A38 !important;color:#E8EDF3 !important}
+body.theme-dark td{border-color:#2A3644 !important}
+body.theme-dark .acc-section{border-color:#2A3644}
+body.theme-dark .acc-header{background:#161F2B}
+body.theme-dark .acc-header:hover,body.theme-dark .acc-header.open{background:#1E2A38}
+body.theme-dark .acc-title{color:#E8EDF3}
+body.theme-dark .acc-body{background:#161F2B}
+body.theme-dark .nav-group-label{color:rgba(255,255,255,0.3)}
+body.theme-dark .sticky-note-text{color:#1a2332}
+body.theme-dark .report-period-btn{background:#1E2A38;border-color:#2A3644;color:#A0AAB8}
+body.theme-dark .report-period-btn.active{background:linear-gradient(135deg,#2980B9,#1A5276);color:white}
+body.theme-dark .empty{color:#5A6674}
+body.theme-dark #search-modal>div{background:#161F2B}
+body.theme-dark #search-input{background:transparent;color:#E8EDF3}
+body.theme-dark .search-result-item:hover,body.theme-dark .search-result-item.selected{background:#1E2A38}
+body.theme-dark .search-result-title{color:#E8EDF3}
+
 /* HEATMAP */
 .heatmap-wrap{display:flex;gap:3px}
 .heatmap-week{display:flex;flex-direction:column;gap:3px}
@@ -1044,6 +1093,10 @@ details[open] summary .chevron{transform:rotate(90deg)}
               <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7B1FA2,#4527A0)"></div>
               <span>Нил</span>
             </div>
+            <div class="theme-option" data-theme="dark" onclick="setTheme('dark')" title="Харанхуй">
+              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#1A2634,#0D1119);border:1px solid #2A3644"></div>
+              <span>Харанхуй</span>
+            </div>
           </div>
         </div>
         <div class="card">
@@ -1191,6 +1244,27 @@ details[open] summary .chevron{transform:rotate(90deg)}
   </div>
 </div>
 
+<!-- ПОМОДОРО ТАЙМЕР (хөвөгч виджет) -->
+<div id="pomodoro-widget" style="display:none;position:fixed;bottom:20px;right:20px;z-index:1500;background:white;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.18);width:220px;overflow:hidden;font-family:inherit">
+  <div id="pomo-header" style="padding:10px 14px;background:linear-gradient(135deg,#E74C3C,#C0392B);color:white;display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:12px;font-weight:600"><i class="ti ti-clock-hour-4"></i> <span id="pomo-mode-label">Ажлын цаг</span></span>
+    <button onclick="closePomodoro()" style="background:none;border:none;color:white;cursor:pointer;font-size:14px;opacity:0.8"><i class="ti ti-x"></i></button>
+  </div>
+  <div style="padding:16px 14px;text-align:center">
+    <div id="pomo-time" style="font-size:38px;font-weight:700;color:#1a2332;font-variant-numeric:tabular-nums;letter-spacing:1px">25:00</div>
+    <div id="pomo-session" style="font-size:11px;color:#a0aab4;margin-top:2px">1-р ажлын үе</div>
+    <div style="display:flex;gap:6px;justify-content:center;margin-top:12px">
+      <button id="pomo-start-btn" onclick="togglePomodoro()" class="btn btn-sm btn-primary" style="flex:1"><i class="ti ti-player-play"></i> Эхлэх</button>
+      <button onclick="resetPomodoro()" class="btn btn-sm" title="Дахин эхлүүлэх"><i class="ti ti-refresh"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- Помодоро нээх товч (sidebar-д эсвэл хөвөгч) -->
+<button id="pomo-fab" onclick="openPomodoro()" style="position:fixed;bottom:20px;right:20px;z-index:1400;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#E74C3C,#C0392B);color:white;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(231,76,60,0.4);font-size:20px;display:flex;align-items:center;justify-content:center" title="Помодоро таймер">
+  <i class="ti ti-clock-hour-4"></i>
+</button>
+
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 /* ═══════════════════════════════════════════════════════════
@@ -1305,6 +1379,125 @@ let ZAALT_LIST=(function(){
 // ═══════════════════════════════════════════════════════════
 //  INIT — эхлүүлэх, migration
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  ПОМОДОРО ТАЙМЕР — 25 мин ажил / 5 мин амралт
+// ═══════════════════════════════════════════════════════════
+const POMO_WORK=25*60;    // Ажлын хугацаа (секунд)
+const POMO_BREAK=5*60;    // Амралтын хугацаа
+const POMO_LONG_BREAK=15*60; // Урт амралт (4 үе тутам)
+let pomoSecondsLeft=POMO_WORK;
+let pomoRunning=false;
+let pomoInterval=null;
+let pomoMode='work';      // 'work' | 'break' | 'long'
+let pomoSessionCount=1;   // Хэдэн дэх ажлын үе вэ
+
+function openPomodoro(){
+  document.getElementById('pomodoro-widget').style.display='block';
+  document.getElementById('pomo-fab').style.display='none';
+  updatePomoDisplay();
+}
+function closePomodoro(){
+  document.getElementById('pomodoro-widget').style.display='none';
+  document.getElementById('pomo-fab').style.display='flex';
+}
+
+function updatePomoDisplay(){
+  const m=String(Math.floor(pomoSecondsLeft/60)).padStart(2,'0');
+  const s=String(pomoSecondsLeft%60).padStart(2,'0');
+  document.getElementById('pomo-time').textContent=`${m}:${s}`;
+
+  const label=document.getElementById('pomo-mode-label');
+  const session=document.getElementById('pomo-session');
+  const header=document.getElementById('pomo-header');
+  if(pomoMode==='work'){
+    label.textContent='Ажлын цаг';
+    session.textContent=`${pomoSessionCount}-р ажлын үе`;
+    header.style.background='linear-gradient(135deg,#E74C3C,#C0392B)';
+  } else if(pomoMode==='break'){
+    label.textContent='Богино амралт';
+    session.textContent='Амарч сэргэнэ үү';
+    header.style.background='linear-gradient(135deg,#27AE60,#1E8449)';
+  } else {
+    label.textContent='Урт амралт';
+    session.textContent='Сайн амраарай';
+    header.style.background='linear-gradient(135deg,#2980B9,#1A5276)';
+  }
+}
+
+function togglePomodoro(){
+  if(pomoRunning)pausePomodoro();
+  else startPomodoro();
+}
+
+function startPomodoro(){
+  pomoRunning=true;
+  document.getElementById('pomo-start-btn').innerHTML='<i class="ti ti-player-pause"></i> Түр зогсоох';
+  pomoInterval=setInterval(()=>{
+    pomoSecondsLeft--;
+    updatePomoDisplay();
+    if(pomoSecondsLeft<=0){
+      pomoComplete();
+    }
+  },1000);
+}
+
+function pausePomodoro(){
+  pomoRunning=false;
+  clearInterval(pomoInterval);
+  document.getElementById('pomo-start-btn').innerHTML='<i class="ti ti-player-play"></i> Үргэлжлүүлэх';
+}
+
+function resetPomodoro(){
+  pausePomodoro();
+  pomoSecondsLeft=(pomoMode==='work')?POMO_WORK:(pomoMode==='long'?POMO_LONG_BREAK:POMO_BREAK);
+  document.getElementById('pomo-start-btn').innerHTML='<i class="ti ti-player-play"></i> Эхлэх';
+  updatePomoDisplay();
+}
+
+function pomoComplete(){
+  pausePomodoro();
+  // Дуут дохио (browser beep)
+  playPomoBeep();
+
+  if(pomoMode==='work'){
+    // Ажил дууссан → амралт руу
+    showAlert(`${pomoSessionCount}-р ажлын үе дууслаа! Амарна уу 🎉`,'success');
+    // 4 үе тутам урт амралт
+    if(pomoSessionCount%4===0){
+      pomoMode='long';
+      pomoSecondsLeft=POMO_LONG_BREAK;
+    } else {
+      pomoMode='break';
+      pomoSecondsLeft=POMO_BREAK;
+    }
+  } else {
+    // Амралт дууссан → ажил руу
+    showAlert('Амралт дууслаа. Дараагийн үе эхэлье 💪','info');
+    if(pomoMode!=='long')pomoSessionCount++;
+    else pomoSessionCount++; // урт амралтын дараа ч тоолол үргэлжилнэ
+    pomoMode='work';
+    pomoSecondsLeft=POMO_WORK;
+  }
+  document.getElementById('pomo-start-btn').innerHTML='<i class="ti ti-player-play"></i> Эхлэх';
+  updatePomoDisplay();
+}
+
+// Энгийн beep дуу (Web Audio API — файл шаардахгүй)
+function playPomoBeep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.frequency.value=800;
+    osc.type='sine';
+    gain.gain.setValueAtTime(0.3,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+0.5);
+    osc.start();
+    osc.stop(ctx.currentTime+0.5);
+  }catch(e){/* дуу дэмжихгүй бол чимээгүй өнгөрөх */}
+}
+
 function init(){
   initTheme();
   // Он бүхий текстүүдийг YEAR-ээр бөглөх (жил бүр автоматаар шинэчлэгдэнэ)
@@ -4266,7 +4459,7 @@ function calGoToday(){
 function calRefresh(){fetchCalEvents();}
 
 // ── THEME ─────────────────────────────────────────────────
-const THEMES=['brown','blue','green','ocean','sky','violet'];
+const THEMES=['brown','blue','green','ocean','sky','violet','dark'];
 
 // ═══════════════════════════════════════════════════════════
 //  THEME — өнгөний загвар
