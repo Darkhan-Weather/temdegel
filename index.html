@@ -1332,6 +1332,28 @@ function genId(){
   return Date.now()+'-'+Math.random().toString(36).slice(2,6);
 }
 
+// Хуучин tombstone цэвэрлэх — 90 хоногоос хойш устгасан бүртгэлийг бүрмөсөн хасах
+// Устгал (deleted:true) 90 хоног хадгалагдана — бүх төхөөрөмж синк хийж амжина
+// Дараа нь массиваас бүрмөсөн хасаж, файлын хэмжээ багасгана
+const TOMBSTONE_MAX_AGE=90*24*60*60*1000; // 90 хоног (ms)
+function cleanupOldTombstones(){
+  const now=Date.now();
+  const before=entries.length;
+  entries=entries.filter(e=>{
+    // Устгаагүй бүртгэлийг үлдээх
+    if(!e.deleted)return true;
+    // Устгасан ч 90 хоног болоогүй бол үлдээх (синк тархахад хэрэгтэй)
+    const deletedAt=e.updatedAt||0;
+    return (now-deletedAt)<TOMBSTONE_MAX_AGE;
+  });
+  const removed=before-entries.length;
+  if(removed>0){
+    localStorage.setItem('hsti_v3',JSON.stringify(entries));
+    console.log(`[Tombstone] ${removed} хуучин устгалыг бүрмөсөн цэвэрлэлээ`);
+  }
+  return removed;
+}
+
 // Заалтын анхны жагсаалт (default) — localStorage-д байхгүй үед энэ ашиглагдана
 const ZAALT_LIST_DEFAULT=[
   {id:'1.2.1.1',name:'Сүлжээний хяналт, удирдлага'},
@@ -1539,6 +1561,8 @@ function init(){
   if(updatedAtAdded){
     localStorage.setItem('hsti_v3',JSON.stringify(entries));
   }
+  // 90 хоногоос хуучин устгалыг (tombstone) бүрмөсөн цэвэрлэх — файл багасгах
+  cleanupOldTombstones();
   // Хэрэв хэрэглэгч заалтын жагсаалтыг өөрчилсөн бол dropdown-г шинэчлэх
   if(localStorage.getItem('zaalt_list_hsti')){
     rebuildZaaltSelect();
@@ -1959,6 +1983,8 @@ async function loadFromDrive(){
         });
         // Map-аас массив руу буцаах
         entries=Object.values(byId);
+        // 90 хоногоос хуучин tombstone цэвэрлэх (merge дараа)
+        cleanupOldTombstones();
         entries.sort((a,b)=>b.date.localeCompare(a.date));
         localStorage.setItem('hsti_v3',JSON.stringify(entries));
         if(newCount>0)showAlert('Drive-аас '+newCount+' шинэ бүртгэл нэмэгдлээ','success');
