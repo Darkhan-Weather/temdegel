@@ -2107,7 +2107,7 @@ function renderDashboard(){
             <div style="font-size:13px;color:#1a2332;line-height:1.5">${escapeHtml(e.work)}</div>
             ${e.result?`<div style="font-size:11px;color:#27ae60;margin-top:2px"><i class="ti ti-check" style="font-size:10px"></i> ${escapeHtml(e.result)}</div>`:''}
           </div>
-          <button onclick="editEntry(${e.id})" style="background:none;border:none;cursor:pointer;color:#c9d4e0;font-size:13px;flex-shrink:0;padding:2px"><i class="ti ti-edit"></i></button>
+          <button onclick="editEntry('${e.id}')" style="background:none;border:none;cursor:pointer;color:#c9d4e0;font-size:13px;flex-shrink:0;padding:2px"><i class="ti ti-edit"></i></button>
         </div>`).join('');
     }
   }
@@ -2395,7 +2395,7 @@ function saveEntry(){
     tool:document.getElementById('entry-tool').value.trim(),
     days:document.getElementById('entry-days').value||'',
     updatedAt:Date.now()};
-  if(editingId){entries=entries.map(e=>e.id===editingId?entry:e);editingId=null;}
+  if(editingId){entries=entries.map(e=>e.id==editingId?entry:e);editingId=null;}
   else entries.push(entry);
   localStorage.setItem('hsti_v3',JSON.stringify(entries));
   document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
@@ -2407,7 +2407,7 @@ function saveEntry(){
 
 function editEntry(id){
   if(viewingOldYear){showAlert('Архив горим — засах боломжгүй. Одоогийн он руу буцна уу.','info');return;}
-  const e=entries.find(x=>x.id===id);if(!e)return;
+  const e=entries.find(x=>x.id==id);if(!e)return;
   editingId=id;
   const ds=document.getElementById('draft-status');if(ds)ds.style.display='none';
   document.getElementById('entry-date').value=e.date;
@@ -2433,7 +2433,7 @@ function deleteEntry(id){
   if(!confirm('Устгах уу?'))return;
   // Tombstone — жагсаалтаас хасахгүй, deleted:true болгож тэмдэглэнэ
   // Ингэснээр устгал бусад төхөөрөмж рүү синкээр тархана
-  const e=entries.find(x=>x.id===id);
+  const e=entries.find(x=>x.id==id);
   if(e){
     e.deleted=true;
     e.updatedAt=Date.now();
@@ -2991,7 +2991,7 @@ function renderTemplateList(){
         <div style="font-size:13px;font-weight:500;color:#1a2332">${escapeHtml(t.name)}</div>
         <div style="font-size:11px;color:#8a97a8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.zaalt)} · ${escapeHtml(t.work)}</div>
       </div>
-      <button onclick="deleteTemplate(${t.id})" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:14px;flex-shrink:0" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'"><i class="ti ti-trash"></i></button>
+      <button onclick="deleteTemplate('${t.id}')" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:14px;flex-shrink:0" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'"><i class="ti ti-trash"></i></button>
     </div>`).join('');
 }
 
@@ -3004,7 +3004,7 @@ function renderQuickAdd(){
   if(!userTemplates.length){row.style.display='none';return;}
   row.style.display='block';
   btns.innerHTML=userTemplates.map(t=>`
-    <button class="template-btn" onclick="quickAddFromTemplate(${t.id})" style="border-style:solid">
+    <button class="template-btn" onclick="quickAddFromTemplate('${t.id}')" style="border-style:solid">
       <i class="ti ti-bolt" style="font-size:13px"></i> ${escapeHtml(t.name)}
     </button>`).join('');
 }
@@ -3012,7 +3012,7 @@ function renderQuickAdd(){
 // Нэг товшилтоор шаблоноос бүртгэл үүсгэх
 function quickAddFromTemplate(id){
   loadTemplates();
-  const t=userTemplates.find(x=>x.id===id);
+  const t=userTemplates.find(x=>x.id==id);
   if(!t)return;
   const today=new Date().toISOString().slice(0,10);
   // Өнөөдөр ижил шаблонаар аль хэдийн нэмсэн эсэхийг шалгах
@@ -3413,8 +3413,8 @@ function renderList(){
       ${e.tags&&e.tags.length?`<div class="tag-row" style="margin-top:6px">${e.tags.filter(t=>t&&t.trim()).map(t=>`<span class="tag-chip active" style="cursor:default;padding:2px 9px;font-size:11px">${escapeHtml(t)}</span>`).join('')}</div>`:''}
       ${e.location||e.partner||e.tool?`<div class="entry-meta">${[e.location&&'📍'+e.location,e.partner&&'👤'+e.partner,e.tool&&'🔧'+e.tool].filter(Boolean).join(' · ')}</div>`:''}
       ${viewingOldYear?'':`<div class="entry-actions">
-        <button class="btn btn-sm" onclick="editEntry(${e.id})"><i class="ti ti-edit"></i> Засах</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteEntry(${e.id})"><i class="ti ti-trash"></i> Устгах</button>
+        <button class="btn btn-sm" onclick="editEntry('${e.id}')"><i class="ti ti-edit"></i> Засах</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteEntry('${e.id}')"><i class="ti ti-trash"></i> Устгах</button>
       </div>`}
     </div>`;
   }).join('');
@@ -3686,7 +3686,7 @@ async function exportToWord(){
   // Заалтын кодыг нэр болгох туслах
   function zaaltName(id){
     if(!id)return '';
-    const z=ZAALT_LIST.find(x=>x.id===id);
+    const z=ZAALT_LIST.find(x=>x.id==id);
     if(z)return z.name;
     const special={'eelje':'Ээлж хүлээлцэх','nemel':'Нэмэлт үүрэг даалгавар','medleg':'Мэдлэг чадвар дээшлүүлэх','custom':'Бусад'};
     return special[id]||'';
@@ -3874,7 +3874,7 @@ function exportToExcel(){
   // Заалтын кодыг нэр болгох туслах — eelje/nemel зэрэг тусгай кодуудыг ч харна
   function zaaltName(id){
     if(!id)return '';
-    const z=ZAALT_LIST.find(x=>x.id===id);
+    const z=ZAALT_LIST.find(x=>x.id==id);
     if(z)return z.name;
     // Тусгай кодууд (ZAALT_LIST-д байхгүй)
     const special={
@@ -4103,11 +4103,11 @@ function deleteStickyNote(id){
   renderStickyNotes();
 }
 function updateStickyText(id,text){
-  const n=stickyNotes.find(n=>n.id===id);if(n){n.text=text;saveStickyNotes();}
+  const n=stickyNotes.find(n=>n.id==id);if(n){n.text=text;saveStickyNotes();}
 }
 function changeStickyColor(id){
   const colors=['#FFF9C4','#C8F7C5','#C5E3F7','#F7C5C5','#E8C5F7','#FFE0B2'];
-  const n=stickyNotes.find(n=>n.id===id);if(!n)return;
+  const n=stickyNotes.find(n=>n.id==id);if(!n)return;
   const idx=(colors.indexOf(n.color)+1)%colors.length;
   n.color=colors[idx];saveStickyNotes();renderStickyNotes();
 }
@@ -4166,12 +4166,12 @@ function deleteLabel(id){
 
 // Note дээр шошго нэмэх
 function openNoteLabelModal(noteId){
-  const note=stickyNotes.find(n=>n.id===noteId);
+  const note=stickyNotes.find(n=>n.id==noteId);
   const el=document.getElementById('note-label-list');if(!el)return;
   el.dataset.noteId=noteId;
   el.innerHTML=stickyLabels.map(l=>{
     const has=(note?.labels||[]).includes(l.id);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;background:${has?'#f0f4f8':'white'};border:1.5px solid ${has?'#EBAD7C':'#e8edf3'}" onclick="toggleNoteLabel(${noteId},'${l.id}',this)">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;background:${has?'#f0f4f8':'white'};border:1.5px solid ${has?'#EBAD7C':'#e8edf3'}" onclick="toggleNoteLabel('${noteId}','${l.id}',this)">
       <span style="width:12px;height:12px;border-radius:50%;background:${l.color};flex-shrink:0;display:inline-block"></span>
       <span style="flex:1;font-size:13px">${l.name}</span>
       ${has?'<i class="ti ti-check" style="color:#EBAD7C"></i>':''}
@@ -4227,20 +4227,20 @@ function renderStickyNotes(){
   }
   grid.innerHTML=notes.map(n=>{
     const noteLabels=(n.labels||[]).map(lid=>{
-      const l=stickyLabels.find(x=>x.id===lid);
+      const l=stickyLabels.find(x=>x.id==lid);
       return l?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${l.color}22;color:${l.color};border:1px solid ${l.color}55;font-weight:500">${l.name}</span>`:'';
     }).join('');
     return `<div class="sticky-note" style="background:${n.color}">
       <div class="sticky-note-header">
         <span class="sticky-note-date">${n.date}</span>
         <div class="sticky-note-actions">
-          <button class="sticky-note-btn" onclick="openNoteLabelModal(${n.id})" title="Шошго"><i class="ti ti-tag"></i></button>
-          <button class="sticky-note-btn" onclick="changeStickyColor(${n.id})" title="Өнгө солих"><i class="ti ti-palette"></i></button>
-          <button class="sticky-note-btn" onclick="deleteStickyNote(${n.id})" title="Устгах"><i class="ti ti-trash"></i></button>
+          <button class="sticky-note-btn" onclick="openNoteLabelModal('${n.id}')" title="Шошго"><i class="ti ti-tag"></i></button>
+          <button class="sticky-note-btn" onclick="changeStickyColor('${n.id}')" title="Өнгө солих"><i class="ti ti-palette"></i></button>
+          <button class="sticky-note-btn" onclick="deleteStickyNote('${n.id}')" title="Устгах"><i class="ti ti-trash"></i></button>
         </div>
       </div>
       ${noteLabels?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${noteLabels}</div>`:''}
-      <textarea class="sticky-note-text" placeholder="Энд бичнэ үү..." oninput="updateStickyText(${n.id},this.value)">${escapeHtml(n.text)}</textarea>
+      <textarea class="sticky-note-text" placeholder="Энд бичнэ үү..." oninput="updateStickyText('${n.id}',this.value)">${escapeHtml(n.text)}</textarea>
     </div>`;
   }).join('');
 }
@@ -4525,7 +4525,7 @@ function todoAdd(){
   renderAttention();
 }
 function todoToggle(id){
-  const t=todos.find(t=>t.id===id);
+  const t=todos.find(t=>t.id==id);
   if(t){t.done=!t.done;saveTodos();renderTodos();renderAttention();}
 }
 function todoDelete(id){
@@ -4554,7 +4554,7 @@ function renderAttention(){
       title:t.text,
       sub:st.label,
       bg:st.bg,
-      action:`todoToggle(${t.id})`
+      action:`todoToggle('${t.id}')`
     });
   });
 
@@ -4665,7 +4665,7 @@ function renderTodos(){
   el.innerHTML=sorted.map(t=>{
     const st=t.deadline&&!t.done?getDeadlineStatus(t.deadline):null;
     return `<div class="todo-item${t.done?' done':''}" style="${st&&!t.done?'border-color:'+st.color+'44':''}">
-      <div class="todo-check${t.done?' checked':''}" onclick="todoToggle(${t.id})"></div>
+      <div class="todo-check${t.done?' checked':''}" onclick="todoToggle('${t.id}')"></div>
       <div style="flex:1;min-width:0">
         <div class="todo-text">${escapeHtml(t.text)}</div>
         ${t.deadline&&!t.done&&st?`<div style="font-size:11px;color:${st.color};margin-top:2px"><i class="ti ti-calendar-due" style="font-size:10px"></i> ${t.deadline} · ${st.label}</div>`:''}
@@ -4673,7 +4673,7 @@ function renderTodos(){
         ${t.date!==today&&!t.done?`<span style="font-size:10px;color:#a0aab4">${t.date.slice(5).replace('-','/')} →</span>`:''}
       </div>
       <span class="todo-badge ${t.priority}">${priLabel[t.priority]}</span>
-      <button class="todo-del" onclick="todoDelete(${t.id})"><i class="ti ti-x"></i></button>
+      <button class="todo-del" onclick="todoDelete('${t.id}')"><i class="ti ti-x"></i></button>
     </div>`;
   }).join('');
 }
@@ -4934,7 +4934,7 @@ function renderVault(){
           <div class="vault-name">${item.name}</div>
           ${item.url?`<div class="vault-url"><a href="${item.url}" target="_blank" style="color:#8a97a8;text-decoration:none">${item.url}</a></div>`:''}
         </div>
-        <button onclick="vaultDelete(${item.id})" style="background:none;border:none;cursor:pointer;color:#e8edf3;font-size:14px" title="Устгах"><i class="ti ti-trash"></i></button>
+        <button onclick="vaultDelete('${item.id}')" style="background:none;border:none;cursor:pointer;color:#e8edf3;font-size:14px" title="Устгах"><i class="ti ti-trash"></i></button>
       </div>
       ${item.user?`<div class="vault-field">
         <span class="vault-field-label">Нэвтрэх нэр</span>
@@ -4945,7 +4945,7 @@ function renderVault(){
         <span class="vault-field-label">Нууц үг</span>
         <span class="vault-field-val vault-pw" id="vpw-${item.id}">••••••••</span>
         <button class="vault-copy-btn" onclick="copyVaultField('${item.pw.replace(/'/g,"\\'")}')"><i class="ti ti-copy"></i></button>
-        <button class="vault-copy-btn" onclick="toggleVaultItemPw(${item.id},'${item.pw.replace(/'/g,"\\'")}')"><i class="ti ti-eye"></i></button>
+        <button class="vault-copy-btn" onclick="toggleVaultItemPw('${item.id}','${item.pw.replace(/'/g,"\\'")}')"><i class="ti ti-eye"></i></button>
       </div>`:''}
       ${item.note?`<div class="vault-field">
         <span class="vault-field-label">Тэмдэглэл</span>
