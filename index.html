@@ -4860,27 +4860,62 @@ function toggleVaultForm(){
     document.getElementById('v-pw').value='';
     document.getElementById('v-note').value='';
     document.getElementById('v-name').focus();
+  } else {
+    editingVaultId=null; // Форм хаагдахад засах төлөв цэвэрлэх
   }
 }
+let editingVaultId=null; // Засаж байгаа Vault бичлэгийн id (null бол шинэ)
+
 async function vaultSave(){
   const name=document.getElementById('v-name').value.trim();
   if(!name){showAlert('Нэр оруулна уу','error');return;}
-  const item={
-    id:genId(),name,
+  const data={
+    name,
     url:document.getElementById('v-url').value.trim(),
     user:document.getElementById('v-user').value.trim(),
     pw:document.getElementById('v-pw').value,
-    note:document.getElementById('v-note').value.trim(),
-    date:new Date().toISOString().slice(0,10)
+    note:document.getElementById('v-note').value.trim()
   };
-  vaultItems.unshift(item);
+  const wasEditing=!!editingVaultId;
+  if(editingVaultId){
+    // Хуучин бичлэгийг шинэчлэх — id, date хадгална
+    const idx=vaultItems.findIndex(i=>i.id==editingVaultId);
+    if(idx>=0){
+      vaultItems[idx]={...vaultItems[idx],...data};
+    }
+    editingVaultId=null;
+  } else {
+    // Шинэ бичлэг үүсгэх
+    vaultItems.unshift({id:genId(),...data,date:new Date().toISOString().slice(0,10)});
+  }
   await vaultSaveData();
   toggleVaultForm();
   renderVault();
-  showAlert('Хадгалагдлаа!','success');
+  showAlert(wasEditing?'Шинэчлэгдлээ!':'Хадгалагдлаа!','success');
 }
+
+// Vault бичлэг засах — утгыг форм руу ачаалж, форм нээх
+function editVault(id){
+  const item=vaultItems.find(i=>i.id==id);
+  if(!item)return;
+  editingVaultId=id;
+  const form=document.getElementById('vault-add-form');
+  // Форм нээх (хэрэв хаалттай бол) — цэвэрлэхээс өмнө нээнэ
+  if(form&&form.style.display==='none'){
+    form.style.display='block';
+  }
+  // Утга дүүргэх (toggleVaultForm цэвэрлэдэг тул шууд оноох)
+  document.getElementById('v-name').value=item.name||'';
+  document.getElementById('v-url').value=item.url||'';
+  document.getElementById('v-user').value=item.user||'';
+  document.getElementById('v-pw').value=item.pw||'';
+  document.getElementById('v-note').value=item.note||'';
+  // Форм руу гүйлгэх
+  form?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
 async function vaultDelete(id){
-  vaultItems=vaultItems.filter(i=>i.id!==id);
+  vaultItems=vaultItems.filter(i=>i.id!=id);
   await vaultSaveData();
   renderVault();
 }
@@ -4960,7 +4995,10 @@ function renderVault(){
           <div class="vault-name">${item.name}</div>
           ${item.url?`<div class="vault-url"><a href="${item.url}" target="_blank" style="color:#8a97a8;text-decoration:none">${item.url}</a></div>`:''}
         </div>
-        <button onclick="vaultDelete('${item.id}')" style="background:none;border:none;cursor:pointer;color:#e8edf3;font-size:14px" title="Устгах"><i class="ti ti-trash"></i></button>
+        <div style="display:flex;gap:4px">
+          <button onclick="editVault('${item.id}')" style="background:none;border:none;cursor:pointer;color:#e8edf3;font-size:14px" title="Засах"><i class="ti ti-edit"></i></button>
+          <button onclick="vaultDelete('${item.id}')" style="background:none;border:none;cursor:pointer;color:#e8edf3;font-size:14px" title="Устгах"><i class="ti ti-trash"></i></button>
+        </div>
       </div>
       ${item.user?`<div class="vault-field">
         <span class="vault-field-label">Нэвтрэх нэр</span>
