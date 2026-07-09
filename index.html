@@ -1837,6 +1837,10 @@ async function restoreFromBackup(fileId){
         localStorage.setItem('sticky_labels_hsti',JSON.stringify(content.sticky.sticky_labels));
         stickyLabels=content.sticky.sticky_labels;
       }
+      if(content.sticky.todos){
+        localStorage.setItem('todos_hsti',JSON.stringify(content.sticky.todos));
+        todos=content.sticky.todos;
+      }
     }
     if(content.vault){
       if(content.vault.vault_data)localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault.vault_data));
@@ -1900,12 +1904,14 @@ async function syncToDrive(){
     if(!driveFileId)driveFileId=await findFileInFolder(getFileName(),folderId);
     driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
 
-    // 2. Sticky notes + labels — тусдаа файл
+    // 2. Sticky notes + labels + todos — тусдаа файл
     const stickyData=localStorage.getItem('sticky_notes_hsti');
     const stickyLabelsData=localStorage.getItem('sticky_labels_hsti');
+    const todosData=localStorage.getItem('todos_hsti');
     const stickyPayload={
       sticky_notes:stickyData?JSON.parse(stickyData):[],
       sticky_labels:stickyLabelsData?JSON.parse(stickyLabelsData):[],
+      todos:todosData?JSON.parse(todosData):[],
       updated:new Date().toISOString()
     };
     if(!stickyFileId)stickyFileId=await findFileInFolder(getStickyFileName(),folderId);
@@ -2044,6 +2050,12 @@ async function loadFromDrive(){
         if(document.getElementById('tab-sticky')?.classList.contains('active')){
           renderLabelFilters();renderStickyNotes();
         }
+      }
+      // ToDo — Drive-аас татах (last-writer-wins, updated цагаар)
+      if(content.todos&&Array.isArray(content.todos)){
+        localStorage.setItem('todos_hsti',JSON.stringify(content.todos));
+        todos=content.todos;
+        renderTodos();renderAttention();
       }
     }
   }catch(e){
@@ -4516,7 +4528,13 @@ function loadTodos(){
 }
 function saveTodos(){
   try{localStorage.setItem('todos_hsti',JSON.stringify(todos));}catch(e){}
+  // Drive-тай синк — debounce (3 секунд хүлээгээд, олон өөрчлөлтийг нэгтгэнэ)
+  if(accessToken&&!viewingOldYear){
+    if(todoSyncTimer)clearTimeout(todoSyncTimer);
+    todoSyncTimer=setTimeout(()=>{syncToDrive();},3000);
+  }
 }
+let todoSyncTimer=null;
 function todoShowAdd(){
   const f=document.getElementById('todo-add-form');
   f.style.display=f.style.display==='none'?'block':'none';
