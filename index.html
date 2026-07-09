@@ -2051,12 +2051,28 @@ async function loadFromDrive(){
           renderLabelFilters();renderStickyNotes();
         }
       }
-      // ToDo — Drive-аас татах (last-writer-wins, updated цагаар)
+      // ToDo — Drive + локалыг merge хийх
+      // Drive-д байхгүй ч локалд шинэ нэмэгдсэн ToDo-г хадгална
+      // (3 секундын debounce дотор refresh хийхэд ToDo алдагдахаас сэргийлнэ)
+      const localTodosStr=localStorage.getItem('todos_hsti');
+      const localTodos=localTodosStr?JSON.parse(localTodosStr):[];
       if(content.todos&&Array.isArray(content.todos)){
-        localStorage.setItem('todos_hsti',JSON.stringify(content.todos));
-        todos=content.todos;
-        renderTodos();renderAttention();
+        // Drive-д байхгүй (локалд л байгаа шинэ) ToDo-г хадгалах
+        const driveIds=new Set(content.todos.map(t=>String(t.id)));
+        const localOnly=localTodos.filter(t=>!driveIds.has(String(t.id)));
+        // Локалд л байгаа ToDo + Drive-аас татсан ToDo нэгтгэх
+        const merged=[...localOnly,...content.todos];
+        localStorage.setItem('todos_hsti',JSON.stringify(merged));
+        todos=merged;
+        // Нэмэгдсэн ToDo байвал Drive-д дахин синк хийх
+        if(localOnly.length>0&&accessToken&&!viewingOldYear){
+          setTimeout(()=>{syncToDrive();},1000);
+        }
+      } else {
+        // Drive-д todos талбар байхгүй (хуучин файл) → локал todos хэвээр
+        todos=localTodos;
       }
+      renderTodos();renderAttention();
     }
   }catch(e){
     hadError=true;
