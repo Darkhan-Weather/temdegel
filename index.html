@@ -1644,10 +1644,16 @@ function silentRefresh(){
         resolve(tokenExpiresAt>startExp);
       }
     },200);
-    // 5 секундын дараа timeout
-    setTimeout(()=>{clearInterval(checkDone);silentRefreshInProgress=false;resolve(false);},5000);
+    // 10 секундын дараа timeout (5с богино байсан — chooser гарвал амжихгүй)
+    setTimeout(()=>{clearInterval(checkDone);silentRefreshInProgress=false;resolve(false);},10000);
     try{
-      tokenClient.requestAccessToken({prompt:''});
+      // hint — аль Google акаунт болохыг зааж өгнө.
+      // Үүнгүй бол олон акаунт нэвтэрсэн үед Google "Бүртгэл сонгоно уу" chooser гаргадаг
+      let hintEmail='';
+      try{
+        hintEmail=currentUser?.email||JSON.parse(localStorage.getItem('hsti_usr')||'{}').email||'';
+      }catch(_){hintEmail='';}
+      tokenClient.requestAccessToken(hintEmail?{prompt:'',hint:hintEmail}:{prompt:''});
     }catch(e){
       clearInterval(checkDone);
       silentRefreshInProgress=false;
@@ -1837,10 +1843,6 @@ async function restoreFromBackup(fileId){
         localStorage.setItem('sticky_labels_hsti',JSON.stringify(content.sticky.sticky_labels));
         stickyLabels=content.sticky.sticky_labels;
       }
-      if(content.sticky.todos){
-        localStorage.setItem('todos_hsti',JSON.stringify(content.sticky.todos));
-        todos=content.sticky.todos;
-      }
     }
     if(content.vault){
       if(content.vault.vault_data)localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault.vault_data));
@@ -1904,14 +1906,12 @@ async function syncToDrive(){
     if(!driveFileId)driveFileId=await findFileInFolder(getFileName(),folderId);
     driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
 
-    // 2. Sticky notes + labels + todos — тусдаа файл
+    // 2. Sticky notes + labels — тусдаа файл
     const stickyData=localStorage.getItem('sticky_notes_hsti');
     const stickyLabelsData=localStorage.getItem('sticky_labels_hsti');
-    const todosData=localStorage.getItem('todos_hsti');
     const stickyPayload={
       sticky_notes:stickyData?JSON.parse(stickyData):[],
       sticky_labels:stickyLabelsData?JSON.parse(stickyLabelsData):[],
-      todos:todosData?JSON.parse(todosData):[],
       updated:new Date().toISOString()
     };
     if(!stickyFileId)stickyFileId=await findFileInFolder(getStickyFileName(),folderId);
@@ -2051,28 +2051,6 @@ async function loadFromDrive(){
           renderLabelFilters();renderStickyNotes();
         }
       }
-      // ToDo — Drive + локалыг merge хийх
-      // Drive-д байхгүй ч локалд шинэ нэмэгдсэн ToDo-г хадгална
-      // (3 секундын debounce дотор refresh хийхэд ToDo алдагдахаас сэргийлнэ)
-      const localTodosStr=localStorage.getItem('todos_hsti');
-      const localTodos=localTodosStr?JSON.parse(localTodosStr):[];
-      if(content.todos&&Array.isArray(content.todos)){
-        // Drive-д байхгүй (локалд л байгаа шинэ) ToDo-г хадгалах
-        const driveIds=new Set(content.todos.map(t=>String(t.id)));
-        const localOnly=localTodos.filter(t=>!driveIds.has(String(t.id)));
-        // Локалд л байгаа ToDo + Drive-аас татсан ToDo нэгтгэх
-        const merged=[...localOnly,...content.todos];
-        localStorage.setItem('todos_hsti',JSON.stringify(merged));
-        todos=merged;
-        // Нэмэгдсэн ToDo байвал Drive-д дахин синк хийх
-        if(localOnly.length>0&&accessToken&&!viewingOldYear){
-          setTimeout(()=>{syncToDrive();},1000);
-        }
-      } else {
-        // Drive-д todos талбар байхгүй (хуучин файл) → локал todos хэвээр
-        todos=localTodos;
-      }
-      renderTodos();renderAttention();
     }
   }catch(e){
     hadError=true;
@@ -4355,7 +4333,7 @@ function renderCalGrid(){
     const isToday=today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d;
     const isSel=calSelectedDate===ds;
     const dayEv=calEvents.filter(e=>(e.start?.dateTime||e.start?.date||'').slice(0,10)===ds);
-    const wCount=entries.filter(e=>{
+    const wCount=activeEntries().filter(e=>{
       const p=e.date.split('-');
       const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
       return norm===ds;
@@ -4363,7 +4341,7 @@ function renderCalGrid(){
     // Deadline бүхий todo-г харуулах
     const deadlineTodos=todos.filter(t=>t.deadline===ds&&!t.done);
     // Тэр өдрийн тэмдэглэлүүдийн өнгийн ангилал
-    const dayEntries=entries.filter(e=>{
+    const dayEntries=activeEntries().filter(e=>{
       const p=e.date.split('-');
       const norm=p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:e.date;
       return norm===ds;
@@ -4438,7 +4416,7 @@ function renderDayEvents(ds){
   const titleEl=document.getElementById('cal-detail-date');
   if(titleEl)titleEl.textContent=`${y} оны ${parseInt(m)}-р сарын ${parseInt(d)}-ний өдөр`;
   const dayEv=calEvents.filter(e=>(e.start?.dateTime||e.start?.date||'').slice(0,10)===dsNorm);
-  const workItems=entries.filter(e=>normDate(e.date)===dsNorm);
+  const workItems=activeEntries().filter(e=>normDate(e.date)===dsNorm);
   let html='';
   if(!dayEv.length&&!workItems.length){
     html='<p style="font-size:13px;color:#a0aab4;text-align:center;padding:20px">Энэ өдөрт event байхгүй</p>';
@@ -4544,13 +4522,7 @@ function loadTodos(){
 }
 function saveTodos(){
   try{localStorage.setItem('todos_hsti',JSON.stringify(todos));}catch(e){}
-  // Drive-тай синк — debounce (3 секунд хүлээгээд, олон өөрчлөлтийг нэгтгэнэ)
-  if(accessToken&&!viewingOldYear){
-    if(todoSyncTimer)clearTimeout(todoSyncTimer);
-    todoSyncTimer=setTimeout(()=>{syncToDrive();},3000);
-  }
 }
-let todoSyncTimer=null;
 function todoShowAdd(){
   const f=document.getElementById('todo-add-form');
   f.style.display=f.style.display==='none'?'block':'none';
