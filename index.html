@@ -1778,15 +1778,32 @@ async function uploadToFile(fileName,fileId,folderId,payload){
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
   let fid=fileId;
   if(!fid){
-    const meta=await fetch('https://www.googleapis.com/drive/v3/files',{
+    // ── ФАЙЛ ҮҮСГЭХ (POST) — хариу амжилттай эсэхийг ЗААВАЛ шалгана ──
+    // 401/403/5xx үед Google {error:{...}} буцаадаг. Урьд нь .then(r=>r.json())
+    // шууд задалдаг тул meta.id undefined болж, PATCH .../undefined руу явж,
+    // алдааг чимээгүй нуудаг байсан. Одоо res.ok шалгаж throw хийнэ.
+    const metaRes=await fetch('https://www.googleapis.com/drive/v3/files',{
       method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
       body:JSON.stringify({name:fileName,mimeType:'application/json',parents:[folderId]})
-    }).then(r=>r.json());
+    });
+    if(!metaRes.ok){
+      throw new Error(`Drive файл үүсгэж чадсангүй (${fileName}): HTTP ${metaRes.status}`);
+    }
+    const meta=await metaRes.json();
+    if(!meta||!meta.id){
+      throw new Error(`Drive файл үүсгэлээ ч ID ирсэнгүй (${fileName})`);
+    }
     fid=meta.id;
   }
-  await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=media`,{
+  // ── ФАЙЛ БИЧИХ (PATCH) — хариу амжилттай эсэхийг ЗААВАЛ шалгана ──
+  // Урьд нь энэ хариуг огт шалгадаггүй тул бичилт бүтэлгүйтэвч fid-ийг
+  // амжилттай мэт буцааж, badge \"Хадгалагдсан\" болдог байв (чимээгүй алдаа).
+  const writeRes=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=media`,{
     method:'PATCH',headers:{Authorization:'Bearer '+accessToken},body:blob
   });
+  if(!writeRes.ok){
+    throw new Error(`Drive-д бичиж чадсангүй (${fileName}): HTTP ${writeRes.status}`);
+  }
   return fid;
 }
 
@@ -1794,19 +1811,27 @@ async function uploadToFile(fileName,fileId,folderId,payload){
 // Drive дээрх файлаас "хэдэн бичлэгтэй"-г уншиж буцаана.
 // countFn(content) → тухайн файлын төрлийн бичлэгийн тоог гаргана.
 // Файл байхгүй / уншиж чадсангүй бол -1 буцаана (шалгалт алгасна, аюулгүй тал).
+// Буцаах утга:
+//   >=0 → Drive дээрх бодит бичлэгийн тоо
+//   -1  → Файл БАЙХГҮЙ (анх удаа). Дарж бичих зүйл алга → guard алгасахад АЮУЛГҮЙ.
+//   -2  → Файл байгаа ч уншиж/БАТЛАЖ ЧАДСАНГҮЙ (auth/сүлжээ/эвдэрсэн).
+//         Drive-д өгөгдөл байж болзошгүй → дарж бичихгүй, guard ХАМГААЛНА.
 async function getDriveRecordCount(fileName,fileId,folderId,countFn){
+  let fid=fileId;
   try{
-    let fid=fileId;
     if(!fid)fid=await findFileInFolder(fileName,folderId);
-    if(!fid)return -1; // Drive дээр файл байхгүй — анх удаа, дарж бичих зүйл алга
+  }catch(_){return -2;} // хайлт ч бүтсэнгүй — тодорхойгүй, хамгаална
+  if(!fid)return -1; // Drive дээр файл байхгүй — анх удаа, дарж бичих зүйл алга
+  try{
     const res=await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`,{
       headers:{Authorization:'Bearer '+accessToken}});
+    if(!res.ok)return -2; // 401/403/5xx — уншиж чадсангүй, хамгаална
     const text=await res.text();
     let content;
-    try{content=JSON.parse(text);}catch(_){return -1;} // эвдэрсэн файл — шалгалт алгасна
+    try{content=JSON.parse(text);}catch(_){return -2;} // эвдэрсэн файл — хамгаална
     const n=countFn(content);
-    return (typeof n==='number'&&n>=0)?n:-1;
-  }catch(_){return -1;} // сүлжээ алдаа — шалгалт алгасна, sync үргэлжилнэ
+    return (typeof n==='number'&&n>=0)?n:-2; // тодорхойгүй формат — хамгаална
+  }catch(_){return -2;} // сүлжээ алдаа — хамгаална
 }
 
 // ── BACKUP ──────────────────────────────────────────────
@@ -1958,11 +1983,16 @@ async function syncToDrive(){
       if(localCount===0){
         const driveCount=await getDriveRecordCount(getFileName(),driveFileId,folderId,
           c=>Array.isArray(c.entries)?c.entries.filter(e=>!e.deleted).length:-1);
-        if(driveCount>0){
+        if(driveCount===-2){
+          // Drive-г уншиж БАТЛАЖ чадсангүй (auth/сүлжээ). Хоосноор дарж бичихгүй.
+          skipped.push('Ажлын бүртгэл (шалгаж чадсангүй)');
+          console.warn('[Sync] Ажлын бүртгэл: Drive-г шалгаж чадсангүй тул хамгаалж, дарж бичсэнгүй');
+        }else if(driveCount>0){
           if(confirm(`⚠ АНХААР — Ажлын бүртгэл\n\nЭнэ төхөөрөмж дээр бүртгэл ХООСОН байна, гэтэл Drive дээр ${driveCount} бүртгэл хадгалагдсан байна.\n\nОдоо хадгалбал Drive дээрх ${driveCount} бүртгэл УСТАНА.\n\nҮнэхээр бүгдийг устгах гэсэн бол "OK", эсэхгүй бол "Cancel" дарж эхлээд бүртгэлээ буцааж татна уу.`)){
             driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
           }else{ skipped.push('Ажлын бүртгэл'); }
         }else{
+          // driveCount 0 (Drive хоосон) эсвэл -1 (файл байхгүй) → дарж бичих аюулгүй
           driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
         }
       }else{
@@ -1985,11 +2015,16 @@ async function syncToDrive(){
       if(stickyArr.length===0){
         const driveCount=await getDriveRecordCount(getStickyFileName(),stickyFileId,folderId,
           c=>Array.isArray(c.sticky_notes)?c.sticky_notes.length:-1);
-        if(driveCount>0){
+        if(driveCount===-2){
+          // Drive-г уншиж БАТЛАЖ чадсангүй (auth/сүлжээ). Хоосноор дарж бичихгүй.
+          skipped.push('Тэмдэглэл (шалгаж чадсангүй)');
+          console.warn('[Sync] Тэмдэглэл: Drive-г шалгаж чадсангүй тул хамгаалж, дарж бичсэнгүй');
+        }else if(driveCount>0){
           if(confirm(`⚠ АНХААР — Тэмдэглэл\n\nЭнэ төхөөрөмж дээр тэмдэглэл ХООСОН байна, гэтэл Drive дээр ${driveCount} тэмдэглэл хадгалагдсан байна.\n\nОдоо хадгалбал Drive дээрх ${driveCount} тэмдэглэл УСТАНА.\n\nҮнэхээр устгах бол "OK", эсэхгүй бол "Cancel".`)){
             stickyFileId=await uploadToFile(getStickyFileName(),stickyFileId,folderId,stickyPayload);
           }else{ skipped.push('Тэмдэглэл'); }
         }else{
+          // driveCount 0 (Drive хоосон) эсвэл -1 (файл байхгүй) → дарж бичих аюулгүй
           stickyFileId=await uploadToFile(getStickyFileName(),stickyFileId,folderId,stickyPayload);
         }
       }else{
@@ -2023,7 +2058,9 @@ async function syncToDrive(){
       if(vaultLocalCount<=0){
         const dc=await getDriveRecordCount(getVaultFileName(),vaultFileId,folderId,
           c=>(c.vault_data&&c.vault_meta)?1:0);
-        vaultDriveHasData=(dc>0);
+        // dc>0 → Drive-д vault бий. dc===-2 → уншиж чадсангүй, БАЙЖ БОЛЗОШГҮЙ гэж үзэж
+        // хамгаална (E2E, сэргээх аргагүй). dc===-1 (файл байхгүй) л дарж бичихийг зөвшөөрнө.
+        vaultDriveHasData=(dc>0||dc===-2);
       }
       if((vaultLocalCount===0||vaultLocalCount===-1)&&vaultDriveHasData){
         // Локал хоосон/тодорхойгүй, Drive-д өгөгдөл бий → ШУУД АЛГАСНА, дарж бичихгүй
@@ -2069,6 +2106,17 @@ async function loadFromDrive(){
     if(driveFileId){
       const res=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
         headers:{Authorization:'Bearer '+accessToken}});
+      // ── res.ok шалгалт ──────────────────────────────────
+      // 401/403 үед Google алдааны JSON буцаадаг. Урьд нь энэ JSON задарч,
+      // content.entries undefined болоод чимээгүй \"хоосон Drive\" гэж ойлгож,
+      // badge ногоон \"Синктэй\" болдог байв. Одоо ил алдаа болгоно.
+      if(!res.ok){
+        if(res.status===401||res.status===403){
+          try{await silentRefresh();}catch(_){}
+          throw new Error('AUTH_FAILED');
+        }
+        throw new Error('HTTP_'+res.status);
+      }
       const text=await res.text();
       let content;
       try{
@@ -2132,6 +2180,8 @@ async function loadFromDrive(){
       if(confirm('Drive дээрх тэмдэглэлийн файл эвдэрсэн байна. Сүүлийн backup-аас сэргээх үү?')){
         openBackupModal();
       }
+    } else if(e.message==='AUTH_FAILED'){
+      showAlert('Нэвтрэлт хугацаа дууссан байна. Холболтыг сэргээж байна — хэрэв удвал нэг удаа гарч дахин нэвтэрнэ үү. Таны локал өгөгдөл хэвээрээ байгаа.','error');
     } else {
       showAlert('Тэмдэглэл Drive-аас уншихад алдаа гарлаа. Таны локал өгөгдөл хэвээрээ байгаа.','error');
     }
@@ -2144,6 +2194,7 @@ async function loadFromDrive(){
     if(stickyFileId){
       const res=await fetch(`https://www.googleapis.com/drive/v3/files/${stickyFileId}?alt=media`,{
         headers:{Authorization:'Bearer '+accessToken}});
+      if(!res.ok)throw new Error('HTTP_'+res.status); // 401/403/5xx-ийг хоосон гэж андуурахгүй
       const text=await res.text();
       let content;
       try{content=JSON.parse(text);}
@@ -2180,6 +2231,7 @@ async function loadFromDrive(){
     if(vaultFileId){
       const res=await fetch(`https://www.googleapis.com/drive/v3/files/${vaultFileId}?alt=media`,{
         headers:{Authorization:'Bearer '+accessToken}});
+      if(!res.ok)throw new Error('HTTP_'+res.status); // 401/403/5xx-ийг хоосон гэж андуурахгүй
       const text=await res.text();
       let content;
       try{content=JSON.parse(text);}
