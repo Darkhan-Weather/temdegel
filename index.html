@@ -950,11 +950,13 @@ details[open] summary .chevron{transform:rotate(90deg)}
             <button class="btn btn-sm" onclick="syncToDrive()" title="Drive-д хадгалах"><i class="ti ti-cloud-upload"></i> Хадгалах</button>
           </div>
           <!-- Шошго шүүлтүүр -->
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span class="sticky-color-label">Шошго:</span>
-            <div id="sticky-label-filters" style="display:flex;gap:6px;flex-wrap:wrap;flex:1;flex-direction:row;min-width:0"></div>
-            <button class="btn btn-sm" onclick="openLabelManager()" title="Шошго удирдах"><i class="ti ti-tag"></i> Удирдах</button>
-            <button class="btn btn-primary btn-sm" onclick="addStickyNote()"><i class="ti ti-plus"></i> Нэмэх</button>
+          <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
+            <span class="sticky-color-label" style="flex-shrink:0;padding-top:6px">Шошго:</span>
+            <div id="sticky-label-filters" style="display:flex;gap:6px;flex-wrap:wrap;flex:1 1 200px;min-width:0"></div>
+            <div style="display:flex;gap:8px;flex-shrink:0;margin-left:auto">
+              <button class="btn btn-sm" onclick="openLabelManager()" title="Шошго удирдах"><i class="ti ti-tag"></i> Удирдах</button>
+              <button class="btn btn-primary btn-sm" onclick="addStickyNote()"><i class="ti ti-plus"></i> Нэмэх</button>
+            </div>
           </div>
         </div>
         <div class="sticky-grid" id="sticky-grid"></div>
