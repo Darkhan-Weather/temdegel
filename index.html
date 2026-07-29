@@ -1771,6 +1771,25 @@ async function uploadToFile(fileName,fileId,folderId,payload){
   return fid;
 }
 
+// ── ХООСНООР ДАРЖ БИЧИХЭЭС СЭРГИЙЛЭХ ХАМГААЛАЛТ ──────────────
+// Drive дээрх файлаас "хэдэн бичлэгтэй"-г уншиж буцаана.
+// countFn(content) → тухайн файлын төрлийн бичлэгийн тоог гаргана.
+// Файл байхгүй / уншиж чадсангүй бол -1 буцаана (шалгалт алгасна, аюулгүй тал).
+async function getDriveRecordCount(fileName,fileId,folderId,countFn){
+  try{
+    let fid=fileId;
+    if(!fid)fid=await findFileInFolder(fileName,folderId);
+    if(!fid)return -1; // Drive дээр файл байхгүй — анх удаа, дарж бичих зүйл алга
+    const res=await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`,{
+      headers:{Authorization:'Bearer '+accessToken}});
+    const text=await res.text();
+    let content;
+    try{content=JSON.parse(text);}catch(_){return -1;} // эвдэрсэн файл — шалгалт алгасна
+    const n=countFn(content);
+    return (typeof n==='number'&&n>=0)?n:-1;
+  }catch(_){return -1;} // сүлжээ алдаа — шалгалт алгасна, sync үргэлжилнэ
+}
+
 // ── BACKUP ──────────────────────────────────────────────
 const MAX_BACKUPS=10;
 
@@ -1892,11 +1911,19 @@ async function syncToDrive(){
     showAlert('Хуучин оны архив зөвхөн харах горимд байна. Хадгалахын тулд одоогийн он руу буцна уу.','info');
     return;
   }
+  // ХАМГААЛАЛТ 0: Сэргээлт хийж байх үед автомат sync-ийг зогсоох.
+  // Backup-аас сэргээх явцад хагас өгөгдлийг Drive руу дарж бичихээс сэргийлнэ.
+  if(window.__restoring){
+    console.warn('[Sync] Сэргээлт хийгдэж байгаа тул sync түр зогслоо');
+    setSyncBadge('Сэргээлт хийгдэж байна','#f39c12');
+    return;
+  }
   // Token дуусах дөхсөн бол эхлээд чимээгүй шинэчлэх
   await ensureValidToken();
   setSyncBadge('Хадгалж байна...','#f39c12');
   try{
     const folderId=await getOrCreateFolder();
+    let skipped=[]; // алгассан файлуудын нэр (анхааруулгад)
 
     // 1. Ажлын тэмдэглэл — тусдаа файл (шаблон, заалтын жагсаалт хамт)
     const entriesPayload={
@@ -1906,18 +1933,50 @@ async function syncToDrive(){
       updated:new Date().toISOString()
     };
     if(!driveFileId)driveFileId=await findFileInFolder(getFileName(),folderId);
-    driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
+    // ХАМГААЛАЛТ 1: локал 0 бүртгэл атлаа Drive-д бүртгэл бүтэн бол — асууна
+    {
+      const localCount=activeEntries().length; // tombstone хассан жинхэнэ тоо
+      if(localCount===0){
+        const driveCount=await getDriveRecordCount(getFileName(),driveFileId,folderId,
+          c=>Array.isArray(c.entries)?c.entries.filter(e=>!e.deleted).length:-1);
+        if(driveCount>0){
+          if(confirm(`⚠ АНХААР — Ажлын бүртгэл\n\nЭнэ төхөөрөмж дээр бүртгэл ХООСОН байна, гэтэл Drive дээр ${driveCount} бүртгэл хадгалагдсан байна.\n\nОдоо хадгалбал Drive дээрх ${driveCount} бүртгэл УСТАНА.\n\nҮнэхээр бүгдийг устгах гэсэн бол "OK", эсэхгүй бол "Cancel" дарж эхлээд бүртгэлээ буцааж татна уу.`)){
+            driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
+          }else{ skipped.push('Ажлын бүртгэл'); }
+        }else{
+          driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
+        }
+      }else{
+        driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
+      }
+    }
 
     // 2. Sticky notes + labels — тусдаа файл
     const stickyData=localStorage.getItem('sticky_notes_hsti');
     const stickyLabelsData=localStorage.getItem('sticky_labels_hsti');
+    const stickyArr=stickyData?JSON.parse(stickyData):[];
     const stickyPayload={
-      sticky_notes:stickyData?JSON.parse(stickyData):[],
+      sticky_notes:stickyArr,
       sticky_labels:stickyLabelsData?JSON.parse(stickyLabelsData):[],
       updated:new Date().toISOString()
     };
     if(!stickyFileId)stickyFileId=await findFileInFolder(getStickyFileName(),folderId);
-    stickyFileId=await uploadToFile(getStickyFileName(),stickyFileId,folderId,stickyPayload);
+    // ХАМГААЛАЛТ 2: локал 0 тэмдэглэл атлаа Drive-д тэмдэглэл бүтэн бол — асууна
+    {
+      if(stickyArr.length===0){
+        const driveCount=await getDriveRecordCount(getStickyFileName(),stickyFileId,folderId,
+          c=>Array.isArray(c.sticky_notes)?c.sticky_notes.length:-1);
+        if(driveCount>0){
+          if(confirm(`⚠ АНХААР — Тэмдэглэл\n\nЭнэ төхөөрөмж дээр тэмдэглэл ХООСОН байна, гэтэл Drive дээр ${driveCount} тэмдэглэл хадгалагдсан байна.\n\nОдоо хадгалбал Drive дээрх ${driveCount} тэмдэглэл УСТАНА.\n\nҮнэхээр устгах бол "OK", эсэхгүй бол "Cancel".`)){
+            stickyFileId=await uploadToFile(getStickyFileName(),stickyFileId,folderId,stickyPayload);
+          }else{ skipped.push('Тэмдэглэл'); }
+        }else{
+          stickyFileId=await uploadToFile(getStickyFileName(),stickyFileId,folderId,stickyPayload);
+        }
+      }else{
+        stickyFileId=await uploadToFile(getStickyFileName(),stickyFileId,folderId,stickyPayload);
+      }
+    }
 
     // 3. Vault — тусдаа файл (шифрлэгдсэн)
     const vaultMeta=localStorage.getItem('vault_meta_hsti');
@@ -1928,13 +1987,48 @@ async function syncToDrive(){
       updated:new Date().toISOString()
     };
     if(!vaultFileId)vaultFileId=await findFileInFolder(getVaultFileName(),folderId);
-    vaultFileId=await uploadToFile(getVaultFileName(),vaultFileId,folderId,vaultPayload);
+    // ХАМГААЛАЛТ 3: Vault — E2E, сэргээх аргагүй тул ХАМГИЙН ХАТУУ.
+    // Локал vault "хоосон эсвэл декодлоход 0 бичлэг" бол Drive-д ХЭЗЭЭ Ч бичихгүй (асуухгүй, шууд алгасна).
+    {
+      let vaultLocalCount=-1; // -1 = тодорхойгүй
+      try{
+        if(vaultKey&&vaultData){
+          const decoded=await decryptData(vaultKey,JSON.parse(vaultData));
+          vaultLocalCount=Array.isArray(decoded)?decoded.length:-1;
+        }else if(!vaultData){
+          vaultLocalCount=0; // локалд огт байхгүй
+        }
+      }catch(_){ vaultLocalCount=-1; } // тайлж чадсангүй — тодорхойгүй, аюулгүй тал руу
+      // Drive-д одоо хэдэн бичлэг байгаа (шифрлэгдсэн бүрхүүлээр бус, зөвхөн бий/үгүй)
+      let vaultDriveHasData=false;
+      if(vaultLocalCount<=0){
+        const dc=await getDriveRecordCount(getVaultFileName(),vaultFileId,folderId,
+          c=>(c.vault_data&&c.vault_meta)?1:0);
+        vaultDriveHasData=(dc>0);
+      }
+      if((vaultLocalCount===0||vaultLocalCount===-1)&&vaultDriveHasData){
+        // Локал хоосон/тодорхойгүй, Drive-д өгөгдөл бий → ШУУД АЛГАСНА, дарж бичихгүй
+        skipped.push('Нууц үгийн сан (хамгаалсан)');
+        console.warn('[Sync] Vault локал хоосон/тодорхойгүй тул Drive хамгаалагдаж, дарж бичсэнгүй');
+      }else{
+        vaultFileId=await uploadToFile(getVaultFileName(),vaultFileId,folderId,vaultPayload);
+      }
+    }
 
-    // Backup үүсгэх (async, sync-ийг саатуулахгүй)
-    createBackup(folderId,entriesPayload,stickyPayload,vaultPayload);
+    // Backup үүсгэх — ЗӨВХӨН юу ч алгасаагүй үед (хагас өгөгдлөөр backup үүсгэхгүй)
+    if(skipped.length===0){
+      createBackup(folderId,entriesPayload,stickyPayload,vaultPayload);
+    }else{
+      console.warn('[Sync] Файл алгассан тул backup үүсгэсэнгүй:',skipped);
+    }
 
-    setSyncBadge('Хадгалагдсан','#0F6E56');
-    showAlert('Drive-д хадгалагдлаа!','success');
+    if(skipped.length>0){
+      setSyncBadge('Хэсэгчлэн хадгаллаа','#f39c12');
+      showAlert('Дараах хэсгийг ХАМГААЛЖ, дарж бичсэнгүй: '+skipped.join(', ')+'. Локал өгөгдөл хоосон байсан тул Drive дээрх хувилбарыг хадгалж үлдээлээ.','info');
+    }else{
+      setSyncBadge('Хадгалагдсан','#0F6E56');
+      showAlert('Drive-д хадгалагдлаа!','success');
+    }
   }catch(e){
     console.error('[Drive sync алдаа]',e);
     setSyncBadge('Drive холболтгүй','#e74c3c');
