@@ -3169,7 +3169,7 @@ function saveTemplate(){
 }
 
 function deleteTemplate(id){
-  userTemplates=userTemplates.filter(t=>t.id!==id);
+  userTemplates=userTemplates.filter(t=>t.id!=id); // сул != — number/string ID хольц
   saveTemplates();
   renderTemplateList();
   renderQuickAdd();
@@ -4301,7 +4301,7 @@ function addStickyNote(){
   setTimeout(()=>{const el=document.querySelector('.sticky-note-text');if(el)el.focus();},50);
 }
 function deleteStickyNote(id){
-  stickyNotes=stickyNotes.filter(n=>n.id!==id);
+  stickyNotes=stickyNotes.filter(n=>n.id!=id); // сул != — хуучин number ба шинэ string ID хольцыг зөв харьцуулна
   saveStickyNotes();
   renderStickyNotes();
 }
@@ -4732,7 +4732,7 @@ function todoToggle(id){
   if(t){t.done=!t.done;saveTodos();renderTodos();renderAttention();}
 }
 function todoDelete(id){
-  todos=todos.filter(t=>t.id!==id);
+  todos=todos.filter(t=>t.id!=id); // сул != — number/string ID хольц
   saveTodos();renderTodos();renderAttention();
 }
 
