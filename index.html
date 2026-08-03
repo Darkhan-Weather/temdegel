@@ -1364,6 +1364,19 @@ function cleanupOldTombstones(){
     localStorage.setItem('hsti_v3',JSON.stringify(entries));
     console.log(`[Tombstone] ${removed} хуучин устгалыг бүрмөсөн цэвэрлэлээ`);
   }
+  // Наалтын tombstone-г мөн адил цэвэрлэх — 90 хоногоос хуучин устгалыг хасна
+  try{
+    const s=localStorage.getItem('sticky_notes_hsti');
+    if(s){
+      const arr=JSON.parse(s);
+      const kept=arr.filter(n=>!n.deleted||(now-(n.updatedAt||0))<TOMBSTONE_MAX_AGE);
+      if(kept.length<arr.length){
+        localStorage.setItem('sticky_notes_hsti',JSON.stringify(kept));
+        if(typeof stickyNotes!=='undefined')stickyNotes=kept;
+        console.log(`[Tombstone] ${arr.length-kept.length} хуучин наалтын устгалыг цэвэрлэлээ`);
+      }
+    }
+  }catch(_){}
   return removed;
 }
 
@@ -2007,6 +2020,7 @@ async function syncToDrive(){
     const stickyPayload={
       sticky_notes:stickyArr,
       sticky_labels:stickyLabelsData?JSON.parse(stickyLabelsData):[],
+      labels_updated:parseInt(localStorage.getItem('sticky_labels_ts')||'0'),
       updated:new Date().toISOString()
     };
     if(!stickyFileId)stickyFileId=await findFileInFolder(getStickyFileName(),folderId);
@@ -2014,7 +2028,7 @@ async function syncToDrive(){
     {
       if(stickyArr.length===0){
         const driveCount=await getDriveRecordCount(getStickyFileName(),stickyFileId,folderId,
-          c=>Array.isArray(c.sticky_notes)?c.sticky_notes.length:-1);
+          c=>Array.isArray(c.sticky_notes)?c.sticky_notes.filter(n=>!n.deleted).length:-1);
         if(driveCount===-2){
           // Drive-г уншиж БАТЛАЖ чадсангүй (auth/сүлжээ). Хоосноор дарж бичихгүй.
           skipped.push('Тэмдэглэл (шалгаж чадсангүй)');
@@ -2202,19 +2216,39 @@ async function loadFromDrive(){
       if(content.sticky_notes&&content.sticky_notes.length){
         const localSticky=localStorage.getItem('sticky_notes_hsti');
         const localArr=localSticky?JSON.parse(localSticky):[];
-        const localIds=new Set(localArr.map(n=>n.id));
-        const newNotes=content.sticky_notes.filter(n=>!localIds.has(n.id));
-        if(newNotes.length>0){
-          const merged=[...localArr,...newNotes];
+        // ── LAST-WRITER-WINS MERGE (tombstone дэмжинэ) ──────
+        // id-гаар map болгож, updatedAt их талыг сонгоно. Ингэснээр устгал
+        // (deleted:true) тархана, засвар дарж бичигдэнэ — наалт амилахгүй.
+        // updatedAt байхгүй хуучин наалтыг number-id-аар эсвэл 0-оор тэмдэглэнэ.
+        const stamp=n=>n.updatedAt||(typeof n.id==='number'?n.id:0);
+        const byId={};
+        localArr.forEach(n=>{byId[n.id]=n;});
+        let changed=false;
+        content.sticky_notes.forEach(dn=>{
+          const local=byId[dn.id];
+          if(!local){byId[dn.id]=dn;changed=true;}
+          else if(stamp(dn)>stamp(local)){byId[dn.id]=dn;changed=true;}
+        });
+        if(changed){
+          const merged=Object.values(byId);
           localStorage.setItem('sticky_notes_hsti',JSON.stringify(merged));
           stickyNotes=merged;
+          if(document.getElementById('tab-sticky')?.classList.contains('active'))renderStickyNotes();
         }
       }
       if(content.sticky_labels&&content.sticky_labels.length){
-        localStorage.setItem('sticky_labels_hsti',JSON.stringify(content.sticky_labels));
-        stickyLabels=content.sticky_labels;
-        if(document.getElementById('tab-sticky')?.classList.contains('active')){
-          renderLabelFilters();renderStickyNotes();
+        // Жагсаалтын түвшний LWW — Drive-ийн өөрчлөлт локалаас ШИНЭ үед л дарж бичнэ.
+        // Ингэснээр локал дээрх sync хийгээгүй шошгын өөрчлөлт хамгаалагдана,
+        // устгал ба нэр солилт хоёр тал руу зөв тархана (өмнө нь Drive үргэлж дардаг байв).
+        const driveTs=content.labels_updated||0;
+        const localTs=parseInt(localStorage.getItem('sticky_labels_ts')||'0');
+        if(driveTs>=localTs){
+          localStorage.setItem('sticky_labels_hsti',JSON.stringify(content.sticky_labels));
+          localStorage.setItem('sticky_labels_ts',String(driveTs));
+          stickyLabels=content.sticky_labels;
+          if(document.getElementById('tab-sticky')?.classList.contains('active')){
+            renderLabelFilters();renderStickyNotes();
+          }
         }
       }
     }
@@ -2715,6 +2749,7 @@ async function confirmClearAll(){
       const stickyPayload={
         sticky_notes:stickyData?JSON.parse(stickyData):[],
         sticky_labels:stickyLabelsData?JSON.parse(stickyLabelsData):[],
+        labels_updated:parseInt(localStorage.getItem('sticky_labels_ts')||'0'),
         updated:new Date().toISOString()
       };
       const vaultMeta=localStorage.getItem('vault_meta_hsti');
@@ -3036,7 +3071,7 @@ function runSearch(q){
     });
 
   // 2. Sticky notes
-  stickyNotes.filter(n=>(n.text||'').toLowerCase().includes(ql))
+  stickyNotes.filter(n=>!n.deleted&&(n.text||'').toLowerCase().includes(ql))
     .slice(0,3).forEach(n=>{
       results.push({type:'sticky',icon:'ti-notes',iconBg:'#FFF9C4',iconColor:'#9E5E3D',
         title:highlight(n.text.slice(0,60),q),
@@ -4294,25 +4329,29 @@ function selectStickyColor(btn){
   selectedStickyColor=btn.dataset.color;
 }
 function addStickyNote(){
-  const note={id:genId(),text:'',color:selectedStickyColor,date:new Date().toLocaleDateString('mn-MN'),labels:[]};
+  const note={id:genId(),text:'',color:selectedStickyColor,date:new Date().toLocaleDateString('mn-MN'),labels:[],updatedAt:Date.now()};
   stickyNotes.unshift(note);
   saveStickyNotes();
   renderStickyNotes();
   setTimeout(()=>{const el=document.querySelector('.sticky-note-text');if(el)el.focus();},50);
 }
 function deleteStickyNote(id){
-  stickyNotes=stickyNotes.filter(n=>n.id!=id); // сул != — хуучин number ба шинэ string ID хольцыг зөв харьцуулна
+  // Tombstone — массиваас хасахгүй, deleted:true болгож тэмдэглэнэ.
+  // Ингэснээр устгал sync-ээр бусад төхөөрөмж рүү тархаж, наалт
+  // дараагийн Drive уншилтаар буцаж амилахгүй.
+  const n=stickyNotes.find(x=>x.id==id); // сул == — number/string ID хольц
+  if(n){n.deleted=true;n.updatedAt=Date.now();}
   saveStickyNotes();
   renderStickyNotes();
 }
 function updateStickyText(id,text){
-  const n=stickyNotes.find(n=>n.id==id);if(n){n.text=text;saveStickyNotes();}
+  const n=stickyNotes.find(n=>n.id==id);if(n){n.text=text;n.updatedAt=Date.now();saveStickyNotes();}
 }
 function changeStickyColor(id){
   const colors=['#FFF9C4','#C8F7C5','#C5E3F7','#F7C5C5','#E8C5F7','#FFE0B2'];
   const n=stickyNotes.find(n=>n.id==id);if(!n)return;
   const idx=(colors.indexOf(n.color)+1)%colors.length;
-  n.color=colors[idx];saveStickyNotes();renderStickyNotes();
+  n.color=colors[idx];n.updatedAt=Date.now();saveStickyNotes();renderStickyNotes();
 }
 
 // Шошго удирдах modal
@@ -4343,7 +4382,8 @@ function editLabelName(id,name){
   const l=stickyLabels.find(l=>l.id===id);
   if(l&&name.trim()){
     l.name=name.trim();
-    try{localStorage.setItem('sticky_labels_hsti',JSON.stringify(stickyLabels));}catch(e){}
+    try{localStorage.setItem('sticky_labels_hsti',JSON.stringify(stickyLabels));
+        localStorage.setItem('sticky_labels_ts',String(Date.now()));}catch(e){}
     if(accessToken){clearTimeout(stickyAutoSyncTimer);stickyAutoSyncTimer=setTimeout(()=>syncToDrive(),2000);}
   }
 }
@@ -4353,8 +4393,10 @@ function addNewLabel(){
   const name=inp.value.trim();
   if(!name){inp.focus();return;}
   stickyLabels.push({id:'l'+Date.now(),name,color:col.value});
-  // Шууд localStorage-д хадгалах
-  try{localStorage.setItem('sticky_labels_hsti',JSON.stringify(stickyLabels));}catch(e){}
+  // localStorage-д хадгалах + өөрчлөлтийн цаг тэмдэглэх (LWW-д хэрэгтэй)
+  try{localStorage.setItem('sticky_labels_hsti',JSON.stringify(stickyLabels));
+      localStorage.setItem('sticky_labels_ts',String(Date.now()));}catch(e){}
+  if(accessToken){clearTimeout(stickyAutoSyncTimer);stickyAutoSyncTimer=setTimeout(()=>syncToDrive(),2000);}
   inp.value='';
   renderLabelList();
   renderLabelFilters();
@@ -4362,8 +4404,13 @@ function addNewLabel(){
 }
 function deleteLabel(id){
   stickyLabels=stickyLabels.filter(l=>l.id!==id);
-  stickyNotes.forEach(n=>{n.labels=(n.labels||[]).filter(lid=>lid!==id);});
+  // Уг шошготой байсан наалтуудаас хасаж, тэдгээрийн updatedAt-г шинэчилнэ
+  // (ингэснээр шошго хасагдсан нь merge-д зөв тархана)
+  stickyNotes.forEach(n=>{
+    if((n.labels||[]).includes(id)){n.labels=n.labels.filter(lid=>lid!==id);n.updatedAt=Date.now();}
+  });
   if(activeFilterLabel===id)activeFilterLabel=null;
+  try{localStorage.setItem('sticky_labels_ts',String(Date.now()));}catch(e){}
   saveStickyNotes();renderLabelList();renderLabelFilters();
 }
 
@@ -4399,6 +4446,7 @@ function toggleNoteLabel(noteId,labelId,el){
     el.style.background='#f0f4f8';el.style.borderColor='#EBAD7C';
     if(!el.querySelector('.ti-check'))el.insertAdjacentHTML('beforeend','<i class="ti ti-check" style="color:#EBAD7C"></i>');
   }
+  note.updatedAt=Date.now();
   saveStickyNotes();
 }
 
@@ -4422,7 +4470,7 @@ function renderStickyNotes(){
   try{const s=localStorage.getItem('sticky_notes_hsti');if(s)stickyNotes=JSON.parse(s);}catch(e){stickyNotes=[];}
   renderLabelFilters();
   const grid=document.getElementById('sticky-grid');if(!grid)return;
-  let notes=stickyNotes;
+  let notes=stickyNotes.filter(n=>!n.deleted); // устгасан (tombstone) наалтыг харуулахгүй
   if(activeFilterLabel)notes=notes.filter(n=>(n.labels||[]).includes(activeFilterLabel));
   if(!notes.length){
     grid.innerHTML=`<div class="sticky-empty"><i class="ti ti-notes"></i><div>${activeFilterLabel?'Энэ шошготой note байхгүй':'Sticky note байхгүй байна'}<br><small>Дээрх "Нэмэх" товчийг дарж эхэлнэ үү</small></div></div>`;
