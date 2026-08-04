@@ -3914,8 +3914,8 @@ async function draftWithAI(zaaltKey,btn){
 
   try{
     // Ажлуудыг prompt болгон бэлтгэх
-    const worksText=workList.map((w,i)=>`${i+1}. ${w.work}${w.result?' (үр дүн: '+w.result+')':''}`).join('\n');
-    const prompt=`Дараах ажлуудыг нэг товч, албан ёсны тайлангийн ноорог догол мөр болгон бич:\n${worksText}\n\nЗаалт: ${zaalt}`;
+    const worksText=workList.map((w,i)=>`- ${w.work}${w.result?' (үр дүн: '+w.result+')':''}`).join('\n');
+    const prompt=`Заалт: ${zaalt}\n\nХийсэн ажлууд:\n${worksText}\n\nДээрх ажлуудыг нэг эвлэг, албан ёсны тайлангийн догол мөр болгон найруулан бич. Жагсаалт биш, урсгалтай догол мөр байх ёстой.`;
 
     const res=await fetch('https://odd-breeze-d4e0.examples-code.workers.dev/api/ai',{
       method:'POST',
