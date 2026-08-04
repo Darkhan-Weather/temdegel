@@ -3890,7 +3890,7 @@ function generateReport(){
 }
 
 // ── Ноорог гаргах — заалтын бүртгэлүүдийг догол мөр болгох (дотоод дүрэм) ──
-function draftWithAI(zaaltKey,btn){
+async function draftWithAI(zaaltKey,btn){
   const works=btn.dataset.works;
   const zaalt=btn.dataset.zaalt;
   const container=document.getElementById('ai-draft-'+zaaltKey);
@@ -3905,16 +3905,50 @@ function draftWithAI(zaaltKey,btn){
     return m?{work:m[1].trim(),result:m[2].trim()}:{work:p,result:''};
   });
 
-  const draftText=buildDraftParagraph(workList);
-
+  // ── AI ноорог (Cloudflare Workers AI) ──────────────────────
+  // Эхлээд "Бэлдэж байна..." харуулах
   container.innerHTML=`
-    <div style="background:#F8F5FC;border:1.5px solid #E5D9F0;border-radius:10px;padding:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:600;color:#7B4F9E"><i class="ti ti-file-description"></i> Тайлангийн ноорог (засаж болно)</span>
-        <button onclick="copyDraftText(this)" style="background:none;border:none;cursor:pointer;color:#7B4F9E;font-size:11px" title="Хуулах"><i class="ti ti-copy"></i> Хуулах</button>
-      </div>
-      <textarea style="width:100%;min-height:80px;border:1px solid #E5D9F0;border-radius:8px;padding:10px;font-size:13px;line-height:1.6;color:#1a2332;background:white;outline:none;resize:vertical;font-family:inherit">${escapeHtml(draftText)}</textarea>
+    <div style="background:#F8F5FC;border:1.5px solid #E5D9F0;border-radius:10px;padding:12px;text-align:center;color:#7B4F9E;font-size:13px">
+      <i class="ti ti-sparkles"></i> AI ноорог бэлдэж байна...
     </div>`;
+
+  try{
+    // Ажлуудыг prompt болгон бэлтгэх
+    const worksText=workList.map((w,i)=>`${i+1}. ${w.work}${w.result?' (үр дүн: '+w.result+')':''}`).join('\n');
+    const prompt=`Дараах ажлуудыг нэг товч, албан ёсны тайлангийн ноорог догол мөр болгон бич:\n${worksText}\n\nЗаалт: ${zaalt}`;
+
+    const res=await fetch('https://odd-breeze-d4e0.examples-code.workers.dev/api/ai',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt})
+    });
+
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    const draftText=data.result||buildDraftParagraph(workList); // AI хариу ирэхгүй бол fallback
+
+    container.innerHTML=`
+      <div style="background:#F8F5FC;border:1.5px solid #E5D9F0;border-radius:10px;padding:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:11px;font-weight:600;color:#7B4F9E"><i class="ti ti-sparkles"></i> AI ноорог (засаж болно)</span>
+          <button onclick="copyDraftText(this)" style="background:none;border:none;cursor:pointer;color:#7B4F9E;font-size:11px" title="Хуулах"><i class="ti ti-copy"></i> Хуулах</button>
+        </div>
+        <textarea style="width:100%;min-height:80px;border:1px solid #E5D9F0;border-radius:8px;padding:10px;font-size:13px;line-height:1.6;color:#1a2332;background:white;outline:none;resize:vertical;font-family:inherit">${escapeHtml(draftText)}</textarea>
+      </div>`;
+
+  }catch(err){
+    // Сүлжээ/Worker алдаанд хуурамч fallback ашиглах — апп зогсохгүй
+    console.error('[AI draft]',err);
+    const draftText=buildDraftParagraph(workList);
+    container.innerHTML=`
+      <div style="background:#F8F5FC;border:1.5px solid #E5D9F0;border-radius:10px;padding:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:11px;font-weight:600;color:#7B4F9E"><i class="ti ti-file-description"></i> Тайлангийн ноорог (засаж болно)</span>
+          <button onclick="copyDraftText(this)" style="background:none;border:none;cursor:pointer;color:#7B4F9E;font-size:11px" title="Хуулах"><i class="ti ti-copy"></i> Хуулах</button>
+        </div>
+        <textarea style="width:100%;min-height:80px;border:1px solid #E5D9F0;border-radius:8px;padding:10px;font-size:13px;line-height:1.6;color:#1a2332;background:white;outline:none;resize:vertical;font-family:inherit">${escapeHtml(draftText)}</textarea>
+      </div>`;
+  }
 }
 
 // Бүртгэлүүдийг албан ёсны догол мөр болгох — дүрэмд суурилсан
