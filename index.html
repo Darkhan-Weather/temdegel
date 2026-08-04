@@ -14,6 +14,40 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Performance">
+<!-- ═══════════ Sentry error tracking ═══════════
+     АНХААР: доорх ___ТАНЫ_PUBLIC_KEY___ -г өөрийн Sentry DSN-ээр солино уу.
+     Авах газар: Sentry → Settings → Projects → (төсөл) → SDK Setup → Loader Script.
+     Тэндээс js.sentry-cdn.com/xxxxx.min.js гэсэн бүтэн URL-г хуулж, доорх src-д тавина.
+     Session Replay ба tracing-ийг ЗОРИУД хаасан — vault/token дэлгэц бичихээс сэргийлж, үнэгүй квот хэмнэнэ. -->
+<script>
+  // sentryOnLoad-г loader script-ээс ӨМНӨ тодорхойлно (баталгаатай эхэлнэ)
+  window.sentryOnLoad = function () {
+    Sentry.init({
+      // DSN нь loader URL дотор аль хэдийн орсон тул энд бичихгүй
+      environment: (location.hostname==='localhost'||location.hostname==='127.0.0.1')?'development':'production',
+      tracesSampleRate: 0,          // performance tracing хэрэггүй
+      replaysSessionSampleRate: 0,  // session replay ХААЛТТАЙ — vault/token дэлгэц бүү бич
+      replaysOnErrorSampleRate: 0,
+      sendDefaultPii: false,        // хувийн мэдээлэл автоматаар илгээхгүй
+      // Алдааны event дотор token/vault мэдээлэл орсон бол цэвэрлэх/хасах
+      beforeSend: function(event){
+        try{
+          var s=JSON.stringify(event);
+          if(s.indexOf('Bearer ')!==-1 || s.indexOf('vault_data')!==-1 || s.indexOf('access_token')!==-1){
+            if(event.request&&event.request.headers) delete event.request.headers;
+            if(event.extra) delete event.extra;
+          }
+        }catch(e){}
+        return event;
+      }
+    });
+  };
+</script>
+<script
+  src="https://js.sentry-cdn.com/a4bb546aec5b2bc7ca03d5fe4a2de188.min.js"
+  crossorigin="anonymous"
+></script>
+<!-- ═══════════ Sentry төгсгөл ═══════════ -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.30.0/dist/tabler-icons.min.css" integrity="sha384-9pcqeAMNPuuw0/mltfCMqqVUmfHeTASX43egMosvWSN+Dh5eUCFi9Iz3yIW5sIsM" crossorigin="anonymous">
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js" integrity="sha384-4xaIisuLEy2lo2HkB2C4rEf7v8jbTb2kuogX6TkuEt9feTWKBSFSOzsqNNbV+sKh" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" integrity="sha384-OUW9euuUyxyHcAhTqbhI+Iyb8LMssXt/cpz0yXhs9UWG2/R/uaWdakx/4cfww7Vb" crossorigin="anonymous"></script>
@@ -2101,6 +2135,7 @@ async function syncToDrive(){
     }
   }catch(e){
     console.error('[Drive sync алдаа]',e);
+    if(window.Sentry)Sentry.captureException(e,{tags:{op:'syncToDrive'}}); // production-д ил гаргах
     setSyncBadge('Drive холболтгүй','#e74c3c');
     showAlert('Drive-тай холбогдож чадсангүй. Та санаа зовох хэрэггүй — өгөгдөл таны төхөөрөмж дээр (локал) хадгалагдсан хэвээр байна. Интернэт холболтоо шалгаад дахин оролдоно уу.','error');
   }
@@ -2211,6 +2246,7 @@ async function loadFromDrive(){
   }catch(e){
     hadError=true;
     console.error('[Drive] Тэмдэглэл уншихад алдаа:',e);
+    if(window.Sentry&&e.message!=='AUTH_FAILED')Sentry.captureException(e,{tags:{op:'loadFromDrive'}});
     if(e.message==='JSON_PARSE_FAILED'){
       if(confirm('Drive дээрх тэмдэглэлийн файл эвдэрсэн байна. Сүүлийн backup-аас сэргээх үү?')){
         openBackupModal();
