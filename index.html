@@ -1599,7 +1599,7 @@ function init(){
     // Хадгалсан token хугацааг сэргээх
     const savedExp=localStorage.getItem('hsti_tok_exp');
     if(savedExp)tokenExpiresAt=parseInt(savedExp);
-    showMain();setTimeout(loadFromDrive,800);
+    showMain();setTimeout(loadFromDrive,200);
   }
 }
 
@@ -2113,9 +2113,30 @@ async function loadFromDrive(){
   setSyncBadge('Уншиж байна...','#f39c12');
   let hadError=false;
 
+  // ── ГҮЙЦЭТГЭЛ: фолдер + бүх файлын ID-г НЭГ жагсаалтаар урьдчилан авах ──
+  // Өмнө нь entries/sticky/vault тус бүр findFileInFolder дуудаж 3 удаа хайдаг байв.
+  // Одоо фолдер доторх бүх файлыг нэг л удаа жагсааж, нэрээр нь тааруулна (3 → 1 round-trip).
+  let sharedFolderId=null;
+  try{
+    sharedFolderId=await getOrCreateFolder();
+    if(!driveFileId||!stickyFileId||!vaultFileId){
+      const listRes=await fetch(`https://www.googleapis.com/drive/v3/files?q='${sharedFolderId}' in parents and trashed=false&spaces=drive&fields=files(id,name)&pageSize=100`,{
+        headers:{Authorization:'Bearer '+accessToken}});
+      if(listRes.ok){
+        const data=await listRes.json();
+        const byName={};(data.files||[]).forEach(f=>{byName[f.name]=f.id;});
+        if(!driveFileId)driveFileId=byName[getFileName()]||null;
+        if(!stickyFileId)stickyFileId=byName[getStickyFileName()]||null;
+        if(!vaultFileId)vaultFileId=byName[getVaultFileName()]||null;
+      }
+    }
+  }catch(_){/* жагсаалт бүтэлгүйтвэл доорх хэсгүүд findFileInFolder-оор тус тусдаа нөхнө */}
+
+  // 3 хэсгийг ЗЭРЭГ (parallel) уншина — дараалан биш, ингэснээр татах хугацаа давхцана
+  const loadEntries=async()=>{
   // 1. Ажлын тэмдэглэл — алдаа гарвал бусдыг гацаахгүй
   try{
-    const folderId=await getOrCreateFolder();
+    const folderId=sharedFolderId||await getOrCreateFolder();
     if(!driveFileId)driveFileId=await findFileInFolder(getFileName(),folderId);
     if(driveFileId){
       const res=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
@@ -2200,10 +2221,11 @@ async function loadFromDrive(){
       showAlert('Тэмдэглэл Drive-аас уншихад алдаа гарлаа. Таны локал өгөгдөл хэвээрээ байгаа.','error');
     }
   }
-
+  };
+  const loadSticky=async()=>{
   // 2. Sticky notes + labels — тус тусдаа алдаа барина
   try{
-    const folderId=await getOrCreateFolder();
+    const folderId=sharedFolderId||await getOrCreateFolder();
     if(!stickyFileId)stickyFileId=await findFileInFolder(getStickyFileName(),folderId);
     if(stickyFileId){
       const res=await fetch(`https://www.googleapis.com/drive/v3/files/${stickyFileId}?alt=media`,{
@@ -2257,10 +2279,11 @@ async function loadFromDrive(){
     console.error('[Drive] Sticky notes уншихад алдаа:',e);
     // Sticky-ийн алдааг тийм ноцтой биш тул чимээгүй log хийгээд үргэлжлүүлнэ
   }
-
+  };
+  const loadVault=async()=>{
   // 3. Vault (шифрлэгдсэн) — тус тусдаа алдаа барина
   try{
-    const folderId=await getOrCreateFolder();
+    const folderId=sharedFolderId||await getOrCreateFolder();
     if(!vaultFileId)vaultFileId=await findFileInFolder(getVaultFileName(),folderId);
     if(vaultFileId){
       const res=await fetch(`https://www.googleapis.com/drive/v3/files/${vaultFileId}?alt=media`,{
@@ -2285,6 +2308,9 @@ async function loadFromDrive(){
     console.error('[Drive] Vault уншихад алдаа:',e);
     // Vault-ийн алдааг чимээгүй log хийнэ — учир нь нэвтрэх үед дахин оролдоно
   }
+  };
+  // Гурвыг ЗЭРЭГ ажиллуулна — нэг нь алдаа өгвөл бусад нь үргэлжилнэ (татах хугацаа давхцана)
+  await Promise.allSettled([loadEntries(),loadSticky(),loadVault()]);
 
   setSyncBadge(hadError?'Хэсэгчилсэн алдаа':'Синктэй',hadError?'#f39c12':'#0F6E56');
 }
