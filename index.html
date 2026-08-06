@@ -1644,6 +1644,12 @@ let tokenExpiresAt=0;       // Token дуусах цаг (ms)
 let silentRefreshInProgress=false;
 
 function initGSI(){
+  // GSI script (async defer) бэлэн болоогүй бол хүлээгээд дахин оролдох
+  if(typeof google==='undefined'||!google.accounts||!google.accounts.oauth2){
+    console.warn('[Auth] GSI script хараахан ачаалаагүй, 300мс дараа дахин оролдоно');
+    setTimeout(initGSI,300);
+    return;
+  }
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:CLIENT_ID,scope:SCOPES,
     callback:async(resp)=>{
@@ -5428,7 +5434,14 @@ function toggleVaultItemPw(id,pw){
   el.textContent=el.textContent==='••••••••'?pw:'••••••••';
 }
 
-window.addEventListener('load',init);
+// init-г DOMContentLoaded дээр ажиллуулна — 'load' нь бүх зураг (bg-login.jpg)
+// ачаалагдтал хүлээдэг тул login дэлгэц түр анивчдаг байв. DOMContentLoaded нь
+// HTML бэлэн болмогц ажилладаг тул token байвал login дэлгэц шууд нуугдана.
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',init);
+}else{
+  init();
+}
 
 // ── PWA: Service Worker бүртгэх (offline дэмжлэг) ──
 if('serviceWorker' in navigator){
