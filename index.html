@@ -1395,7 +1395,7 @@ function cleanupOldTombstones(){
   });
   const removed=before-entries.length;
   if(removed>0){
-    localStorage.setItem('hsti_v3',JSON.stringify(entries));
+    safeSetItem('hsti_v3',JSON.stringify(entries));
     console.log(`[Tombstone] ${removed} хуучин устгалыг бүрмөсөн цэвэрлэлээ`);
   }
   // Наалтын tombstone-г мөн адил цэвэрлэх — 90 хоногоос хуучин устгалыг хасна
@@ -1605,7 +1605,7 @@ function init(){
     return e;
   });
   if(tagsCleaned){
-    localStorage.setItem('hsti_v3',JSON.stringify(entries));
+    safeSetItem('hsti_v3',JSON.stringify(entries));
   }
   // Migration: хуучин бүртгэлүүдэд updatedAt онооx (синкийн зөрчил засварт зориулсан)
   // id нь Date.now()-оос үүссэн тул ойролцоо цаг болгож ашиглана
@@ -1619,7 +1619,7 @@ function init(){
     return e;
   });
   if(updatedAtAdded){
-    localStorage.setItem('hsti_v3',JSON.stringify(entries));
+    safeSetItem('hsti_v3',JSON.stringify(entries));
   }
   // 90 хоногоос хуучин устгалыг (tombstone) бүрмөсөн цэвэрлэх — файл багасгах
   cleanupOldTombstones();
@@ -1660,8 +1660,8 @@ function initGSI(){
       // Token дуусах цагийг хадгалах (expires_in секунд → ms)
       const expiresIn=resp.expires_in?parseInt(resp.expires_in):3600;
       tokenExpiresAt=Date.now()+expiresIn*1000;
-      localStorage.setItem('hsti_tok',accessToken);
-      localStorage.setItem('hsti_tok_exp',String(tokenExpiresAt));
+      safeSetItem('hsti_tok',accessToken);
+      safeSetItem('hsti_tok_exp',String(tokenExpiresAt));
 
       // Silent refresh байсан бол userinfo дахин татахгүй, зүгээр үргэлжлүүлнэ
       if(silentRefreshInProgress){
@@ -1952,13 +1952,13 @@ async function restoreFromBackup(fileId){
         stickyNotes=content.sticky.sticky_notes;
       }
       if(content.sticky.sticky_labels){
-        localStorage.setItem('sticky_labels_hsti',JSON.stringify(content.sticky.sticky_labels));
+        safeSetItem('sticky_labels_hsti',JSON.stringify(content.sticky.sticky_labels));
         stickyLabels=content.sticky.sticky_labels;
       }
     }
     if(content.vault){
-      if(content.vault.vault_data)localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault.vault_data));
-      if(content.vault.vault_meta)localStorage.setItem('vault_meta_hsti',JSON.stringify(content.vault.vault_meta));
+      if(content.vault.vault_data)safeSetItem('vault_data_hsti',JSON.stringify(content.vault.vault_data));
+      if(content.vault.vault_meta)safeSetItem('vault_meta_hsti',JSON.stringify(content.vault.vault_meta));
     }
     document.getElementById('total-count').textContent=entries.length;
     populateFilters();renderDashboard();
@@ -2225,7 +2225,7 @@ async function loadFromDrive(){
         // 90 хоногоос хуучин tombstone цэвэрлэх (merge дараа)
         cleanupOldTombstones();
         entries.sort((a,b)=>b.date.localeCompare(a.date));
-        localStorage.setItem('hsti_v3',JSON.stringify(entries));
+        safeSetItem('hsti_v3',JSON.stringify(entries));
         if(newCount>0)showAlert('Drive-аас '+newCount+' шинэ бүртгэл нэмэгдлээ','success');
         document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
         populateFilters();renderDashboard();
@@ -2233,13 +2233,13 @@ async function loadFromDrive(){
       // Шаблон — Drive-аас үргэлж шинэчлэх
       if(content.templates&&Array.isArray(content.templates)){
         userTemplates=content.templates;
-        localStorage.setItem('templates_hsti',JSON.stringify(userTemplates));
+        safeSetItem('templates_hsti',JSON.stringify(userTemplates));
         renderQuickAdd();
       }
       // Заалтын жагсаалт — Drive дээр байвал шинэчлэх
       if(content.zaalt_list&&Array.isArray(content.zaalt_list)&&content.zaalt_list.length>0){
         ZAALT_LIST=content.zaalt_list;
-        localStorage.setItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST));
+        safeSetItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST));
         rebuildZaaltSelect();
       }
     }
@@ -2289,7 +2289,7 @@ async function loadFromDrive(){
         });
         if(changed){
           const merged=Object.values(byId);
-          localStorage.setItem('sticky_notes_hsti',JSON.stringify(merged));
+          safeSetItem('sticky_notes_hsti',JSON.stringify(merged));
           stickyNotes=merged;
           if(document.getElementById('tab-sticky')?.classList.contains('active'))renderStickyNotes();
         }
@@ -2301,8 +2301,8 @@ async function loadFromDrive(){
         const driveTs=content.labels_updated||0;
         const localTs=parseInt(localStorage.getItem('sticky_labels_ts')||'0');
         if(driveTs>=localTs){
-          localStorage.setItem('sticky_labels_hsti',JSON.stringify(content.sticky_labels));
-          localStorage.setItem('sticky_labels_ts',String(driveTs));
+          safeSetItem('sticky_labels_hsti',JSON.stringify(content.sticky_labels));
+          safeSetItem('sticky_labels_ts',String(driveTs));
           stickyLabels=content.sticky_labels;
           if(document.getElementById('tab-sticky')?.classList.contains('active')){
             renderLabelFilters();renderStickyNotes();
@@ -2349,6 +2349,29 @@ async function loadFromDrive(){
   await Promise.allSettled([loadEntries(),loadSticky(),loadVault()]);
 
   setSyncBadge(hadError?'Хэсэгчилсэн алдаа':'Синктэй',hadError?'#f39c12':'#0F6E56');
+}
+
+// ── safeSetItem — localStorage quota хамгаалалт ─────────────
+// localStorage 5MB хязгаарт хүрэхэд QuotaExceededError шидэгддэг.
+// Энэ wrapper: алдааг барьж, хэрэглэгчид toast мэдэгдэл өгнө.
+// Бүх localStorage.setItem дуудалт энээр дамжина.
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch(e) {
+    if(e.name==='QuotaExceededError'||e.name==='NS_ERROR_DOM_QUOTA_REACHED'||e.code===22){
+      console.error('[localStorage] Quota хэтэрсэн:', key, e);
+      // Хэрэглэгчид мэдэгдэл өгөх — зөвхөн чухал өгөгдөлд
+      const critical=['hsti_v3','vault_data_hsti','vault_meta_hsti'];
+      if(critical.some(k=>key.startsWith(k))){
+        showAlert('Төхөөрөмжийн хадгалах зай дүүрч байна. Хуучин бүртгэлүүдийг архивлаж, зарим файлыг устгана уу.','error');
+      } else {
+        showAlert('Хадгалах зай дүүрч байна ('+key+'). Drive-аас дахин ачаалах боломжтой.','error');
+      }
+    } else {
+      console.error('[localStorage] setItem алдаа:', key, e);
+    }
+  }
 }
 
 function setSyncBadge(txt,color){
@@ -2692,7 +2715,7 @@ function saveEntry(){
     updatedAt:Date.now()};
   if(editingId){entries=entries.map(e=>e.id==editingId?entry:e);editingId=null;}
   else entries.push(entry);
-  localStorage.setItem('hsti_v3',JSON.stringify(entries));
+  safeSetItem('hsti_v3',JSON.stringify(entries));
   document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
   clearForm();populateFilters();
   clearDraft();
@@ -2733,7 +2756,7 @@ function deleteEntry(id){
     e.deleted=true;
     e.updatedAt=Date.now();
   }
-  localStorage.setItem('hsti_v3',JSON.stringify(entries));
+  safeSetItem('hsti_v3',JSON.stringify(entries));
   document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
   if(accessToken)syncToDrive();
   renderList();populateFilters();
@@ -2757,7 +2780,7 @@ function importJSON(input){
       }
       entries=[...entries,...newEntries];
       entries.sort((a,b)=>b.date.localeCompare(a.date));
-      localStorage.setItem('hsti_v3',JSON.stringify(entries));
+      safeSetItem('hsti_v3',JSON.stringify(entries));
       document.getElementById('total-count').textContent=entries.length;
       document.getElementById('import-status').textContent=`✓ ${newEntries.length} бүртгэл нэмэгдлээ`;
       renderDashboard();populateFilters();
@@ -2843,7 +2866,7 @@ async function confirmClearAll(){
 
   // 3. Устгах
   entries=[];driveFileId=null;
-  localStorage.setItem('hsti_v3',JSON.stringify(entries));
+  safeSetItem('hsti_v3',JSON.stringify(entries));
   document.getElementById('total-count').textContent=0;
   renderList();populateFilters();renderDashboard();
 
@@ -3328,7 +3351,7 @@ function quickAddFromTemplate(id){
     updatedAt:Date.now()
   };
   entries.push(entry);
-  localStorage.setItem('hsti_v3',JSON.stringify(entries));
+  safeSetItem('hsti_v3',JSON.stringify(entries));
   document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
   populateFilters();
   renderDashboard();
@@ -4815,7 +4838,7 @@ const THEMES=['brown','blue','green','ocean','sky','violet','dark'];
 function setTheme(theme){
   THEMES.forEach(t=>document.body.classList.remove('theme-'+t));
   document.body.classList.add('theme-'+theme);
-  localStorage.setItem('app_theme_hsti',theme);
+  safeSetItem('app_theme_hsti',theme);
   document.querySelectorAll('.theme-option').forEach(el=>{
     el.classList.toggle('active',el.dataset.theme===theme);
   });
@@ -5106,8 +5129,8 @@ async function vaultUnlock(){
     vaultKey=await deriveKey(pw,salt);
     // Шалгах утга хадгалах
     const check=await encryptData(vaultKey,{check:'ok'});
-    localStorage.setItem('vault_meta_hsti',JSON.stringify({salt:Array.from(salt),check}));
-    localStorage.setItem('vault_data_hsti',JSON.stringify(await encryptData(vaultKey,[])));
+    safeSetItem('vault_meta_hsti',JSON.stringify({salt:Array.from(salt),check}));
+    safeSetItem('vault_data_hsti',JSON.stringify(await encryptData(vaultKey,[])));
     vaultItems=[];
     showAlert('Master нууц үг тохирогдлоо. Битгий мартаарай!','success');
   } else {
@@ -5166,7 +5189,7 @@ function vaultLock(){
 async function vaultSaveData(){
   if(!vaultKey)return;
   const enc=await encryptData(vaultKey,vaultItems);
-  localStorage.setItem('vault_data_hsti',JSON.stringify(enc));
+  safeSetItem('vault_data_hsti',JSON.stringify(enc));
   // Drive-д автоматаар хадгалах
   if(accessToken)syncToDrive();
 }
