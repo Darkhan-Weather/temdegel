@@ -1816,9 +1816,17 @@ function clearFileIdCache(){
   try{localStorage.removeItem(FILE_ID_CACHE_KEY);}catch(_){}
 }
 
+// ── Drive query injection хамгаалалт ────────────────────────
+// Drive API-ийн q= параметрт апостроф (') орвол query эвдэрнэ.
+// encodeURIComponent нь URL-д зориулсан, Drive query синтакс биш.
+// Жишээ: name='test'sfile' → query эвдэрнэ → driveEsc-ээр: name='test\'sfile'
+function driveEsc(str){
+  return String(str).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+
 async function getOrCreateFolder(){
   if(driveFolderId)return driveFolderId;
-  const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(FOLDER_NAME)}' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive`,{
+  const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${driveEsc(FOLDER_NAME)}' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive`,{
     headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
   if(res.files&&res.files.length>0){
     driveFolderId=res.files[0].id;
@@ -1850,7 +1858,7 @@ async function getOrCreateBackupFolder(parentFolderId){
 }
 
 async function findFileInFolder(fileName,folderId){
-  const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(fileName)}' and '${folderId}' in parents and trashed=false&spaces=drive`,{
+  const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${driveEsc(fileName)}' and '${driveEsc(folderId)}' in parents and trashed=false&spaces=drive`,{
     headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
   return res.files&&res.files.length>0?res.files[0].id:null;
 }
@@ -5447,9 +5455,37 @@ if(document.readyState==='loading'){
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('sw.js')
-      .then(reg=>console.log('[PWA] Service Worker бүртгэгдлээ:',reg.scope))
+      .then(reg=>{
+        console.log('[PWA] Service Worker бүртгэгдлээ:',reg.scope);
+        // Шинэ SW суулгагдаж байгаа эсэхийг ажиглах
+        reg.addEventListener('updatefound',()=>{
+          const newSW=reg.installing;
+          if(!newSW)return;
+          newSW.addEventListener('statechange',()=>{
+            // Шинэ SW ажиллахад бэлэн болсон + хуучин SW идэвхтэй байвал banner харуулах
+            if(newSW.state==='installed'&&navigator.serviceWorker.controller){
+              showSWUpdateBanner();
+            }
+          });
+        });
+      })
       .catch(err=>console.warn('[PWA] Service Worker бүртгэл амжилтгүй:',err));
   });
+}
+
+function showSWUpdateBanner(){
+  // Аль хэдийн banner байвал давхарлахгүй
+  if(document.getElementById('sw-update-banner'))return;
+  const banner=document.createElement('div');
+  banner.id='sw-update-banner';
+  banner.style.cssText='position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1a2332;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:9999;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,0.3)';
+  banner.innerHTML=`
+    <i class="ti ti-refresh" style="color:#4CAF50;font-size:16px"></i>
+    <span>Шинэ хувилбар бэлэн болсон</span>
+    <button onclick="location.reload()" style="background:#4CAF50;color:#fff;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;font-weight:600">Шинэчлэх</button>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:16px;padding:0 2px">×</button>
+  `;
+  document.body.appendChild(banner);
 }
 </script>
 </body>
