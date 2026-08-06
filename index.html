@@ -5414,10 +5414,36 @@ function copyVaultField(text){
 }
 function getInitial(name){return name?name[0].toUpperCase():'?';}
 
+// ── Vault grid event delegation ──────────────────────────────
+// Өмнө нь: onclick="copyVaultField('${pw.replace(/'/g,"\\'")}'"
+// Асуудал: \ агуулсан нууц үг, HTML тусгай тэмдэгт → onclick attribute эвдэрдэг.
+// Шийдэл: утгыг data-* attribute-д escapeHtml-ээр аюулгүй тавьж,
+// vault-grid-ийн нэг click listener-ээр барина (event delegation).
+function initVaultDelegation(){
+  const grid=document.getElementById('vault-grid');
+  if(!grid||grid._vaultDelegated)return;
+  grid._vaultDelegated=true;
+  grid.addEventListener('click',function(e){
+    const btn=e.target.closest('[data-vault-action]');
+    if(!btn)return;
+    const action=btn.dataset.vaultAction;
+    const val=btn.dataset.vaultVal||'';
+    const id=btn.dataset.vaultId||'';
+    if(action==='copy'){
+      navigator.clipboard.writeText(val).then(()=>showAlert('Хуулагдлаа!','success'));
+    } else if(action==='toggle-pw'){
+      const el=document.getElementById('vpw-'+id);
+      if(!el)return;
+      el.textContent=el.textContent==='••••••••'?val:'••••••••';
+    }
+  });
+}
+
 function renderVault(){
   const q=(document.getElementById('vault-search')?.value||'').toLowerCase();
   const grid=document.getElementById('vault-grid');
   if(!grid)return;
+  initVaultDelegation(); // delegation нэг удаа тохируулна
   const filtered=vaultItems.filter(i=>
     i.name.toLowerCase().includes(q)||
     (i.url||'').toLowerCase().includes(q)||
@@ -5435,8 +5461,8 @@ function renderVault(){
       <div class="vault-card-top">
         <div class="vault-favicon">${getInitial(item.name)}</div>
         <div style="flex:1;min-width:0">
-          <div class="vault-name">${item.name}</div>
-          ${item.url?`<div class="vault-url"><a href="${item.url}" target="_blank" style="color:#8a97a8;text-decoration:none">${item.url}</a></div>`:''}
+          <div class="vault-name">${escapeHtml(item.name)}</div>
+          ${item.url?`<div class="vault-url"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" style="color:#8a97a8;text-decoration:none">${escapeHtml(item.url)}</a></div>`:''}
         </div>
         <div style="display:flex;gap:4px">
           <button onclick="editVault('${item.id}')" style="background:none;border:none;cursor:pointer;color:#e8edf3;font-size:14px" title="Засах"><i class="ti ti-edit"></i></button>
@@ -5445,23 +5471,34 @@ function renderVault(){
       </div>
       ${item.user?`<div class="vault-field">
         <span class="vault-field-label">Нэвтрэх нэр</span>
-        <span class="vault-field-val">${item.user}</span>
-        <button class="vault-copy-btn" onclick="copyVaultField('${item.user.replace(/'/g,"\\'")}')"><i class="ti ti-copy"></i></button>
+        <span class="vault-field-val">${escapeHtml(item.user)}</span>
+        <button class="vault-copy-btn"
+          data-vault-action="copy"
+          data-vault-val="${escapeHtml(item.user)}"
+          title="Хуулах"><i class="ti ti-copy"></i></button>
       </div>`:''}
       ${item.pw?`<div class="vault-field">
         <span class="vault-field-label">Нууц үг</span>
         <span class="vault-field-val vault-pw" id="vpw-${item.id}">••••••••</span>
-        <button class="vault-copy-btn" onclick="copyVaultField('${item.pw.replace(/'/g,"\\'")}')"><i class="ti ti-copy"></i></button>
-        <button class="vault-copy-btn" onclick="toggleVaultItemPw('${item.id}','${item.pw.replace(/'/g,"\\'")}')"><i class="ti ti-eye"></i></button>
+        <button class="vault-copy-btn"
+          data-vault-action="copy"
+          data-vault-val="${escapeHtml(item.pw)}"
+          title="Хуулах"><i class="ti ti-copy"></i></button>
+        <button class="vault-copy-btn"
+          data-vault-action="toggle-pw"
+          data-vault-id="${item.id}"
+          data-vault-val="${escapeHtml(item.pw)}"
+          title="Харах"><i class="ti ti-eye"></i></button>
       </div>`:''}
       ${item.note?`<div class="vault-field">
         <span class="vault-field-label">Тэмдэглэл</span>
-        <span class="vault-field-val" style="color:#8a97a8">${item.note}</span>
+        <span class="vault-field-val" style="color:#8a97a8">${escapeHtml(item.note)}</span>
       </div>`:''}
-      <div style="font-size:10px;color:#c9d4e0;margin-top:8px;text-align:right">${item.date}</div>
+      <div style="font-size:10px;color:#c9d4e0;margin-top:8px;text-align:right">${escapeHtml(item.date||'')}</div>
     </div>`).join('');
 }
 function toggleVaultItemPw(id,pw){
+  // Хуучин функц — data-delegation руу шилжсэн тул энийг устгаагүй (backward compat)
   const el=document.getElementById('vpw-'+id);
   if(!el)return;
   el.textContent=el.textContent==='••••••••'?pw:'••••••••';
