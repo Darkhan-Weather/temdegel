@@ -945,7 +945,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
           <div class="cal-add-form" id="cal-add-form" style="display:none">
             <div class="cal-add-title"><i class="ti ti-plus"></i> Шинэ үйл явдал нэмэх</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-              <div><label>Гарчиг <span class="req">*</span></label><input id="cal-new-title" placeholder="Event-ийн нэр"></div>
+              <div><label>Гарчиг <span class="req">*</span></label><input id="cal-new-title" placeholder="Event-ийн нэр"><div id="err-cal-title" class="field-error" style="display:none"><i class="ti ti-alert-circle"></i> Гарчиг заавал бичнэ үү</div></div>
               <div><label>Цаг</label><input id="cal-new-time" type="time" value="09:00"></div>
             </div>
             <div style="margin-bottom:10px"><label>Байршил</label><input id="cal-new-location" placeholder="Хаана болох вэ?"></div>
@@ -1077,7 +1077,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
           <div id="vault-add-form" class="vault-add-form" style="display:none;margin-bottom:10px">
             <div class="vault-add-title"><i class="ti ti-plus"></i> Шинэ бүртгэл нэмэх</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-              <div><label>Нэр <span class="req">*</span></label><input id="v-name" placeholder="Gmail, Work VPN..."></div>
+              <div><label>Нэр <span class="req">*</span></label><input id="v-name" placeholder="Gmail, Work VPN..."><div id="err-v-name" class="field-error" style="display:none"><i class="ti ti-alert-circle"></i> Нэрийг заавал бичнэ үү</div></div>
               <div><label>URL</label><input id="v-url" placeholder="https://..."></div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
@@ -1200,12 +1200,12 @@ details[open] summary .chevron{transform:rotate(90deg)}
           <!-- Шаблон нэмэх форм -->
           <div id="template-form" style="display:none;background:#f8fafc;border-radius:10px;border:1.5px dashed #c9d4e0;padding:14px;margin-bottom:12px">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-              <div><label>Шаблоны нэр (товч дээр харагдана)</label><input id="tpl-name" placeholder="Ээлж хүлээлцэх"></div>
+              <div><label>Шаблоны нэр (товч дээр харагдана)</label><input id="tpl-name" placeholder="Ээлж хүлээлцэх"><div id="err-tpl-name" class="field-error" style="display:none"><i class="ti ti-alert-circle"></i> Шаблоны нэрийг бичнэ үү</div></div>
               <div><label>Заалт</label>
                 <select id="tpl-zaalt"><option value="">-- Сонгох --</option></select>
               </div>
             </div>
-            <div style="margin-bottom:10px"><label>Хийсэн ажил (текст)</label><input id="tpl-work" placeholder="Ээлж хүлээлцэж, мэдээлэл солилцох"></div>
+            <div style="margin-bottom:10px"><label>Хийсэн ажил (текст)</label><input id="tpl-work" placeholder="Ээлж хүлээлцэж, мэдээлэл солилцох"><div id="err-tpl-work" class="field-error" style="display:none"><i class="ti ti-alert-circle"></i> Хийсэн ажлыг бичнэ үү</div></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
               <div><label>Үр дүн</label><input id="tpl-result" placeholder="Хийгдсэн"></div>
               <div><label>Эрэмбэ</label>
@@ -2649,6 +2649,22 @@ function renderDashboard(){
 // FORM FUNCTIONS
 function clearFieldErrors(){['err-zaalt','err-result','err-work'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});}
 
+// ── Inline форм алдаа туслах ──────────────────────────────────
+// showAlert (toast) нь 3 сек дараа алга болдог — аль талбар буруу болохыг тодорхой харуулахгүй.
+// formErr нь талбарын доор тогтмол алдаа мөр харуулна, clearFormErr нуудаг.
+function formErr(id,msg){
+  let el=document.getElementById(id);
+  if(!el)return;
+  el.textContent=msg||el.dataset.msg||'';
+  el.style.display='flex';
+  // Анх удаа харагдахад талбар руу scroll хийх
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function clearFormErr(id){
+  const el=document.getElementById(id);
+  if(el)el.style.display='none';
+}
+
 // ── DRAFT (форм сэргээх) ──────────────────────────────────
 const DRAFT_KEY='hsti_draft_v1';
 let draftSaveTimer=null;
@@ -3345,7 +3361,11 @@ function openTemplateForm(){
 function saveTemplate(){
   const name=document.getElementById('tpl-name').value.trim();
   const work=document.getElementById('tpl-work').value.trim();
-  if(!name||!work){showAlert('Шаблоны нэр болон хийсэн ажлыг бөглөнө үү','error');return;}
+  clearFormErr('err-tpl-name');clearFormErr('err-tpl-work');
+  let err=false;
+  if(!name){formErr('err-tpl-name','Шаблоны нэрийг бичнэ үү');err=true;}
+  if(!work){formErr('err-tpl-work','Хийсэн ажлыг бичнэ үү');err=true;}
+  if(err)return;
   userTemplates.push({
     id:genId(),
     name,
@@ -4863,9 +4883,12 @@ function renderDayEvents(ds){
 
 async function calAddEvent(){
   const title=document.getElementById('cal-new-title').value.trim();
-  if(!title){showAlert('Гарчиг оруулна уу','error');return;}
-  if(!calSelectedDate){showAlert('Өдөр сонгоно уу','error');return;}
-  if(!accessToken){showAlert('Нэвтэрнэ үү','error');return;}
+  clearFormErr('err-cal-title');
+  let err=false;
+  if(!title){formErr('err-cal-title','Гарчиг заавал бичнэ үү');err=true;}
+  if(!calSelectedDate){showAlert('Хуанлийн нүдэн дэх өдрийг сонгоно уу','error');err=true;}
+  if(!accessToken){showAlert('Нэвтэрнэ үү','error');err=true;}
+  if(err)return;
   const time=document.getElementById('cal-new-time').value||'09:00';
   const loc=document.getElementById('cal-new-location').value.trim();
   const desc=document.getElementById('cal-new-desc').value.trim();
@@ -5277,6 +5300,7 @@ function toggleVaultForm(){
     document.getElementById('v-user').value='';
     document.getElementById('v-pw').value='';
     document.getElementById('v-note').value='';
+    clearFormErr('err-v-name');
     document.getElementById('v-name').focus();
   } else {
     editingVaultId=null; // Форм хаагдахад засах төлөв цэвэрлэх
@@ -5286,7 +5310,8 @@ let editingVaultId=null; // Засаж байгаа Vault бичлэгийн id 
 
 async function vaultSave(){
   const name=document.getElementById('v-name').value.trim();
-  if(!name){showAlert('Нэр оруулна уу','error');return;}
+  clearFormErr('err-v-name');
+  if(!name){formErr('err-v-name','Нэрийг заавал бичнэ үү');return;}
   const data={
     name,
     url:document.getElementById('v-url').value.trim(),
