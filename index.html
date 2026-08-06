@@ -1750,6 +1750,7 @@ function signOut(){
   vaultKey=null;vaultItems=[];
   localStorage.removeItem('hsti_tok');localStorage.removeItem('hsti_usr');
   localStorage.removeItem('hsti_tok_exp');
+  clearFileIdCache(); // өөр акаунтаар нэвтрэхэд хуучин ID ашиглахгүй
   if(tokenRefreshTimer)clearInterval(tokenRefreshTimer);
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('main-app').style.display='none';
@@ -1782,6 +1783,33 @@ function showMain(){
 // ═══════════════════════════════════════════════════════════
 //  DRIVE SYNC — Google Drive синк, backup
 // ═══════════════════════════════════════════════════════════
+// ── Drive файлын ID кэш ─────────────────────────────────────
+// Фолдер болон файлуудын ID нэг удаа үүсгэсний дараа тогтмол байдаг.
+// localStorage-д кэшилснээр апп нээх болгонд Drive хайлт хийхгүй, шууд татна.
+// (2 round-trip хэмнэнэ → ~500-800мс хурдасна)
+const FILE_ID_CACHE_KEY='hsti_file_ids';
+
+function readFileIdCache(){
+  try{
+    const raw=localStorage.getItem(FILE_ID_CACHE_KEY);
+    return raw?JSON.parse(raw):null;
+  }catch(_){return null;}
+}
+
+function writeFileIdCache(){
+  // Одоогийн мэдэгдэж буй бүх ID-г хадгална
+  safeSetItem(FILE_ID_CACHE_KEY,JSON.stringify({
+    folder:driveFolderId||null,
+    entries:driveFileId||null,
+    sticky:stickyFileId||null,
+    vault:vaultFileId||null
+  }));
+}
+
+function clearFileIdCache(){
+  try{localStorage.removeItem(FILE_ID_CACHE_KEY);}catch(_){}
+}
+
 async function getOrCreateFolder(){
   if(driveFolderId)return driveFolderId;
   const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(FOLDER_NAME)}' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive`,{
@@ -1851,6 +1879,8 @@ async function uploadToFile(fileName,fileId,folderId,payload){
   if(!writeRes.ok){
     throw new Error(`Drive-д бичиж чадсангүй (${fileName}): HTTP ${writeRes.status}`);
   }
+  // Шинэ файл үүссэн бол ID-г кэшлэх (дараагийн ачаалалд хайлт алгасна)
+  if(!fileId&&typeof writeFileIdCache==='function')writeFileIdCache();
   return fid;
 }
 
@@ -2148,12 +2178,25 @@ async function loadFromDrive(){
   setSyncBadge('Уншиж байна...','#f39c12');
   let hadError=false;
 
-  // ── ГҮЙЦЭТГЭЛ: фолдер + бүх файлын ID-г НЭГ жагсаалтаар урьдчилан авах ──
-  // Өмнө нь entries/sticky/vault тус бүр findFileInFolder дуудаж 3 удаа хайдаг байв.
-  // Одоо фолдер доторх бүх файлыг нэг л удаа жагсааж, нэрээр нь тааруулна (3 → 1 round-trip).
+  // ── ГҮЙЦЭТГЭЛ: файлын ID-г кэшээс авах, эсвэл НЭГ жагсаалтаар олох ──
+  // Кэш байвал: фолдер+жагсаалт хайлтыг АЛГАСаж, шууд татах руу орно (2 round-trip хэмнэнэ).
+  // Кэш байхгүй/дутуу бол: нэг жагсаалтаар бүх ID-г олж, кэшлэнэ.
   let sharedFolderId=null;
+
+  // 1. Эхлээд кэшнээс уншина
+  const cache=readFileIdCache();
+  if(cache){
+    if(cache.folder)driveFolderId=driveFolderId||cache.folder;
+    if(!driveFileId&&cache.entries)driveFileId=cache.entries;
+    if(!stickyFileId&&cache.sticky)stickyFileId=cache.sticky;
+    if(!vaultFileId&&cache.vault)vaultFileId=cache.vault;
+    sharedFolderId=driveFolderId;
+  }
+
+  // 2. Кэш дутуу бол Drive-аас нэг жагсаалтаар нөхнө
   try{
-    sharedFolderId=await getOrCreateFolder();
+    if(!sharedFolderId)sharedFolderId=await getOrCreateFolder();
+    // entries/sticky/vault аль нэг нь кэшгүй бол л жагсаалт хийнэ
     if(!driveFileId||!stickyFileId||!vaultFileId){
       const listRes=await fetch(`https://www.googleapis.com/drive/v3/files?q='${sharedFolderId}' in parents and trashed=false&spaces=drive&fields=files(id,name)&pageSize=100`,{
         headers:{Authorization:'Bearer '+accessToken}});
@@ -2164,6 +2207,7 @@ async function loadFromDrive(){
         if(!stickyFileId)stickyFileId=byName[getStickyFileName()]||null;
         if(!vaultFileId)vaultFileId=byName[getVaultFileName()]||null;
       }
+      writeFileIdCache(); // шинэ ID-г кэшлэх
     }
   }catch(_){/* жагсаалт бүтэлгүйтвэл доорх хэсгүүд findFileInFolder-оор тус тусдаа нөхнө */}
 
@@ -2174,8 +2218,21 @@ async function loadFromDrive(){
     const folderId=sharedFolderId||await getOrCreateFolder();
     if(!driveFileId)driveFileId=await findFileInFolder(getFileName(),folderId);
     if(driveFileId){
-      const res=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
+      let res=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
         headers:{Authorization:'Bearer '+accessToken}});
+      // ── 404 fallback: кэшийн ID хуучирсан (файл устгагдсан) → дахин хайх ──
+      if(res.status===404){
+        console.warn('[Drive] entries файлын ID хуучирсан, дахин хайж байна');
+        clearFileIdCache();
+        driveFileId=await findFileInFolder(getFileName(),folderId);
+        if(driveFileId){
+          res=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
+            headers:{Authorization:'Bearer '+accessToken}});
+          writeFileIdCache();
+        }
+      }
+      if(!driveFileId){/* файл байхгүй болсон — доор content.entries шалгагдана */}
+      else{
       // ── res.ok шалгалт ──────────────────────────────────
       // 401/403 үед Google алдааны JSON буцаадаг. Урьд нь энэ JSON задарч,
       // content.entries undefined болоод чимээгүй \"хоосон Drive\" гэж ойлгож,
@@ -2242,6 +2299,7 @@ async function loadFromDrive(){
         safeSetItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST));
         rebuildZaaltSelect();
       }
+      } // else{ (404 fallback) төгсгөл
     }
   }catch(e){
     hadError=true;
@@ -2867,6 +2925,7 @@ async function confirmClearAll(){
   // 3. Устгах
   entries=[];driveFileId=null;
   safeSetItem('hsti_v3',JSON.stringify(entries));
+  writeFileIdCache(); // driveFileId=null болсныг кэшид тусгах — дараагийн ачаалалд дахин олно
   document.getElementById('total-count').textContent=0;
   renderList();populateFilters();renderDashboard();
 
