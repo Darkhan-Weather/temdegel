@@ -4351,11 +4351,12 @@ function copyReport(){
 function showAlert(msg,type){
   const a=document.getElementById('alert-area');
   if(!a){
-    // alert-area байхгүй үед (жишээ нь login screen дээр) console-д л бичих
     if(type==='error')console.error('[Alert]',msg);
     return;
   }
-  a.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;
+  // msg-г escape хийнэ — хэрэглэгчийн текст (template нэр гэх мэт) innerHTML-д орж болзошгүй
+  const safe=typeof escapeHtml==='function'?escapeHtml(String(msg)):String(msg).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  a.innerHTML=`<div class="alert alert-${type}">${safe}</div>`;
   setTimeout(()=>{if(a)a.innerHTML='';},3000);
 }
 
