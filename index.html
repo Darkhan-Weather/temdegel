@@ -1633,7 +1633,15 @@ function init(){
     // Хадгалсан token хугацааг сэргээх
     const savedExp=localStorage.getItem('hsti_tok_exp');
     if(savedExp)tokenExpiresAt=parseInt(savedExp);
-    showMain();setTimeout(loadFromDrive,200);
+    showMain();
+    initGSI(); // GSI-г урьдчилан бэлдэх — дараа товч дарахад шууд ажиллана
+    if(isTokenExpired()){
+      // Хугацаа дууссан token-оор Drive руу хандвал 401 алдаа л гарна.
+      // Локал өгөгдлөөр ажиллуулж, "Холболт сэргээх" banner харуулна.
+      showReauthBanner();
+    }else{
+      setTimeout(loadFromDrive,200);
+    }
   }
 }
 
@@ -1642,110 +1650,210 @@ function init(){
 // ═══════════════════════════════════════════════════════════
 let tokenExpiresAt=0;       // Token дуусах цаг (ms)
 let silentRefreshInProgress=false;
+let refreshWaiters=[];      // silentRefresh-ийн хүлээж буй Promise-ууд
+let reauthArmed=false;      // Дараагийн дарлтаар token сэргээх listener суусан эсэх
+
+// ── Google акаунтын hint ─────────────────────────────────────
+// SCOPES-д 'email' байхгүй тул userinfo нь email буцаадаггүй — зөвхөн 'sub' (Google ID).
+// Google OAuth нь hint-д email эсвэл sub хоёуланг хүлээн авдаг. Hint хоосон байвал
+// браузерт олон Google акаунт нэвтэрсэн үед "Акаунт сонгох" цонх ГАРДАГ байсан.
+function getAccountHint(){
+  try{
+    const u=currentUser||JSON.parse(localStorage.getItem('hsti_usr')||'{}');
+    return u.email||u.sub||'';
+  }catch(_){return '';}
+}
 
 function initGSI(){
   // GSI script (async defer) бэлэн болоогүй бол хүлээгээд дахин оролдох
   if(typeof google==='undefined'||!google.accounts||!google.accounts.oauth2){
-    console.warn('[Auth] GSI script хараахан ачаалаагүй, 300мс дараа дахин оролдоно');
     setTimeout(initGSI,300);
     return;
   }
+  if(tokenClient)return;
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:CLIENT_ID,scope:SCOPES,
     callback:async(resp)=>{
       if(resp.error){
-        // Silent refresh амжилтгүй бол чимээгүй өнгөрөх (popup-гүй үед)
         if(silentRefreshInProgress){
-          silentRefreshInProgress=false;
-          console.error('[Auth] Silent refresh амжилтгүй:',resp.error);
+          console.warn('[Auth] Token сэргээх амжилтгүй:',resp.error);
+          finishRefresh(false);
           return;
         }
         alert('Нэвтрэх алдаа: '+resp.error);return;
       }
       accessToken=resp.access_token;
-      // Token дуусах цагийг хадгалах (expires_in секунд → ms)
       const expiresIn=resp.expires_in?parseInt(resp.expires_in):3600;
       tokenExpiresAt=Date.now()+expiresIn*1000;
       safeSetItem('hsti_tok',accessToken);
       safeSetItem('hsti_tok_exp',String(tokenExpiresAt));
 
-      // Silent refresh байсан бол userinfo дахин татахгүй, зүгээр үргэлжлүүлнэ
+      // Token сэргээлт байсан бол userinfo дахин татахгүй
       if(silentRefreshInProgress){
-        silentRefreshInProgress=false;
-        setSyncBadge('Синктэй','#0F6E56');
+        finishRefresh(true);
         return;
       }
-      try{const info=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
-        currentUser=info;localStorage.setItem('hsti_usr',JSON.stringify(info));}
-      catch(e){currentUser={name:'Хэрэглэгч'}}
+      try{
+        const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}});
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        const info=await r.json();
+        currentUser=info;safeSetItem('hsti_usr',JSON.stringify(info));
+      }catch(e){currentUser=currentUser||{name:'Хэрэглэгч'};}
+      hideReauthBanner();
       showMain();await loadFromDrive();
+    },
+    // ── ШИНЭ: popup нээгдэж чадаагүй / хаагдсан үед Google энийг дууддаг ──
+    // Урьд нь байхгүй байсан тул popup хаагдахад 10 сек хүлээгээд л бууж өгдөг байв.
+    error_callback:(err)=>{
+      console.warn('[Auth] GIS error_callback:',err&&err.type);
+      if(silentRefreshInProgress)finishRefresh(false);
     }
   });
 }
 
-// Token дуусах дөхсөн эсэхийг шалгах (1 минутын нөөцтэйгээр)
-function isTokenExpiringSoon(){
+// GSI бэлэн болтол хүлээх (хамгийн ихдээ 5 сек)
+function waitForGSI(){
+  return new Promise(resolve=>{
+    const t0=Date.now();
+    (function check(){
+      initGSI();
+      if(tokenClient)return resolve(true);
+      if(Date.now()-t0>5000)return resolve(false);
+      setTimeout(check,150);
+    })();
+  });
+}
+
+// Token дуусах дөхсөн эсэхийг шалгах (marginMs нөөцтэйгээр)
+function isTokenExpiringSoon(marginMs){
   if(!tokenExpiresAt){
-    // Хадгалсан хугацаа байвал уншиж авах
     const saved=localStorage.getItem('hsti_tok_exp');
     if(saved)tokenExpiresAt=parseInt(saved);
   }
-  if(!tokenExpiresAt)return true; // Мэдэгдэхгүй бол дуусна гэж үзэх
-  return Date.now()>tokenExpiresAt-60000; // 1 минут өмнө
+  if(!tokenExpiresAt)return true;
+  return Date.now()>tokenExpiresAt-(marginMs==null?60000:marginMs);
+}
+function isTokenExpired(){return isTokenExpiringSoon(0);}
+
+// Хэрэглэгчийн үйлдэл (click/keydown) идэвхтэй эсэх — popup зөвхөн энэ үед нээгдэнэ
+function hasUserActivation(){
+  const ua=navigator.userActivation;
+  return ua?ua.isActive:false;
 }
 
-// Чимээгүй (popup-гүй) token шинэчлэх
-// prompt:'' → Google-д аль хэдийн нэвтэрсэн бол popup гарахгүй
+function finishRefresh(ok){
+  silentRefreshInProgress=false;
+  const ws=refreshWaiters;refreshWaiters=[];
+  ws.forEach(fn=>fn(ok));
+  if(ok){
+    hideReauthBanner();
+    setSyncBadge('Синктэй','#0F6E56');
+  }else if(isTokenExpired()){
+    showReauthBanner();
+  }
+}
+
+// ── Token сэргээх ────────────────────────────────────────────
+// АНХААР: Google-ийн token client нь POPUP цонх ашигладаг. Браузер нь хэрэглэгч
+// товч дараагүй үед (timer, хуудас ачаалах г.м.) popup-ыг ХААДАГ. Тиймээс:
+//   • Хэрэглэгчийн үйлдлийн дотор → шууд сэргээнэ (popup 1 сек анивчаад хаагдана)
+//   • Үйлдэлгүй үед → popup оролдохгүй, оронд нь "Холболт сэргээх" товчтой banner харуулна
 function silentRefresh(){
-  return new Promise((resolve)=>{
-    if(!tokenClient){initGSI();}
-    if(!tokenClient){resolve(false);return;}
+  return new Promise(async(resolve)=>{
+    if(!hasUserActivation()){
+      if(isTokenExpired())showReauthBanner();
+      else armReauthOnNextInteraction();
+      resolve(false);return;
+    }
+    refreshWaiters.push(resolve);
+    if(silentRefreshInProgress)return; // аль хэдийн явагдаж байна — үр дүнг хүлээнэ
+    if(!tokenClient){
+      // GSI бэлэн биш бол user activation алдагдахаас өмнө амжихгүй — banner-аар дахин оролдуулна
+      initGSI();
+      if(!tokenClient){finishRefresh(false);return;}
+    }
     silentRefreshInProgress=true;
     setSyncBadge('Холболт сэргээж байна...','#f39c12');
-    // Callback-д resolve дуудагдахын тулд түр хугацааны шалгалт
-    const startExp=tokenExpiresAt;
-    const checkDone=setInterval(()=>{
-      if(!silentRefreshInProgress||tokenExpiresAt>startExp){
-        clearInterval(checkDone);
-        resolve(tokenExpiresAt>startExp);
-      }
-    },200);
-    // 10 секундын дараа timeout (5с богино байсан — chooser гарвал амжихгүй)
-    setTimeout(()=>{clearInterval(checkDone);silentRefreshInProgress=false;resolve(false);},10000);
+    setTimeout(()=>{if(silentRefreshInProgress)finishRefresh(false);},30000);
     try{
-      // hint — аль Google акаунт болохыг зааж өгнө.
-      // Үүнгүй бол олон акаунт нэвтэрсэн үед Google "Бүртгэл сонгоно уу" chooser гаргадаг
-      let hintEmail='';
-      try{
-        hintEmail=currentUser?.email||JSON.parse(localStorage.getItem('hsti_usr')||'{}').email||'';
-      }catch(_){hintEmail='';}
-      tokenClient.requestAccessToken(hintEmail?{prompt:'',hint:hintEmail}:{prompt:''});
+      const hint=getAccountHint();
+      tokenClient.requestAccessToken(hint?{prompt:'',hint}:{prompt:''});
     }catch(e){
-      clearInterval(checkDone);
-      silentRefreshInProgress=false;
-      resolve(false);
+      console.warn('[Auth] requestAccessToken алдаа:',e);
+      finishRefresh(false);
     }
   });
 }
 
-// Token баталгаатай хүчинтэй эсэхийг хангах — sync-ийн өмнө дуудна
+// Token баталгаатай хүчинтэй эсэхийг хангах — sync-ийн өмнө дуудна.
+// false буцаавал Drive руу хандахгүй (401 алдаа цуглуулахгүй, өгөгдөл локалд аюулгүй)
 async function ensureValidToken(){
   if(!accessToken)return false;
-  if(isTokenExpiringSoon()){
-    return await silentRefresh();
-  }
-  return true;
+  if(!isTokenExpiringSoon())return true;
+  const ok=await silentRefresh();
+  if(ok)return true;
+  // Сэргээж чадаагүй ч token хараахан бүрэн дуусаагүй бол үргэлжлүүлнэ
+  return !isTokenExpired();
 }
 
-function signIn(){
-  if(!window.google){alert('Google нэвтрэлт ачааллаж байна, хэсэг хүлээгээд дахин оролдоно уу');return;}
-  if(!tokenClient)initGSI();
+// ── Дараагийн дарлтаар чимээгүй сэргээх ─────────────────────
+// Token дуусахаас 5 минутын өмнө: хэрэглэгч апп дотор дараагийн удаа дарахад
+// (user activation байгаа үед) token-ийг сэргээнэ. Хэрэглэгч бараг анзаарахгүй.
+function armReauthOnNextInteraction(){
+  if(reauthArmed||!accessToken)return;
+  reauthArmed=true;
+  const handler=()=>{
+    reauthArmed=false;
+    document.removeEventListener('pointerdown',handler,true);
+    document.removeEventListener('keydown',handler,true);
+    if(accessToken&&isTokenExpiringSoon(5*60*1000))silentRefresh();
+  };
+  document.addEventListener('pointerdown',handler,true);
+  document.addEventListener('keydown',handler,true);
+}
+
+// ── "Холболт сэргээх" banner ─────────────────────────────────
+// Гарч-орохын оронд нэг товч: өгөгдөл, дэлгэц хэвээр үлдэнэ.
+function showReauthBanner(){
+  setSyncBadge('Холболт дууссан','#e74c3c');
+  if(document.getElementById('reauth-banner'))return;
+  const b=document.createElement('div');
+  b.id='reauth-banner';
+  b.style.cssText='position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#1a2332;color:#fff;padding:10px 14px 10px 18px;border-radius:10px;font-size:13px;z-index:10000;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-width:calc(100vw - 32px)';
+  b.innerHTML=`
+    <i class="ti ti-plug-connected-x" style="color:#f39c12;font-size:18px;flex-shrink:0"></i>
+    <span>Google холболтын хугацаа дууссан. Таны өгөгдөл хадгалагдсан хэвээр.</span>
+    <button id="reauth-btn" style="background:#4CAF50;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap">Холболт сэргээх</button>`;
+  document.body.appendChild(b);
+  document.getElementById('reauth-btn').addEventListener('click',reconnectGoogle);
+}
+function hideReauthBanner(){
+  const b=document.getElementById('reauth-banner');
+  if(b)b.remove();
+}
+
+// Banner-ийн товч — хэрэглэгчийн дарлт тул popup зөвшөөрөгдөнө
+async function reconnectGoogle(){
+  const btn=document.getElementById('reauth-btn');
+  if(btn){btn.disabled=true;btn.textContent='Сэргээж байна...';}
+  const ok=await silentRefresh();
+  if(ok){
+    showAlert('Холболт сэргээгдлээ','success');
+    await loadFromDrive();   // Drive-ийн өөрчлөлтийг татаж нэгтгэнэ
+    await syncToDrive();     // Холболтгүй үед хийсэн локал өөрчлөлтийг илгээнэ
+  }else{
+    const b=document.getElementById('reauth-btn');
+    if(b){b.disabled=false;b.textContent='Дахин оролдох';}
+  }
+}
+
+async function signIn(){
+  if(!(await waitForGSI())){alert('Google нэвтрэлт ачааллаж байна, хэсэг хүлээгээд дахин оролдоно уу');return;}
   tokenClient.requestAccessToken();
 }
 
 function signOut(){
   if(!confirm('Гарах уу? (Дараа дахин нэвтрэхэд өгөгдөл Drive-аас буцаж татагдана)'))return;
-  // Google session-г цэвэрлэх — дараагийн нэвтрэлт цэвэр болно (буруу данс руу орох эрсдэл багасна)
   try{
     if(accessToken&&window.google?.accounts?.oauth2?.revoke){
       google.accounts.oauth2.revoke(accessToken,()=>{});
@@ -1756,22 +1864,27 @@ function signOut(){
   vaultKey=null;vaultItems=[];
   localStorage.removeItem('hsti_tok');localStorage.removeItem('hsti_usr');
   localStorage.removeItem('hsti_tok_exp');
-  clearFileIdCache(); // өөр акаунтаар нэвтрэхэд хуучин ID ашиглахгүй
+  clearFileIdCache();
   if(tokenRefreshTimer)clearInterval(tokenRefreshTimer);
+  hideReauthBanner();
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('main-app').style.display='none';
 }
 
-// Background timer — 10 минут тутам token дуусах эсэхийг шалгаж, шаардвал чимээгүй шинэчлэх
+// Background шалгалт — 1 минут тутам (өмнө 10 мин байсан ч 1 минутын цонхыг алгасдаг байв).
+// Popup нээх боломжгүй тул энд сэргээхгүй — зөвхөн "дараагийн дарлт" эсвэл banner-ыг бэлдэнэ.
 let tokenRefreshTimer=null;
 function startTokenRefreshTimer(){
   if(tokenRefreshTimer)clearInterval(tokenRefreshTimer);
-  tokenRefreshTimer=setInterval(async()=>{
-    if(accessToken&&isTokenExpiringSoon()){
-      await silentRefresh();
-    }
-  },10*60*1000); // 10 минут
+  tokenRefreshTimer=setInterval(checkTokenState,60*1000);
 }
+function checkTokenState(){
+  if(!accessToken)return;
+  if(isTokenExpired())showReauthBanner();
+  else if(isTokenExpiringSoon(5*60*1000))armReauthOnNextInteraction();
+}
+// Таб буцаж нээгдэх / компьютер сэрэх үед шууд шалгах (timer унтсан байж болно)
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkTokenState();});
 
 function showMain(){
   document.getElementById('login-screen').style.display='none';
@@ -2053,8 +2166,8 @@ async function syncToDrive(){
     setSyncBadge('Сэргээлт хийгдэж байна','#f39c12');
     return;
   }
-  // Token дуусах дөхсөн бол эхлээд чимээгүй шинэчлэх
-  await ensureValidToken();
+  // Token хүчингүй бол Drive руу хандахгүй — өгөгдөл локалд хадгалагдсан, banner харагдана
+  if(!(await ensureValidToken())){showReauthBanner();return;}
   setSyncBadge('Хадгалж байна...','#f39c12');
   try{
     const folderId=await getOrCreateFolder();
@@ -2187,8 +2300,7 @@ async function syncToDrive(){
 
 async function loadFromDrive(){
   if(!accessToken)return;
-  // Token дуусах дөхсөн бол эхлээд чимээгүй шинэчлэх
-  await ensureValidToken();
+  if(!(await ensureValidToken())){showReauthBanner();return;}
   setSyncBadge('Уншиж байна...','#f39c12');
   let hadError=false;
 
@@ -2324,7 +2436,7 @@ async function loadFromDrive(){
         openBackupModal();
       }
     } else if(e.message==='AUTH_FAILED'){
-      showAlert('Нэвтрэлт хугацаа дууссан байна. Холболтыг сэргээж байна — хэрэв удвал нэг удаа гарч дахин нэвтэрнэ үү. Таны локал өгөгдөл хэвээрээ байгаа.','error');
+      showReauthBanner();
     } else {
       showAlert('Тэмдэглэл Drive-аас уншихад алдаа гарлаа. Таны локал өгөгдөл хэвээрээ байгаа.','error');
     }
@@ -4735,7 +4847,8 @@ async function fetchCalEvents(){
     const res=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(start)}&timeMax=${encodeURIComponent(end)}&singleEvents=true&orderBy=startTime&maxResults=100`,
       {headers:{Authorization:'Bearer '+accessToken}});
     if(!res.ok){
-      if(res.status===403||res.status===401)showAlert('Хуанлийн эрх хэрэгтэй. Гарч дахин нэвтэрнэ үү','error');
+      if(res.status===401)showReauthBanner();
+      else if(res.status===403)showAlert('Хуанлийн эрх хэрэгтэй. Гарч дахин нэвтэрнэ үү','error');
       calEvents=[];
     } else {
       const data=await res.json();
@@ -4889,6 +5002,8 @@ async function calAddEvent(){
   if(!calSelectedDate){showAlert('Хуанлийн нүдэн дэх өдрийг сонгоно уу','error');err=true;}
   if(!accessToken){showAlert('Нэвтэрнэ үү','error');err=true;}
   if(err)return;
+  // Товч дарсан үйлдэл дотор байгаа тул token дуусах дөхсөн бол энд шууд сэргээгдэнэ
+  if(!(await ensureValidToken())){showReauthBanner();return;}
   const time=document.getElementById('cal-new-time').value||'09:00';
   const loc=document.getElementById('cal-new-location').value.trim();
   const desc=document.getElementById('cal-new-desc').value.trim();
@@ -4905,6 +5020,7 @@ async function calAddEvent(){
       method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
       body:JSON.stringify(body)
     });
+    if(res.status===401){showReauthBanner();return;}
     if(!res.ok)throw new Error();
     showAlert('Event нэмэгдлээ!','success');
     document.getElementById('cal-new-title').value='';
