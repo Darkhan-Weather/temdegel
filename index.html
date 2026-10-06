@@ -1375,6 +1375,31 @@ function escapeHtml(str){
 
 // Давхцахгүй ID үүсгэх — цаг + санамсаргүй тэмдэгт
 // Date.now() ганцаараа бол нэг мс-д 2 бүртгэл үүсвэл давхцана
+// ── Локал огноо (YYYY-MM-DD) ─────────────────────────────────
+// toISOString() нь UTC огноо буцаадаг — Монгол (UTC+8)-д 00:00–08:00 хооронд
+// "өнөөдөр" нь өчигдөр болдог байв. Бүх "өдрийн огноо" энэ функцээр гарна.
+// Google Calendar-ийн тайлбар HTML агуулж болно — скрипт ажиллуулахгүйгээр (DOMParser) зөвхөн текстийг авна
+function htmlToText(s){
+  try{return new DOMParser().parseFromString(String(s),'text/html').body.textContent||'';}
+  catch(_){return String(s);}
+}
+function localDateStr(d){
+  d=d||new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// ── Бүртгэлийг ариутгах ─────────────────────────────────────
+// Импорт, гэмтсэн файл, хуучин хувилбараас ирсэн date/work-гүй бүртгэл 16 газар
+// e.date.slice()/split()-д унаж, бүхэл табыг (Тэмдэглэлүүд, Хуанли) ажиллахгүй болгодог байв.
+function sanitizeEntries(arr){
+  return (Array.isArray(arr)?arr:[]).filter(e=>e&&typeof e==='object'&&e.id!=null).map(e=>{
+    if(typeof e.date!=='string')e.date='';
+    if(typeof e.work!=='string')e.work=e.work==null?'':String(e.work);
+    if(e.result!=null&&typeof e.result!=='string')e.result=String(e.result);
+    return e;
+  });
+}
+
 function genId(){
   return Date.now()+'-'+Math.random().toString(36).slice(2,6);
 }
@@ -1590,9 +1615,9 @@ function init(){
   if(headerSub)headerSub.textContent=`${YEAR} он — М.Төмөрчөдөр`;
   const chartSub=document.getElementById('chart-year-sub');
   if(chartSub)chartSub.textContent=`${YEAR} он`;
-  document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('entry-date').value=localDateStr();
   let saved=localStorage.getItem('hsti_v3');
-  if(saved){try{entries=JSON.parse(saved)}catch(e){entries=[]}}
+  if(saved){try{entries=sanitizeEntries(JSON.parse(saved))}catch(e){entries=[]}}
   // Демо өгөгдөл байхгүй — хоосон эхэлнэ, Drive-аас жинхэнэ өгөгдөл татна
   // Migration: хуучин буруу null/хоосон tags-г цэвэрлэх
   let tagsCleaned=false;
@@ -1626,6 +1651,14 @@ function init(){
   // Хэрэв хэрэглэгч заалтын жагсаалтыг өөрчилсөн бол dropdown-г шинэчлэх
   if(localStorage.getItem('zaalt_list_hsti')){
     rebuildZaaltSelect();
+  }
+  // ── Он шилжилт илрүүлэх ──
+  // hsti_data_year — локал бүртгэл аль оных болохыг тэмдэглэнэ
+  const dataYear=parseInt(localStorage.getItem('hsti_data_year')||'0');
+  if(!dataYear)safeSetItem('hsti_data_year',String(YEAR));
+  else if(dataYear<YEAR){
+    // Шилжилт хийгдэх хүртэл хуучин оны файл руу бичсээр байна (холилдохгүй)
+    activeYear=dataYear;yearRolloverPending=true;
   }
   const tok=localStorage.getItem('hsti_tok'),usr=localStorage.getItem('hsti_usr');
   if(tok&&usr){
@@ -1759,7 +1792,7 @@ function finishRefresh(ok){
 //   • Хэрэглэгчийн үйлдлийн дотор → шууд сэргээнэ (popup 1 сек анивчаад хаагдана)
 //   • Үйлдэлгүй үед → popup оролдохгүй, оронд нь "Холболт сэргээх" товчтой banner харуулна
 function silentRefresh(){
-  return new Promise(async(resolve)=>{
+  return new Promise((resolve)=>{
     if(!hasUserActivation()){
       if(isTokenExpired())showReauthBanner();
       else armReauthOnNextInteraction();
@@ -1839,8 +1872,9 @@ async function reconnectGoogle(){
   const ok=await silentRefresh();
   if(ok){
     showAlert('Холболт сэргээгдлээ','success');
-    await loadFromDrive();   // Drive-ийн өөрчлөлтийг татаж нэгтгэнэ
-    await syncToDrive();     // Холболтгүй үед хийсэн локал өөрчлөлтийг илгээнэ
+    // Эхлээд sync: Drive-тай нэгтгээд локал өөрчлөлтийг илгээнэ (шаблон зэрэг алдагдахгүй)
+    await syncToDrive({quiet:true});
+    await loadFromDrive();
   }else{
     const b=document.getElementById('reauth-btn');
     if(b){b.disabled=false;b.textContent='Дахин оролдох';}
@@ -1911,13 +1945,17 @@ const FILE_ID_CACHE_KEY='hsti_file_ids';
 function readFileIdCache(){
   try{
     const raw=localStorage.getItem(FILE_ID_CACHE_KEY);
-    return raw?JSON.parse(raw):null;
+    const c=raw?JSON.parse(raw):null;
+    // Кэш нь тухайн оны файлуудынх — өөр оных (эсвэл он заагаагүй хуучин кэш) бол ашиглахгүй
+    return c&&c.year===activeYear?c:null;
   }catch(_){return null;}
 }
 
 function writeFileIdCache(){
   // Одоогийн мэдэгдэж буй бүх ID-г хадгална
+  if(viewingOldYear)return; // архив горимын ID-г кэшлэхгүй
   safeSetItem(FILE_ID_CACHE_KEY,JSON.stringify({
+    year:activeYear,
     folder:driveFolderId||null,
     entries:driveFileId||null,
     sticky:stickyFileId||null,
@@ -1937,17 +1975,29 @@ function driveEsc(str){
   return String(str).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 }
 
+// ── Drive JSON хүсэлт — res.ok ЗААВАЛ шалгана ──────────────────
+// Урьд нь .then(r=>r.json()) шууд задалдаг байсан тул 401/429/5xx үед алдааны JSON-ыг
+// "файл/фолдер байхгүй" гэж ойлгож ДАВХАР фолдер, давхар файл үүсгэх эрсдэлтэй байв.
+async function driveJson(url,opts){
+  opts=opts||{};
+  const res=await fetch(url,{...opts,headers:{Authorization:'Bearer '+accessToken,...(opts.headers||{})}});
+  if(!res.ok)throw new Error('Drive HTTP '+res.status);
+  return res.json();
+}
+
 async function getOrCreateFolder(){
   if(driveFolderId)return driveFolderId;
-  const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${driveEsc(FOLDER_NAME)}' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive`,{
-    headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+  // Хамгийн анх үүссэн (жинхэнэ) фолдерыг сонгоно — давхар байвал ч тогтвортой нэгийг авна
+  const res=await driveJson(`https://www.googleapis.com/drive/v3/files?q=name='${driveEsc(FOLDER_NAME)}' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive&orderBy=createdTime&fields=files(id,createdTime)`);
   if(res.files&&res.files.length>0){
     driveFolderId=res.files[0].id;
+    if(res.files.length>1&&window.Sentry)Sentry.captureMessage('Давхар "'+FOLDER_NAME+'" фолдер: '+res.files.length,'warning');
   }else{
-    const meta=await fetch('https://www.googleapis.com/drive/v3/files',{
-      method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+    const meta=await driveJson('https://www.googleapis.com/drive/v3/files',{
+      method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({name:FOLDER_NAME,mimeType:'application/vnd.google-apps.folder'})
-    }).then(r=>r.json());
+    });
+    if(!meta.id)throw new Error('Фолдер үүсгэж чадсангүй');
     driveFolderId=meta.id;
   }
   return driveFolderId;
@@ -1956,23 +2006,25 @@ async function getOrCreateFolder(){
 let driveBackupFolderId=null;
 async function getOrCreateBackupFolder(parentFolderId){
   if(driveBackupFolderId)return driveBackupFolderId;
-  const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='backups' and mimeType='application/vnd.google-apps.folder' and '${parentFolderId}' in parents and trashed=false&spaces=drive`,{
-    headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+  const res=await driveJson(`https://www.googleapis.com/drive/v3/files?q=name='backups' and mimeType='application/vnd.google-apps.folder' and '${driveEsc(parentFolderId)}' in parents and trashed=false&spaces=drive&orderBy=createdTime&fields=files(id)`);
   if(res.files&&res.files.length>0){
     driveBackupFolderId=res.files[0].id;
   }else{
-    const meta=await fetch('https://www.googleapis.com/drive/v3/files',{
-      method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+    const meta=await driveJson('https://www.googleapis.com/drive/v3/files',{
+      method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({name:'backups',mimeType:'application/vnd.google-apps.folder',parents:[parentFolderId]})
-    }).then(r=>r.json());
+    });
+    if(!meta.id)throw new Error('Backup фолдер үүсгэж чадсангүй');
     driveBackupFolderId=meta.id;
   }
   return driveBackupFolderId;
 }
 
+// Алдаа гарвал THROW хийнэ (null буцаахгүй) — null нь зөвхөн "файл үнэхээр байхгүй" гэсэн утгатай.
+// Давхар файл байвал хамгийн сүүлд бичигдсэнийг сонгоно.
 async function findFileInFolder(fileName,folderId){
-  const res=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${driveEsc(fileName)}' and '${driveEsc(folderId)}' in parents and trashed=false&spaces=drive`,{
-    headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+  const res=await driveJson(`https://www.googleapis.com/drive/v3/files?q=name='${driveEsc(fileName)}' and '${driveEsc(folderId)}' in parents and trashed=false&spaces=drive&orderBy=modifiedTime desc&fields=files(id)`);
+  if(res.files&&res.files.length>1&&window.Sentry)Sentry.captureMessage('Давхар Drive файл: '+fileName+' ('+res.files.length+')','warning');
   return res.files&&res.files.length>0?res.files[0].id:null;
 }
 
@@ -2057,20 +2109,31 @@ async function createBackup(folderId,entriesPayload,stickyPayload,vaultPayload){
       sticky:stickyPayload,
       vault:vaultPayload
     };
-    const blob=new Blob([JSON.stringify(combined)],{type:'application/json'});
-    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
+    const bres=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
       method:'POST',
       headers:{Authorization:'Bearer '+accessToken,'Content-Type':'multipart/related; boundary=backup_boundary'},
       body:`--backup_boundary\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({name:`backup_${ts}.json`,mimeType:'application/json',parents:[backupFolderId]})}\r\n--backup_boundary\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(combined)}\r\n--backup_boundary--`
     });
+    if(!bres.ok)throw new Error('Backup HTTP '+bres.status);
+    safeSetItem('hsti_last_backup',String(Date.now()));
     await cleanupOldBackups(backupFolderId);
-  }catch(e){console.error('Backup алдаа:',e);}
+    return true;
+  }catch(e){console.error('Backup алдаа:',e);return false;}
+}
+
+// Backup хадгалах бүрт биш, 24 цагт нэг удаа үүсгэнэ.
+// Урьд нь хадгалах БҮРТ backup үүсгээд сүүлийн 10-ыг үлдээдэг байсан тул түүх нь хэдхэн
+// минутаар хязгаарлагдаж, алдаатай өгөгдөл sync хийгдвэл бүх сайн backup устдаг байв.
+// Одоо: 10 backup ≈ ажилласан сүүлийн 10 өдрийн түүх.
+const BACKUP_INTERVAL=24*60*60*1000;
+function backupDue(){
+  const last=parseInt(localStorage.getItem('hsti_last_backup')||'0');
+  return Date.now()-last>BACKUP_INTERVAL;
 }
 
 async function cleanupOldBackups(backupFolderId){
   try{
-    const res=await fetch(`https://www.googleapis.com/drive/v3/files?q='${backupFolderId}' in parents and trashed=false&orderBy=createdTime desc&spaces=drive&fields=files(id,name,createdTime)`,{
-      headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+    const res=await driveJson(`https://www.googleapis.com/drive/v3/files?q='${driveEsc(backupFolderId)}' in parents and trashed=false&orderBy=createdTime desc&spaces=drive&fields=files(id,name,createdTime)`);
     if(res.files&&res.files.length>MAX_BACKUPS){
       const toDelete=res.files.slice(MAX_BACKUPS);
       for(const f of toDelete){
@@ -2087,45 +2150,73 @@ async function listBackups(){
   try{
     const folderId=await getOrCreateFolder();
     const backupFolderId=await getOrCreateBackupFolder(folderId);
-    const res=await fetch(`https://www.googleapis.com/drive/v3/files?q='${backupFolderId}' in parents and trashed=false&orderBy=createdTime desc&spaces=drive&fields=files(id,name,createdTime)`,{
-      headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+    const res=await driveJson(`https://www.googleapis.com/drive/v3/files?q='${driveEsc(backupFolderId)}' in parents and trashed=false&orderBy=createdTime desc&spaces=drive&fields=files(id,name,createdTime)`);
     return res.files||[];
-  }catch(e){return[];}
+  }catch(e){showAlert('Backup жагсаалт уншиж чадсангүй','error');return[];}
 }
 
+// Backup-аас сэргээх.
+// Урьд нь: локалыг дарж бичээд Drive-д илгээдэггүй байсан тул дараагийн ачааллаар Drive-ийн
+// шинэ (updatedAt их) хувилбар буцаж давамгайлж, устгасан бүртгэл ДАХИН устдаг байв.
+// Одоо: сэргээсэн бүртгэлийн updatedAt-г "одоо" болгож LWW-д ялуулна, дараа нь Drive-д бичнэ.
+// Backup-аас хойш шинээр нэмсэн бүртгэлүүд хадгалагдана (алдагдахгүй).
 async function restoreFromBackup(fileId){
-  if(!confirm('Энэ backup-аас сэргээх үү? Одоогийн өгөгдөл дарагдана.'))return;
+  if(viewingOldYear){showAlert('Архив горимд сэргээх боломжгүй. Одоогийн он руу буцна уу.','info');return;}
+  if(!confirm('Энэ backup-ийн хувилбарыг сэргээх үү?\n\n• Backup дахь бүртгэл, тэмдэглэл сэргэнэ (устгасан бол буцаж гарна)\n• Backup-аас хойш шинээр нэмсэн бүртгэлүүд хадгалагдана\n• Нууц үгийн сан сэргээгдвэл дахин нээх шаардлагатай'))return;
+  window.__restoring=true;
   try{
     setSyncBadge('Сэргээж байна...','#f39c12');
-    const content=await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,{
-      headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
-    if(content.entries&&content.entries.entries){
-      entries=content.entries.entries;
-      localStorage.setItem('hsti_v3',JSON.stringify(entries));
+    if(!(await ensureValidToken()))throw new Error('AUTH');
+    const content=await driveJson(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+    const now=Date.now();
+    const ep=content.entries||{};
+    if(Array.isArray(ep.entries)){
+      const byId={};
+      entries.forEach(e=>{byId[e.id]=e;});
+      sanitizeEntries(ep.entries).forEach(e=>{byId[e.id]={...e,updatedAt:now};});
+      entries=Object.values(byId);
+      entries.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      safeSetItem('hsti_v3',JSON.stringify(entries));
     }
+    if(Array.isArray(ep.templates)){userTemplates=ep.templates;safeSetItem('templates_hsti',JSON.stringify(userTemplates));renderQuickAdd();}
+    if(Array.isArray(ep.zaalt_list)&&ep.zaalt_list.length){ZAALT_LIST=ep.zaalt_list;safeSetItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST));rebuildZaaltSelect();}
     if(content.sticky){
-      if(content.sticky.sticky_notes){
-        localStorage.setItem('sticky_notes_hsti',JSON.stringify(content.sticky.sticky_notes));
-        stickyNotes=content.sticky.sticky_notes;
+      if(Array.isArray(content.sticky.sticky_notes)){
+        const byId={};
+        (stickyNotes||[]).forEach(n=>{byId[n.id]=n;});
+        content.sticky.sticky_notes.forEach(n=>{byId[n.id]={...n,updatedAt:now};});
+        stickyNotes=Object.values(byId);
+        safeSetItem('sticky_notes_hsti',JSON.stringify(stickyNotes));
       }
-      if(content.sticky.sticky_labels){
-        safeSetItem('sticky_labels_hsti',JSON.stringify(content.sticky.sticky_labels));
+      if(Array.isArray(content.sticky.sticky_labels)){
         stickyLabels=content.sticky.sticky_labels;
+        safeSetItem('sticky_labels_hsti',JSON.stringify(stickyLabels));
+        safeSetItem('sticky_labels_ts',String(now));
       }
     }
-    if(content.vault){
-      if(content.vault.vault_data)safeSetItem('vault_data_hsti',JSON.stringify(content.vault.vault_data));
-      if(content.vault.vault_meta)safeSetItem('vault_meta_hsti',JSON.stringify(content.vault.vault_meta));
+    if(content.vault&&content.vault.vault_data&&content.vault.vault_meta){
+      // meta болон data-г ХАМТ сэргээнэ (өөр salt-тай хольж болохгүй)
+      safeSetItem('vault_meta_hsti',JSON.stringify(content.vault.vault_meta));
+      safeSetItem('vault_data_hsti',JSON.stringify(content.vault.vault_data));
+      safeSetItem('vault_updated_hsti',String(now));
+      vaultLock(); // санах ой дахь хуучин vault-ыг цэвэрлэнэ — дахин нээж тайлна
     }
-    document.getElementById('total-count').textContent=entries.length;
+    document.getElementById('total-count').textContent=activeEntries().length;
     populateFilters();renderDashboard();
-    setSyncBadge('Сэргээгдсэн','#0F6E56');
-    showAlert('Backup-аас амжилттай сэргээгдлээ!','success');
+    if(document.getElementById('tab-list')?.classList.contains('active'))renderList();
+    if(document.getElementById('tab-sticky')?.classList.contains('active'))renderStickyNotes();
     closeBackupModal();
+    window.__restoring=false;
+    // Сэргээсэн төлөвийг Drive-д бичнэ — эс тэгвэл дараагийн ачааллаар буцаж дарагдана
+    const ok=await syncToDrive({quiet:true});
+    setSyncBadge(ok?'Сэргээгдсэн':'Локалд сэргээгдсэн','#0F6E56');
+    showAlert(ok?'Backup-аас сэргээгдэж Drive-д хадгалагдлаа!':'Локалд сэргээгдлээ. Drive-д дараа хадгалагдана.','success');
   }catch(e){
     console.error('[Backup сэргээх] Алдаа:',e);
     setSyncBadge('Алдаа','#e74c3c');
     showAlert('Backup-аас сэргээхэд алдаа гарлаа. Интернэт холболтоо шалгаад дахин оролдоно уу.','error');
+  }finally{
+    window.__restoring=false;
   }
 }
 
@@ -2152,59 +2243,153 @@ function closeBackupModal(){
   document.getElementById('backup-modal').style.display='none';
 }
 
-async function syncToDrive(){
-  if(!accessToken){showAlert('Нэвтэрнэ үү','error');return;}
+// ── LWW нэгтгэлийн туслахууд ────────────────────────────────
+function _stamp(x){return x.updatedAt||(typeof x.id==='number'?x.id:0);}
+// Drive-ийн бүртгэлийг локал entries-тэй нэгтгэнэ (updatedAt их нь ялна, tombstone тархана)
+function mergeEntriesLWW(driveArr){
+  driveArr=sanitizeEntries(driveArr);
+  const byId={};
+  entries.forEach(e=>{byId[e.id]=e;});
+  let added=0,changed=0;
+  (driveArr||[]).forEach(de=>{
+    const l=byId[de.id];
+    if(!l){byId[de.id]=de;if(!de.deleted)added++;}
+    else if(_stamp(de)>_stamp(l)){byId[de.id]=de;changed++;}
+  });
+  if(added||changed){
+    entries=Object.values(byId);
+    entries.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  }
+  return {added,changed};
+}
+function mergeStickyLWW(localArr,driveArr){
+  const byId={};
+  localArr.forEach(n=>{byId[n.id]=n;});
+  let changed=false;
+  (driveArr||[]).forEach(dn=>{
+    const l=byId[dn.id];
+    if(!l||_stamp(dn)>_stamp(l)){byId[dn.id]=dn;changed=true;}
+  });
+  return {merged:changed?Object.values(byId):localArr,changed};
+}
+// Drive файлын агуулгыг унших: {status:'ok',content} | {status:'missing'} | {status:'corrupt'}; бусад алдаанд throw
+async function readDriveFile(fileId){
+  const res=await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,{
+    headers:{Authorization:'Bearer '+accessToken}});
+  if(res.status===404)return {status:'missing'};
+  if(!res.ok)throw new Error('Drive уншиж чадсангүй: HTTP '+res.status);
+  try{return {status:'ok',content:JSON.parse(await res.text())};}
+  catch(_){return {status:'corrupt'};}
+}
+
+// ── Vault-ийн өөрчлөлтийн цаг ───────────────────────────────
+// vault_updated_hsti — локал vault хамгийн сүүлд өөрчлөгдсөн цаг
+// vault_synced_hsti  — Drive-д хамгийн сүүлд амжилттай илгээсэн цаг
+function vaultLocalTs(){return parseInt(localStorage.getItem('vault_updated_hsti')||'0');}
+function vaultSyncedTs(){return parseInt(localStorage.getItem('vault_synced_hsti')||'0');}
+function vaultDirty(){return vaultLocalTs()>vaultSyncedTs();}
+
+// ── syncToDrive — дараалуулсан (нэг зэрэг нэг л sync) ──────────
+// Урьд нь хадгалах + наалтын timer зэрэг дуудагдвал хоёулаа "файл байхгүй" гэж үзээд
+// ДАВХАР файл үүсгэх боломжтой байв. Одоо дуудалт бүр өмнөхөө дуусахыг хүлээнэ.
+// Буцаах утга: true — ажлын бүртгэл Drive-д амжилттай бичигдсэн.
+let _syncChain=Promise.resolve();
+function syncToDrive(opts){
+  const p=_syncChain.then(()=>_syncToDriveCore(opts||{}));
+  _syncChain=p.catch(()=>{});
+  return p;
+}
+
+async function _syncToDriveCore(opts){
+  if(!accessToken){if(!opts.quiet)showAlert('Нэвтэрнэ үү','error');return false;}
   // Хуучин он харж байвал хадгалахгүй — архивыг санамсаргүй дарж бичихээс сэргийлэх
   if(viewingOldYear){
-    showAlert('Хуучин оны архив зөвхөн харах горимд байна. Хадгалахын тулд одоогийн он руу буцна уу.','info');
-    return;
+    if(!opts.quiet)showAlert('Хуучин оны архив зөвхөн харах горимд байна. Хадгалахын тулд одоогийн он руу буцна уу.','info');
+    return false;
   }
-  // ХАМГААЛАЛТ 0: Сэргээлт хийж байх үед автомат sync-ийг зогсоох.
-  // Backup-аас сэргээх явцад хагас өгөгдлийг Drive руу дарж бичихээс сэргийлнэ.
+  // ХАМГААЛАЛТ 0: Backup-аас сэргээж байх үед автомат sync-ийг зогсоох
   if(window.__restoring){
     console.warn('[Sync] Сэргээлт хийгдэж байгаа тул sync түр зогслоо');
-    setSyncBadge('Сэргээлт хийгдэж байна','#f39c12');
-    return;
+    return false;
   }
   // Token хүчингүй бол Drive руу хандахгүй — өгөгдөл локалд хадгалагдсан, banner харагдана
-  if(!(await ensureValidToken())){showReauthBanner();return;}
+  if(!(await ensureValidToken())){showReauthBanner();return false;}
   setSyncBadge('Хадгалж байна...','#f39c12');
+  let entriesWritten=false;
   try{
     const folderId=await getOrCreateFolder();
     let skipped=[]; // алгассан файлуудын нэр (анхааруулгад)
 
-    // 1. Ажлын тэмдэглэл — тусдаа файл (шаблон, заалтын жагсаалт хамт)
+    // 1. Ажлын тэмдэглэл ─────────────────────────────────────
+    if(!driveFileId)driveFileId=await findFileInFolder(getFileName(),folderId);
+    // PULL-MERGE: бичихээс ӨМНӨ Drive дээрх одоогийн хувилбарыг нэгтгэнэ.
+    // Ингэснээр өөр төхөөрөмж дээр нэмсэн/засварласан бүртгэлийг дарж устгахгүй.
+    if(driveFileId){
+      const r=await readDriveFile(driveFileId);
+      if(r.status==='missing'){driveFileId=null;writeFileIdCache();}
+      else if(r.status==='ok'&&Array.isArray(r.content.entries)){
+        const m=mergeEntriesLWW(r.content.entries);
+        if(m.added||m.changed){
+          safeSetItem('hsti_v3',JSON.stringify(entries));
+          document.getElementById('total-count').textContent=activeEntries().length;
+          populateFilters();renderDashboard();
+          if(document.getElementById('tab-list')?.classList.contains('active'))renderList();
+        }
+      }
+      // 'corrupt' — Drive файл эвдэрсэн: нэгтгэхгүй, локал хувилбараар засна
+    }
     const entriesPayload={
       entries,
       templates:userTemplates,
       zaalt_list:(localStorage.getItem('zaalt_list_hsti')?JSON.parse(localStorage.getItem('zaalt_list_hsti')):null),
       updated:new Date().toISOString()
     };
-    if(!driveFileId)driveFileId=await findFileInFolder(getFileName(),folderId);
     // ХАМГААЛАЛТ 1: локал 0 бүртгэл атлаа Drive-д бүртгэл бүтэн бол — асууна
     {
       const localCount=activeEntries().length; // tombstone хассан жинхэнэ тоо
-      if(localCount===0){
+      if(localCount===0&&!opts.confirmedClear){
         const driveCount=await getDriveRecordCount(getFileName(),driveFileId,folderId,
           c=>Array.isArray(c.entries)?c.entries.filter(e=>!e.deleted).length:-1);
         if(driveCount===-2){
-          // Drive-г уншиж БАТЛАЖ чадсангүй (auth/сүлжээ). Хоосноор дарж бичихгүй.
           skipped.push('Ажлын бүртгэл (шалгаж чадсангүй)');
           console.warn('[Sync] Ажлын бүртгэл: Drive-г шалгаж чадсангүй тул хамгаалж, дарж бичсэнгүй');
         }else if(driveCount>0){
           if(confirm(`⚠ АНХААР — Ажлын бүртгэл\n\nЭнэ төхөөрөмж дээр бүртгэл ХООСОН байна, гэтэл Drive дээр ${driveCount} бүртгэл хадгалагдсан байна.\n\nОдоо хадгалбал Drive дээрх ${driveCount} бүртгэл УСТАНА.\n\nҮнэхээр бүгдийг устгах гэсэн бол "OK", эсэхгүй бол "Cancel" дарж эхлээд бүртгэлээ буцааж татна уу.`)){
             driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
+            entriesWritten=true;
           }else{ skipped.push('Ажлын бүртгэл'); }
         }else{
-          // driveCount 0 (Drive хоосон) эсвэл -1 (файл байхгүй) → дарж бичих аюулгүй
           driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
+          entriesWritten=true;
         }
       }else{
         driveFileId=await uploadToFile(getFileName(),driveFileId,folderId,entriesPayload);
+        entriesWritten=true;
       }
     }
 
-    // 2. Sticky notes + labels — тусдаа файл
+    // 2. Sticky notes + labels ────────────────────────────────
+    if(!stickyFileId)stickyFileId=await findFileInFolder(getStickyFileName(),folderId);
+    if(stickyFileId){
+      const r=await readDriveFile(stickyFileId);
+      if(r.status==='missing'){stickyFileId=null;writeFileIdCache();}
+      else if(r.status==='ok'){
+        const localArr=JSON.parse(localStorage.getItem('sticky_notes_hsti')||'[]');
+        const m=mergeStickyLWW(localArr,r.content.sticky_notes);
+        if(m.changed){
+          safeSetItem('sticky_notes_hsti',JSON.stringify(m.merged));
+          stickyNotes=m.merged;
+          if(document.getElementById('tab-sticky')?.classList.contains('active'))renderStickyNotes();
+        }
+        const driveTs=r.content.labels_updated||0;
+        const localTs=parseInt(localStorage.getItem('sticky_labels_ts')||'0');
+        if(Array.isArray(r.content.sticky_labels)&&driveTs>localTs){
+          safeSetItem('sticky_labels_hsti',JSON.stringify(r.content.sticky_labels));
+          safeSetItem('sticky_labels_ts',String(driveTs));
+          stickyLabels=r.content.sticky_labels;
+        }
+      }
+    }
     const stickyData=localStorage.getItem('sticky_notes_hsti');
     const stickyLabelsData=localStorage.getItem('sticky_labels_hsti');
     const stickyArr=stickyData?JSON.parse(stickyData):[];
@@ -2214,93 +2399,122 @@ async function syncToDrive(){
       labels_updated:parseInt(localStorage.getItem('sticky_labels_ts')||'0'),
       updated:new Date().toISOString()
     };
-    if(!stickyFileId)stickyFileId=await findFileInFolder(getStickyFileName(),folderId);
     // ХАМГААЛАЛТ 2: локал 0 тэмдэглэл атлаа Drive-д тэмдэглэл бүтэн бол — асууна
-    {
-      if(stickyArr.length===0){
-        const driveCount=await getDriveRecordCount(getStickyFileName(),stickyFileId,folderId,
-          c=>Array.isArray(c.sticky_notes)?c.sticky_notes.filter(n=>!n.deleted).length:-1);
-        if(driveCount===-2){
-          // Drive-г уншиж БАТЛАЖ чадсангүй (auth/сүлжээ). Хоосноор дарж бичихгүй.
-          skipped.push('Тэмдэглэл (шалгаж чадсангүй)');
-          console.warn('[Sync] Тэмдэглэл: Drive-г шалгаж чадсангүй тул хамгаалж, дарж бичсэнгүй');
-        }else if(driveCount>0){
-          if(confirm(`⚠ АНХААР — Тэмдэглэл\n\nЭнэ төхөөрөмж дээр тэмдэглэл ХООСОН байна, гэтэл Drive дээр ${driveCount} тэмдэглэл хадгалагдсан байна.\n\nОдоо хадгалбал Drive дээрх ${driveCount} тэмдэглэл УСТАНА.\n\nҮнэхээр устгах бол "OK", эсэхгүй бол "Cancel".`)){
-            stickyFileId=await uploadToFile(getStickyFileName(),stickyFileId,folderId,stickyPayload);
-          }else{ skipped.push('Тэмдэглэл'); }
-        }else{
-          // driveCount 0 (Drive хоосон) эсвэл -1 (файл байхгүй) → дарж бичих аюулгүй
+    if(stickyArr.length===0){
+      const driveCount=await getDriveRecordCount(getStickyFileName(),stickyFileId,folderId,
+        c=>Array.isArray(c.sticky_notes)?c.sticky_notes.filter(n=>!n.deleted).length:-1);
+      if(driveCount===-2){
+        skipped.push('Тэмдэглэл (шалгаж чадсангүй)');
+      }else if(driveCount>0){
+        if(confirm(`⚠ АНХААР — Тэмдэглэл\n\nЭнэ төхөөрөмж дээр тэмдэглэл ХООСОН байна, гэтэл Drive дээр ${driveCount} тэмдэглэл хадгалагдсан байна.\n\nОдоо хадгалбал Drive дээрх ${driveCount} тэмдэглэл УСТАНА.\n\nҮнэхээр устгах бол "OK", эсэхгүй бол "Cancel".`)){
           stickyFileId=await uploadToFile(getStickyFileName(),stickyFileId,folderId,stickyPayload);
-        }
+        }else{ skipped.push('Тэмдэглэл'); }
       }else{
         stickyFileId=await uploadToFile(getStickyFileName(),stickyFileId,folderId,stickyPayload);
       }
+    }else{
+      stickyFileId=await uploadToFile(getStickyFileName(),stickyFileId,folderId,stickyPayload);
     }
 
-    // 3. Vault — тусдаа файл (шифрлэгдсэн)
+    // 3. Vault (шифрлэгдсэн) ──────────────────────────────────
+    // Зөвхөн ЛОКАЛ ДЭЭР ӨӨРЧЛӨГДСӨН үед (эсвэл Drive-д огт байхгүй үед) илгээнэ.
+    // Урьд нь sync бүрт илгээдэг байсан тул хуучин vault-тай төхөөрөмж өөр төхөөрөмж
+    // дээр нэмсэн нууц үгийг дарж устгах боломжтой байв.
     const vaultMeta=localStorage.getItem('vault_meta_hsti');
     const vaultData=localStorage.getItem('vault_data_hsti');
-    const vaultPayload={
-      vault_meta:vaultMeta?JSON.parse(vaultMeta):null,
-      vault_data:vaultData?JSON.parse(vaultData):null,
-      updated:new Date().toISOString()
-    };
-    if(!vaultFileId)vaultFileId=await findFileInFolder(getVaultFileName(),folderId);
-    // ХАМГААЛАЛТ 3: Vault — E2E, сэргээх аргагүй тул ХАМГИЙН ХАТУУ.
-    // Локал vault "хоосон эсвэл декодлоход 0 бичлэг" бол Drive-д ХЭЗЭЭ Ч бичихгүй (асуухгүй, шууд алгасна).
-    {
-      let vaultLocalCount=-1; // -1 = тодорхойгүй
-      try{
-        if(vaultKey&&vaultData){
-          const decoded=await decryptData(vaultKey,JSON.parse(vaultData));
-          vaultLocalCount=Array.isArray(decoded)?decoded.length:-1;
-        }else if(!vaultData){
-          vaultLocalCount=0; // локалд огт байхгүй
+    if(vaultMeta&&vaultData){
+      if(!vaultFileId)vaultFileId=await findFileInFolder(getVaultFileName(),folderId);
+      const vaultPayloadNow={
+        vault_meta:JSON.parse(vaultMeta),
+        vault_data:JSON.parse(vaultData),
+        updated:new Date().toISOString()
+      };
+      if(!vaultFileId){
+        vaultFileId=await uploadToFile(getVaultFileName(),null,folderId,vaultPayloadNow);
+        safeSetItem('vault_synced_hsti',String(Date.now()));
+      }else if(vaultDirty()){
+        // ХАМГААЛАЛТ 3: локал vault хоосон эсвэл тайлж чадахгүй бол Drive-ийн өгөгдлийг дарахгүй
+        let vaultLocalCount=-1;
+        try{
+          if(vaultKey){
+            const decoded=await decryptData(vaultKey,JSON.parse(vaultData));
+            vaultLocalCount=Array.isArray(decoded)?decoded.length:-1;
+          }
+        }catch(_){vaultLocalCount=-1;}
+        let driveHas=false;
+        if(vaultLocalCount<=0){
+          const dc=await getDriveRecordCount(getVaultFileName(),vaultFileId,folderId,c=>(c.vault_data&&c.vault_meta)?1:0);
+          driveHas=(dc>0||dc===-2);
         }
-      }catch(_){ vaultLocalCount=-1; } // тайлж чадсангүй — тодорхойгүй, аюулгүй тал руу
-      // Drive-д одоо хэдэн бичлэг байгаа (шифрлэгдсэн бүрхүүлээр бус, зөвхөн бий/үгүй)
-      let vaultDriveHasData=false;
-      if(vaultLocalCount<=0){
-        const dc=await getDriveRecordCount(getVaultFileName(),vaultFileId,folderId,
-          c=>(c.vault_data&&c.vault_meta)?1:0);
-        // dc>0 → Drive-д vault бий. dc===-2 → уншиж чадсангүй, БАЙЖ БОЛЗОШГҮЙ гэж үзэж
-        // хамгаална (E2E, сэргээх аргагүй). dc===-1 (файл байхгүй) л дарж бичихийг зөвшөөрнө.
-        vaultDriveHasData=(dc>0||dc===-2);
-      }
-      if((vaultLocalCount===0||vaultLocalCount===-1)&&vaultDriveHasData){
-        // Локал хоосон/тодорхойгүй, Drive-д өгөгдөл бий → ШУУД АЛГАСНА, дарж бичихгүй
-        skipped.push('Нууц үгийн сан (хамгаалсан)');
-        console.warn('[Sync] Vault локал хоосон/тодорхойгүй тул Drive хамгаалагдаж, дарж бичсэнгүй');
-      }else{
-        vaultFileId=await uploadToFile(getVaultFileName(),vaultFileId,folderId,vaultPayload);
+        if(vaultLocalCount<=0&&driveHas){
+          skipped.push('Нууц үгийн сан (хамгаалсан — санг нээгээд дахин хадгална уу)');
+        }else{
+          vaultFileId=await uploadToFile(getVaultFileName(),vaultFileId,folderId,vaultPayloadNow);
+          safeSetItem('vault_synced_hsti',String(Date.now()));
+        }
       }
     }
 
-    // Backup үүсгэх — ЗӨВХӨН юу ч алгасаагүй үед (хагас өгөгдлөөр backup үүсгэхгүй)
-    if(skipped.length===0){
+    // Backup — 24 цагт нэг удаа, юу ч алгасаагүй үед
+    if(skipped.length===0&&backupDue()){
+      const vaultPayload={
+        vault_meta:vaultMeta?JSON.parse(vaultMeta):null,
+        vault_data:vaultData?JSON.parse(vaultData):null,
+        updated:new Date().toISOString()
+      };
       createBackup(folderId,entriesPayload,stickyPayload,vaultPayload);
-    }else{
-      console.warn('[Sync] Файл алгассан тул backup үүсгэсэнгүй:',skipped);
     }
 
     if(skipped.length>0){
       setSyncBadge('Хэсэгчлэн хадгаллаа','#f39c12');
-      showAlert('Дараах хэсгийг ХАМГААЛЖ, дарж бичсэнгүй: '+skipped.join(', ')+'. Локал өгөгдөл хоосон байсан тул Drive дээрх хувилбарыг хадгалж үлдээлээ.','info');
+      showAlert('Дараах хэсгийг ХАМГААЛЖ, дарж бичсэнгүй: '+skipped.join(', ')+'.','info');
     }else{
       setSyncBadge('Хадгалагдсан','#0F6E56');
-      showAlert('Drive-д хадгалагдлаа!','success');
+      if(!opts.quiet)showAlert('Drive-д хадгалагдлаа!','success');
     }
+    return entriesWritten;
   }catch(e){
     console.error('[Drive sync алдаа]',e);
-    if(window.Sentry)Sentry.captureException(e,{tags:{op:'syncToDrive'}}); // production-д ил гаргах
+    if(window.Sentry)Sentry.captureException(e,{tags:{op:'syncToDrive'}});
     setSyncBadge('Drive холболтгүй','#e74c3c');
     showAlert('Drive-тай холбогдож чадсангүй. Та санаа зовох хэрэггүй — өгөгдөл таны төхөөрөмж дээр (локал) хадгалагдсан хэвээр байна. Интернэт холболтоо шалгаад дахин оролдоно уу.','error');
+    return false;
   }
+}
+
+// ── Он шилжилт (жил солигдох үед) ───────────────────────────
+// Локал hsti_v3 нь нэг оны бүртгэлийг агуулдаг. Шинэ он эхлэхэд:
+//   1. Хуучин оны бүх бүртгэлийг хуучин оны файлд (ajliin_temdegel_ХУУЧИН.json) эцэслэн бичнэ
+//   2. Амжилттай бол локалд зөвхөн шинэ оны огноотой бүртгэлийг үлдээж, шинэ оны файл руу шилжинэ
+// Drive-д хадгалж чадаагүй бол шилжихгүй (өгөгдөл алдагдахгүй) — дараагийн холболтоор дахин оролдоно.
+let yearRolloverPending=false;
+async function performYearRollover(){
+  if(!yearRolloverPending||viewingOldYear)return false;
+  const oldYear=activeYear;
+  setSyncBadge(oldYear+' оныг архивлаж байна...','#f39c12');
+  const ok=await syncToDrive({quiet:true});
+  if(!ok){console.warn('[Он шилжилт] '+oldYear+' оны өгөгдлийг хадгалж чадсангүй — дараа дахин оролдоно');return false;}
+  entries=entries.filter(e=>(e.date||'').slice(0,4)>=String(YEAR));
+  safeSetItem('hsti_v3',JSON.stringify(entries));
+  activeYear=YEAR;
+  driveFileId=null;stickyFileId=null;vaultFileId=null;
+  clearFileIdCache();
+  safeSetItem('hsti_data_year',String(YEAR));
+  yearRolloverPending=false;
+  document.getElementById('total-count').textContent=activeEntries().length;
+  populateFilters();renderDashboard();
+  showAlert(oldYear+' оны бүртгэл архивт хадгалагдлаа. '+YEAR+' он эхэллээ!','success');
+  return true;
 }
 
 async function loadFromDrive(){
   if(!accessToken)return;
+  // Архив горимд (хуучин он харж байх үед) entries нь ХУУЧИН оных — энд одоогийн оны
+  // Drive өгөгдлийг нэгтгэвэл хоёр он холилдож локалд (hsti_v3) хадгалагдана.
+  if(viewingOldYear){showAlert('Архив горимд Drive-аас унших боломжгүй. Одоогийн он руу буцна уу.','info');return;}
   if(!(await ensureValidToken())){showReauthBanner();return;}
+  // Он солигдсон бол эхлээд хуучин оныг архивлаж, шинэ он руу шилжинэ
+  if(yearRolloverPending)await performYearRollover();
   setSyncBadge('Уншиж байна...','#f39c12');
   let hadError=false;
 
@@ -2324,11 +2538,11 @@ async function loadFromDrive(){
     if(!sharedFolderId)sharedFolderId=await getOrCreateFolder();
     // entries/sticky/vault аль нэг нь кэшгүй бол л жагсаалт хийнэ
     if(!driveFileId||!stickyFileId||!vaultFileId){
-      const listRes=await fetch(`https://www.googleapis.com/drive/v3/files?q='${sharedFolderId}' in parents and trashed=false&spaces=drive&fields=files(id,name)&pageSize=100`,{
+      const listRes=await fetch(`https://www.googleapis.com/drive/v3/files?q='${driveEsc(sharedFolderId)}' in parents and trashed=false&spaces=drive&orderBy=modifiedTime desc&fields=files(id,name)&pageSize=100`,{
         headers:{Authorization:'Bearer '+accessToken}});
       if(listRes.ok){
         const data=await listRes.json();
-        const byName={};(data.files||[]).forEach(f=>{byName[f.name]=f.id;});
+        const byName={};(data.files||[]).forEach(f=>{if(!byName[f.name])byName[f.name]=f.id;}); // давхар бол хамгийн сүүлд бичигдсэн нь
         if(!driveFileId)driveFileId=byName[getFileName()]||null;
         if(!stickyFileId)stickyFileId=byName[getStickyFileName()]||null;
         if(!vaultFileId)vaultFileId=byName[getVaultFileName()]||null;
@@ -2378,6 +2592,7 @@ async function loadFromDrive(){
         console.error('[Drive] entries файл эвдэрсэн (JSON parse алдаа):',parseErr);
         throw new Error('JSON_PARSE_FAILED');
       }
+      if(Array.isArray(content.entries))content.entries=sanitizeEntries(content.entries);
       if(content.entries&&content.entries.length){
         // ── LAST-WRITER-WINS MERGE ──────────────────────────
         // Хоёр талын бүртгэлийг id-гаар map болгож, updatedAt их-ийг сонгоно.
@@ -2407,7 +2622,7 @@ async function loadFromDrive(){
         entries=Object.values(byId);
         // 90 хоногоос хуучин tombstone цэвэрлэх (merge дараа)
         cleanupOldTombstones();
-        entries.sort((a,b)=>b.date.localeCompare(a.date));
+        entries.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
         safeSetItem('hsti_v3',JSON.stringify(entries));
         if(newCount>0)showAlert('Drive-аас '+newCount+' шинэ бүртгэл нэмэгдлээ','success');
         document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
@@ -2513,12 +2728,8 @@ async function loadFromDrive(){
       let content;
       try{content=JSON.parse(text);}
       catch(parseErr){console.error('[Drive] vault файл эвдэрсэн:',parseErr);throw new Error('JSON_PARSE_FAILED');}
-      if(content.vault_meta&&!localStorage.getItem('vault_meta_hsti')){
-        localStorage.setItem('vault_meta_hsti',JSON.stringify(content.vault_meta));
-      }
-      if(content.vault_data){
-        localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault_data));
-      }
+      // meta болон data-г ХАМТ, зөвхөн Drive шинэ үед авна (локал илгээгээгүй өөрчлөлтийг дарахгүй)
+      await applyDriveVault(content,false);
       if(document.getElementById('tab-vault')?.classList.contains('active')){
         initVault();
       }
@@ -2580,7 +2791,7 @@ function renderDashboard(){
   const A=activeEntries(); // Устгагдаагүй бүртгэлүүд
   const total=A.length;
   const now=new Date();
-  const todayStr=now.toISOString().slice(0,10); // "2026-06-26"
+  const todayStr=localDateStr(now); // "2026-06-26"
   const curM=String(now.getMonth()+1).padStart(2,'0');
 
   // Өнөөдрийн тэмдэглэлүүд
@@ -2668,8 +2879,9 @@ function renderDashboard(){
   // Badge — сарын харьцуулалт биш, долоо хоногийн харьцуулалт (богино интервал, найдвартай)
   const today=new Date();
   const msDay=86400000;
-  function dateStr(d){return d.toISOString().slice(0,10);}
+  function dateStr(d){return localDateStr(d);}
   function normDate(d){
+    if(!d)return '';
     const p=d.split('-');
     return p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:d;
   }
@@ -2696,7 +2908,7 @@ function renderDashboard(){
 
   // Recent week
   const weekAgo=new Date(now);weekAgo.setDate(now.getDate()-7);
-  const recent=A.filter(e=>new Date(e.date)>=weekAgo).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+  const recent=A.filter(e=>new Date(e.date)>=weekAgo).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6);
   const recentEl=document.getElementById('recent-list');
   if(!recent.length){
     recentEl.innerHTML='<div class="empty" style="padding:20px"><i class="ti ti-inbox"></i><div style="font-size:13px">Энэ долоо хоногт тэмдэглэл байхгүй</div></div>';
@@ -2902,6 +3114,7 @@ function saveEntry(){
   if(!zaalt){document.getElementById('err-zaalt').style.display='flex';err=true;}
   if(!work){document.getElementById('err-work').style.display='flex';err=true;}
   if(!result){document.getElementById('err-result').style.display='flex';err=true;}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){showAlert('Огноо сонгоно уу','error');document.getElementById('entry-date').focus();return;}
   if(err){showAlert('Тодруулсан талбаруудыг бөглөнө үү','error');return;}
   const tags=[...document.querySelectorAll('#tab-add .tag-chip.active')]
     .map(t=>t.dataset.tag)
@@ -2970,7 +3183,7 @@ function importJSON(input){
   reader.onload=function(e){
     try{
       const data=JSON.parse(e.target.result);
-      const arr=Array.isArray(data)?data:(data.entries||[]);
+      const arr=sanitizeEntries(Array.isArray(data)?data:(data.entries||[]));
       if(!arr.length){showAlert('JSON хоосон байна','error');return;}
       const existIds=new Set(entries.map(e=>e.id));
       const newEntries=arr.filter(e=>!existIds.has(e.id));
@@ -2979,7 +3192,7 @@ function importJSON(input){
         return;
       }
       entries=[...entries,...newEntries];
-      entries.sort((a,b)=>b.date.localeCompare(a.date));
+      entries.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
       safeSetItem('hsti_v3',JSON.stringify(entries));
       document.getElementById('total-count').textContent=entries.length;
       document.getElementById('import-status').textContent=`✓ ${newEntries.length} бүртгэл нэмэгдлээ`;
@@ -3059,20 +3272,28 @@ async function confirmClearAll(){
     const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
-    a.href=url;a.download=`tailan_backup_устгахаас_өмнө_${new Date().toISOString().slice(0,10)}.json`;
+    a.href=url;a.download=`tailan_backup_устгахаас_өмнө_${localDateStr()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }catch(e){}
 
-  // 3. Устгах
-  entries=[];driveFileId=null;
+  // 3. Устгах — tombstone болгоно.
+  // Урьд нь entries=[] хийгээд Drive-д илгээдэггүй байсан тул дараагийн ачааллаар
+  // Drive-аас бүх бүртгэл буцаж нэгтгэгддэг байв. Tombstone нь бусад төхөөрөмж рүү тархана.
+  const now=Date.now();
+  entries.forEach(e=>{if(!e.deleted){e.deleted=true;e.updatedAt=now;}});
   safeSetItem('hsti_v3',JSON.stringify(entries));
-  writeFileIdCache(); // driveFileId=null болсныг кэшид тусгах — дараагийн ачаалалд дахин олно
   document.getElementById('total-count').textContent=0;
   renderList();populateFilters();renderDashboard();
 
   closeClearAllModal();
-  showAlert('Бүх тэмдэглэл устгагдлаа. Backup хадгалагдсан.','success');
+  if(accessToken){
+    statusEl.textContent='Drive-д хадгалж байна...';
+    const ok=await syncToDrive({quiet:true,confirmedClear:true});
+    showAlert(ok?'Бүх тэмдэглэл устгагдлаа (Drive-д ч устсан). Backup хадгалагдсан.':'Локалд устгагдлаа. Drive холбогдмогц устгал тархана.','success');
+  }else{
+    showAlert('Локалд устгагдлаа. Drive холбогдмогц устгал тархана.','success');
+  }
 }
 
 function getZaalt(){const v=document.getElementById('zaalt-select').value;return v==='custom'?document.getElementById('custom-zaalt').value.trim():v;}
@@ -3148,7 +3369,7 @@ function renderHeatmap(){
     for(let d=0;d<7;d++){
       const dt=new Date(startDate);
       dt.setDate(startDate.getDate()+w*7+d);
-      const ds=dt.toISOString().slice(0,10);
+      const ds=localDateStr(dt);
       week.push({date:ds,count:countByDate[ds]||0,dt});
     }
     weeks.push(week);
@@ -3195,7 +3416,7 @@ function renderHeatmap(){
   weeks.forEach(week=>{
     allCellsHtml+=`<div style="display:flex;flex-direction:column;gap:3px">`;
     week.forEach(cell=>{
-      const isToday=cell.date===today.toISOString().slice(0,10);
+      const isToday=cell.date===localDateStr(today);
       const tip=`${cell.date}: ${cell.count} бүртгэл`;
       allCellsHtml+=`<div class="heatmap-cell" style="background:${heatColor(cell.count)};${isToday?'outline:2px solid #1a2332':''}" title="${tip}" onclick="calSelectDay('${cell.date}')"></div>`;
     });
@@ -3538,7 +3759,7 @@ function quickAddFromTemplate(id){
   loadTemplates();
   const t=userTemplates.find(x=>x.id==id);
   if(!t)return;
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   // Өнөөдөр ижил шаблонаар аль хэдийн нэмсэн эсэхийг шалгах
   const dup=entries.find(e=>e.date===today&&e.work===t.work);
   if(dup){
@@ -3625,8 +3846,9 @@ async function loadYearData(){
     }
     const res=await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`,{
       headers:{Authorization:'Bearer '+accessToken}});
+    if(!res.ok)throw new Error('HTTP '+res.status);
     const content=await res.json();
-    entries=(content.entries||[]).filter(e=>!e.deleted);
+    entries=sanitizeEntries(content.entries).filter(e=>!e.deleted);
     driveFileId=fid;
     document.getElementById('total-count').textContent=entries.length;
     populateFilters();renderDashboard();
@@ -3662,7 +3884,7 @@ async function backToCurrentYear(){
   setArchiveUILock(false); // Архив банер нуух, мутаци UI сэргээх
   // localStorage-оос одоогийн оны өгөгдлийг сэргээх
   const saved=localStorage.getItem('hsti_v3');
-  entries=saved?JSON.parse(saved):[];
+  entries=saved?sanitizeEntries(JSON.parse(saved)):[];
   document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
   populateFilters();renderDashboard();
   // Товчнуудыг нуух
@@ -3850,7 +4072,7 @@ function updateAccBadge(){
   const dateEl=document.getElementById('entry-date');
   const dateBadge=document.getElementById('acc-date-badge');
   if(dateEl&&dateBadge){
-    const today=new Date().toISOString().slice(0,10);
+    const today=localDateStr();
     dateBadge.textContent=dateEl.value===today?'Өнөөдөр':dateEl.value||'Өнөөдөр';
     dateBadge.className='acc-badge filled';
   }
@@ -3880,8 +4102,8 @@ function updateAccBadge(){
   }
 }
 
-function changeDate(d){const inp=document.getElementById('entry-date');const dt=new Date(inp.value);dt.setDate(dt.getDate()+d);inp.value=dt.toISOString().split('T')[0];updateAccBadge();}
-function setToday(){document.getElementById('entry-date').value=new Date().toISOString().split('T')[0];updateAccBadge();}
+function changeDate(d){const inp=document.getElementById('entry-date');const dt=new Date(inp.value);dt.setDate(dt.getDate()+d);inp.value=localDateStr(dt);updateAccBadge();}
+function setToday(){document.getElementById('entry-date').value=localDateStr();updateAccBadge();}
 
 // ═══════════════════════════════════════════════════════════
 //  LIST — тэмдэглэлүүдийн жагсаалт, шүүлтүүр
@@ -3935,7 +4157,7 @@ function renderList(){
       <div class="entry-work">${escapeHtml(e.work)}</div>
       <div class="entry-result"><i class="ti ti-check" style="font-size:11px"></i> ${escapeHtml(e.result)}${e.days?' — '+escapeHtml(e.days)+' хоног':''}</div>
       ${e.tags&&e.tags.length?`<div class="tag-row" style="margin-top:6px">${e.tags.filter(t=>t&&t.trim()).map(t=>`<span class="tag-chip active" style="cursor:default;padding:2px 9px;font-size:11px">${escapeHtml(t)}</span>`).join('')}</div>`:''}
-      ${e.location||e.partner||e.tool?`<div class="entry-meta">${[e.location&&'📍'+e.location,e.partner&&'👤'+e.partner,e.tool&&'🔧'+e.tool].filter(Boolean).join(' · ')}</div>`:''}
+      ${e.location||e.partner||e.tool?`<div class="entry-meta">${[e.location&&'📍'+escapeHtml(e.location),e.partner&&'👤'+escapeHtml(e.partner),e.tool&&'🔧'+escapeHtml(e.tool)].filter(Boolean).join(' · ')}</div>`:''}
       ${viewingOldYear?'':`<div class="entry-actions">
         <button class="btn btn-sm" onclick="editEntry('${e.id}')"><i class="ti ti-edit"></i> Засах</button>
         <button class="btn btn-sm btn-danger" onclick="deleteEntry('${e.id}')"><i class="ti ti-trash"></i> Устгах</button>
@@ -3965,8 +4187,8 @@ function selectReportPeriod(btn){
     document.getElementById('report-quarter-sel').value=q;
   }
   if(currentReportPeriod==='custom'){
-    const today=new Date().toISOString().slice(0,10);
-    const weekAgo=new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+    const today=localDateStr();
+    const weekAgo=localDateStr(new Date(Date.now()-7*86400000));
     document.getElementById('report-custom-from').value=weekAgo;
     document.getElementById('report-custom-to').value=today;
   }
@@ -3974,16 +4196,16 @@ function selectReportPeriod(btn){
 
 function getReportDateRange(){
   const today=new Date();
-  const todayStr=today.toISOString().slice(0,10);
+  const todayStr=localDateStr(today);
   const year=today.getFullYear();
   function pad(n){return String(n).padStart(2,'0');}
   switch(currentReportPeriod){
     case '7d':{
-      const from=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
+      const from=localDateStr(new Date(Date.now()-6*86400000));
       return{from,to:todayStr,label:'Сүүлийн 7 хоног'};
     }
     case '14d':{
-      const from=new Date(Date.now()-13*86400000).toISOString().slice(0,10);
+      const from=localDateStr(new Date(Date.now()-13*86400000));
       return{from,to:todayStr,label:'Сүүлийн 14 хоног'};
     }
     case 'month':{
@@ -4075,9 +4297,9 @@ function generateReport(){
             return `<tr style="background:${i%2===0?'white':'#fafbfc'}${pri==='important'?';border-left:2px solid #e74c3c':''}">
               <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5">${e.date}</td>
               <td style="padding:7px 10px;color:#1a2332;border-bottom:1px solid #f0f2f5;line-height:1.5">${escapeHtml(e.work)}</td>
-              <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5"><span style="color:#27ae60;font-size:11px"><i class="ti ti-check" style="font-size:10px"></i> ${e.result||'—'}</span></td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5"><span style="color:#27ae60;font-size:11px"><i class="ti ti-check" style="font-size:10px"></i> ${escapeHtml(e.result||'—')}</span></td>
               <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5;text-align:center">${priIcon[pri]||'🟡'}</td>
-              <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5;text-align:center">${e.days||'—'}</td>
+              <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5;text-align:center">${escapeHtml(e.days||'—')}</td>
             </tr>`;
           }).join('')}</tbody>
         </table>
@@ -4697,7 +4919,7 @@ function renderLabelList(){
   el.innerHTML=stickyLabels.map(l=>`
     <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;background:#fafbfc;margin-bottom:6px">
       <span style="width:12px;height:12px;border-radius:50%;background:${l.color};flex-shrink:0;display:inline-block"></span>
-      <input value="${l.name}" style="flex:1;border:none;background:transparent;font-size:13px;outline:none;color:#1a2332;min-width:0"
+      <input value="${escapeHtml(l.name)}" style="flex:1;border:none;background:transparent;font-size:13px;outline:none;color:#1a2332;min-width:0"
         onchange="editLabelName('${l.id}',this.value)"
         onblur="editLabelName('${l.id}',this.value)">
       <button onclick="deleteLabel('${l.id}')" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:13px;flex-shrink:0;padding:2px 4px;border-radius:4px" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'"><i class="ti ti-trash"></i></button>
@@ -4748,7 +4970,7 @@ function openNoteLabelModal(noteId){
     const has=(note?.labels||[]).includes(l.id);
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;background:${has?'#f0f4f8':'white'};border:1.5px solid ${has?'#EBAD7C':'#e8edf3'}" onclick="toggleNoteLabel('${noteId}','${l.id}',this)">
       <span style="width:12px;height:12px;border-radius:50%;background:${l.color};flex-shrink:0;display:inline-block"></span>
-      <span style="flex:1;font-size:13px">${l.name}</span>
+      <span style="flex:1;font-size:13px">${escapeHtml(l.name)}</span>
       ${has?'<i class="ti ti-check" style="color:#EBAD7C"></i>':''}
     </div>`;
   }).join('')||'<p style="font-size:12px;color:#a0aab4;text-align:center">Шошго байхгүй<br><small>Удирдах товчоор нэмнэ үү</small></p>';
@@ -4781,7 +5003,7 @@ function renderLabelFilters(){
   let html=`<span class="label-chip${activeFilterLabel===null?' active':''}" onclick="filterByLabel(null)">Бүгд</span>`;
   stickyLabels.forEach(l=>{
     html+=`<span class="label-chip${activeFilterLabel===l.id?' active':''}" onclick="filterByLabel('${l.id}')">
-      <span style="width:8px;height:8px;border-radius:50%;background:${l.color};display:inline-block;margin-right:4px;vertical-align:middle"></span>${l.name}
+      <span style="width:8px;height:8px;border-radius:50%;background:${l.color};display:inline-block;margin-right:4px;vertical-align:middle"></span>${escapeHtml(l.name)}
     </span>`;
   });
   el.innerHTML=html;
@@ -4804,7 +5026,7 @@ function renderStickyNotes(){
   grid.innerHTML=notes.map(n=>{
     const noteLabels=(n.labels||[]).map(lid=>{
       const l=stickyLabels.find(x=>x.id==lid);
-      return l?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${l.color}22;color:${l.color};border:1px solid ${l.color}55;font-weight:500">${l.name}</span>`:'';
+      return l?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${l.color}22;color:${l.color};border:1px solid ${l.color}55;font-weight:500">${escapeHtml(l.name)}</span>`:'';
     }).join('');
     return `<div class="sticky-note" style="background:${n.color}">
       <div class="sticky-note-header">
@@ -4892,7 +5114,7 @@ function renderCalGrid(){
       return norm===ds;
     });
     let dots='';
-    dayEv.slice(0,2).forEach(e=>{dots+=`<div class="cal-event-dot gcal">${e.summary||'Event'}</div>`;});
+    dayEv.slice(0,2).forEach(e=>{dots+=`<div class="cal-event-dot gcal">${escapeHtml(e.summary||'Event')}</div>`;});
     if(dayEntries.length>0){
       // Өнгийн ангиллаар бүлэглэж харуулах
       const colorGroups={};
@@ -4974,7 +5196,7 @@ function renderDayEvents(ds){
       <div class="cal-event-info">
         <div class="cal-event-name">${escapeHtml(e.summary||'(Нэргүй)')}</div>
         ${e.location?`<div class="cal-event-loc"><i class="ti ti-map-pin" style="font-size:10px"></i> ${escapeHtml(e.location)}</div>`:''}
-        ${e.description?`<div class="cal-event-loc">${e.description}</div>`:''}
+        ${e.description?`<div class="cal-event-loc">${escapeHtml(htmlToText(e.description))}</div>`:''}
       </div>
       <span class="cal-event-badge" style="background:#E6F1FB;color:#185FA5">Google</span>
     </div>`;
@@ -5037,7 +5259,7 @@ function calPrevMonth(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}calSele
 function calNextMonth(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}calSelectedDate=null;fetchCalEvents();}
 function calGoToday(){
   calYear=new Date().getFullYear();calMonth=new Date().getMonth();
-  calSelectedDate=new Date().toISOString().slice(0,10);
+  calSelectedDate=localDateStr();
   fetchCalEvents().then(()=>renderDayEvents(calSelectedDate));
 }
 function calRefresh(){fetchCalEvents();}
@@ -5098,7 +5320,7 @@ function todoAdd(){
   if(!text)return;
   const pri=document.getElementById('todo-priority').value;
   const deadline=document.getElementById('todo-deadline').value||null;
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   todos.unshift({id:genId(),text,priority:pri,done:false,date:today,deadline});
   saveTodos();
   inp.value='';
@@ -5118,7 +5340,7 @@ function todoDelete(id){
 
 function renderAttention(){
   loadTodos();
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   const curM=String(new Date().getMonth()+1).padStart(2,'0');
 
   const items=[];
@@ -5189,7 +5411,7 @@ function renderAttention(){
     <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:${item.bg};border:1px solid ${item.color}22;margin-bottom:6px">
       <i class="ti ${item.icon}" style="color:${item.color};font-size:14px;flex-shrink:0"></i>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;color:#1a2332;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.title}</div>
+        <div style="font-size:13px;color:#1a2332;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.title)}</div>
         <div style="font-size:11px;color:${item.color};margin-top:1px">${item.sub}</div>
       </div>
       ${item.action?`<button class="todo-check" onclick="${item.action}" title="Дуусгасан болгох"></button>`:''}
@@ -5227,7 +5449,7 @@ function renderUncoveredPanel(){
 
 function renderTodos(){
   loadTodos();
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   const visible=todos.filter(t=>t.date===today||!t.done);
   const el=document.getElementById('todo-list');
   if(!el)return;
@@ -5315,9 +5537,25 @@ async function vaultUnlock(){
   const errEl=document.getElementById('vault-lock-err');
   errEl.style.display='none';
 
-  const stored=localStorage.getItem('vault_meta_hsti');
+  let stored=localStorage.getItem('vault_meta_hsti');
   if(!stored){
-    // Анх удаа — master үүсгэх
+    // Локалд vault байхгүй — шинэ браузер, цэвэрлэсэн storage эсвэл анх удаа.
+    // Шинэ master үүсгэхээс ӨМНӨ Drive-д vault байгаа эсэхийг ЗААВАЛ шалгана.
+    // Урьд нь шалгахгүй шинэ master үүсгэж, улмаар Drive дээрх хуучин нууц үгийн санг
+    // дарж БҮРМӨСӨН устгах эрсдэлтэй байв.
+    if(!accessToken){
+      showAlert('Нууц үгийн санг нээхийн тулд эхлээд Google-ээр холбогдоно уу.','error');
+      return;
+    }
+    const st=await pullVaultFromDrive(true);
+    if(st==='error'){
+      showAlert('Drive дээр нууц үгийн сан байгаа эсэхийг шалгаж чадсангүй. Холболтоо шалгаад дахин оролдоно уу — эс тэгвэл хуучин сан дарагдах эрсдэлтэй.','error');
+      return;
+    }
+    stored=localStorage.getItem('vault_meta_hsti');
+  }
+  if(!stored){
+    // Анх удаа (Drive-д ч байхгүй нь батлагдсан) — master үүсгэх
     // Богино нууц үгэнд анхааруулах
     if(pw.length<6){
       if(!confirm('Таны master нууц үг маш богино байна ('+pw.length+' тэмдэгт).\n\nАюулгүй байдлын үүднээс дор хаяж 8 тэмдэгт ашиглахыг зөвлөж байна. Ийм богино нууц үгээр үргэлжлүүлэх үү?')){
@@ -5344,6 +5582,7 @@ async function vaultUnlock(){
     const check=await encryptData(vaultKey,{check:'ok'});
     safeSetItem('vault_meta_hsti',JSON.stringify({salt:Array.from(salt),check}));
     safeSetItem('vault_data_hsti',JSON.stringify(await encryptData(vaultKey,[])));
+    safeSetItem('vault_updated_hsti',String(Date.now()));
     vaultItems=[];
     showAlert('Master нууц үг тохирогдлоо. Битгий мартаарай!','success');
   } else {
@@ -5358,21 +5597,16 @@ async function vaultUnlock(){
       errEl.style.display='block';
       return;
     }
-    // Өгөгдөл уншах — Drive-аас vault_data шинэчлэх (тусдаа vault файлаас)
+    // Drive-аас шинэ хувилбар байвал татна (локал илгээгээгүй өөрчлөлтийг дарахгүй)
     if(accessToken){
-      try{
-        const folderId=await getOrCreateFolder();
-        if(!vaultFileId)vaultFileId=await findFileInFolder(getVaultFileName(),folderId);
-        if(vaultFileId){
-          const content=await fetch(`https://www.googleapis.com/drive/v3/files/${vaultFileId}?alt=media`,{
-            headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
-          if(content.vault_data){
-            localStorage.setItem('vault_data_hsti',JSON.stringify(content.vault_data));
-          }
-        }
-      }catch(e){
-        console.error('[Vault] Drive-аас уншихад алдаа:',e);
-        showAlert('Drive-аас шинэчилж чадсангүй, локал хадгалсан өгөгдлийг харуулж байна','info');
+      const st=await pullVaultFromDrive(false);
+      if(st==='error')showAlert('Drive-аас шинэчилж чадсангүй, локал хадгалсан өгөгдлийг харуулж байна','info');
+      if(!vaultKey){
+        // Drive дээр master солигдсон (өөр salt) — шинэ meta-гаар нууц үгийг дахин шалгана
+        const m2=JSON.parse(localStorage.getItem('vault_meta_hsti'));
+        vaultKey=await deriveKey(pw,new Uint8Array(m2.salt));
+        try{const c2=await decryptData(vaultKey,m2.check);if(c2.check!=='ok')throw 0;}
+        catch(_){vaultKey=null;errEl.style.display='block';return;}
       }
     }
     // Decode хийх
@@ -5399,10 +5633,59 @@ function vaultLock(){
   document.getElementById('vault-master-input').value='';
 }
 
+// Drive-ийн vault-ыг локалд хэрэглэх. Буцаах: 'applied' | 'kept' | 'none'
+// force=false үед локал илгээгээгүй өөрчлөлт (локал шинэ) байвал дарахгүй.
+async function applyDriveVault(content,force){
+  if(!content||!content.vault_data||!content.vault_meta)return 'none';
+  const driveTs=Date.parse(content.updated)||0;
+  const hasLocal=!!localStorage.getItem('vault_data_hsti')&&!!localStorage.getItem('vault_meta_hsti');
+  if(!force&&hasLocal&&vaultLocalTs()>driveTs)return 'kept';
+  const newMeta=JSON.stringify(content.vault_meta);
+  const metaChanged=localStorage.getItem('vault_meta_hsti')!==newMeta;
+  // meta (salt) болон data-г ХАМТ хадгална — өөр salt-тай data хольж болохгүй
+  safeSetItem('vault_meta_hsti',newMeta);
+  safeSetItem('vault_data_hsti',JSON.stringify(content.vault_data));
+  safeSetItem('vault_updated_hsti',String(driveTs));
+  safeSetItem('vault_synced_hsti',String(driveTs));
+  if(vaultKey){
+    if(metaChanged){vaultLock();}
+    else{
+      try{
+        vaultItems=await decryptData(vaultKey,content.vault_data);
+        if(document.getElementById('vault-unlocked')?.style.display==='block')renderVault();
+      }catch(_){vaultLock();}
+    }
+  }
+  return 'applied';
+}
+
+// Drive-аас vault татах. Буцаах: 'applied' | 'kept' | 'none' (Drive-д vault байхгүй) | 'error' (шалгаж чадсангүй)
+async function pullVaultFromDrive(force){
+  try{
+    if(!(await ensureValidToken()))return 'error';
+    const folderId=await getOrCreateFolder();
+    if(!vaultFileId)vaultFileId=await findFileInFolder(getVaultFileName(),folderId);
+    let fid=vaultFileId;
+    if(!fid&&force){
+      // Шинэ он эхэлсэн ч энэ оны vault файл хараахан үүсээгүй байж болно — өмнөх оныхыг шалгана
+      fid=await findFileInFolder('vault_'+(activeYear-1)+'.json',folderId);
+    }
+    if(!fid)return 'none';
+    const r=await readDriveFile(fid);
+    if(r.status==='missing'){if(fid===vaultFileId)vaultFileId=null;return 'none';}
+    if(r.status==='corrupt')return 'error';
+    return await applyDriveVault(r.content,force);
+  }catch(e){
+    console.error('[Vault] Drive-аас уншихад алдаа:',e);
+    return 'error';
+  }
+}
+
 async function vaultSaveData(){
   if(!vaultKey)return;
   const enc=await encryptData(vaultKey,vaultItems);
   safeSetItem('vault_data_hsti',JSON.stringify(enc));
+  safeSetItem('vault_updated_hsti',String(Date.now())); // илгээх шаардлагатай гэж тэмдэглэнэ
   // Drive-д автоматаар хадгалах
   if(accessToken)syncToDrive();
 }
@@ -5445,7 +5728,7 @@ async function vaultSave(){
     editingVaultId=null;
   } else {
     // Шинэ бичлэг үүсгэх
-    vaultItems.unshift({id:genId(),...data,date:new Date().toISOString().slice(0,10)});
+    vaultItems.unshift({id:genId(),...data,date:localDateStr()});
   }
   await vaultSaveData();
   toggleVaultForm();
