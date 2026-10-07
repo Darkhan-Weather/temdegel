@@ -1391,11 +1391,31 @@ function localDateStr(d){
 // ── Бүртгэлийг ариутгах ─────────────────────────────────────
 // Импорт, гэмтсэн файл, хуучин хувилбараас ирсэн date/work-гүй бүртгэл 16 газар
 // e.date.slice()/split()-д унаж, бүхэл табыг (Тэмдэглэлүүд, Хуанли) ажиллахгүй болгодог байв.
+// Бүртгэл биелсэн эсэх — үр дүн бичигдсэн, "дуусаагүй" гэсэн утгагүй (том/жижиг үсэг ялгахгүй)
+const NOT_DONE_RE=/хийгдээгүй|биелээгүй|биелэгдээгүй|дутуу|хүлээгдэж|үргэлжилж|явагдаж|хийгдэж байна|эхлээгүй|цуцлагдсан|хойшлогдсон|шийдэгдээгүй|засагдаагүй/i;
+function isEntryDone(e){
+  const r=(e&&typeof e.result==='string')?e.result.trim():'';
+  return r!==''&&!NOT_DONE_RE.test(r);
+}
+
+// ID-г inline onclick болон HTML атрибутад аюулгүй хэлбэрт оруулах (тогтмол — бүх төхөөрөмжид ижил үр дүн)
+function safeIdStr(id){return String(id).replace(/[^\w.-]/g,'_').slice(0,80)||'x';}
+// Render хийхэд: onclick="fn('${aid(x.id)}')" — хэвийн ID өөрчлөгдөхгүй, хортой тэмдэгт арилна
+function aid(id){return typeof id==='number'?String(id):safeIdStr(id);}
+
+// Бүртгэлийн бүтэц/төрлийг баталгаажуулах — импорт, Drive, backup гэх мэт БҮХ эх үүсвэрт.
+// Урьд нь зөвхөн date/work-ийг шалгадаг тул tags="текст", result дутуу, HTML агуулсан огноо,
+// хортой ID зэрэг нь таб/тайланг унагах эсвэл HTML болж орох боломжтой байв.
+const ENTRY_TEXT_FIELDS=['work','result','zaalt','location','partner','tool','days'];
 function sanitizeEntries(arr){
-  return (Array.isArray(arr)?arr:[]).filter(e=>e&&typeof e==='object'&&e.id!=null).map(e=>{
-    if(typeof e.date!=='string')e.date='';
-    if(typeof e.work!=='string')e.work=e.work==null?'':String(e.work);
-    if(e.result!=null&&typeof e.result!=='string')e.result=String(e.result);
+  return (Array.isArray(arr)?arr:[]).filter(e=>e&&typeof e==='object'&&!Array.isArray(e)&&e.id!=null).map(e=>{
+    if(typeof e.id!=='number')e.id=safeIdStr(e.id);
+    // Огноо: стандарт хэлбэрийг хэвээр; бусад (хуучин) хэлбэрт зөвхөн тоо/тусгаарлагчийг үлдээнэ — өгөгдөл алдагдахгүй, HTML орохгүй
+    e.date=(typeof e.date==='string')?(/^\d{4}-\d{1,2}-\d{1,2}$/.test(e.date)?e.date:e.date.replace(/[^0-9./ -]/g,'').slice(0,20)):'';
+    ENTRY_TEXT_FIELDS.forEach(k=>{if(e[k]==null)e[k]='';else if(typeof e[k]!=='string')e[k]=String(e[k]);});
+    e.tags=Array.isArray(e.tags)?e.tags.filter(t=>typeof t==='string'&&t.trim()):[];
+    if(!['important','normal','low'].includes(e.priority))e.priority='normal';
+    if(e.updatedAt!=null&&typeof e.updatedAt!=='number')e.updatedAt=Number(e.updatedAt)||0;
     return e;
   });
 }
@@ -1409,6 +1429,7 @@ function genId(){
 // Дараа нь массиваас бүрмөсөн хасаж, файлын хэмжээ багасгана
 const TOMBSTONE_MAX_AGE=90*24*60*60*1000; // 90 хоног (ms)
 function cleanupOldTombstones(){
+  if(viewingOldYear)return 0;
   const now=Date.now();
   const before=entries.length;
   entries=entries.filter(e=>{
@@ -1895,7 +1916,7 @@ function signOut(){
   }catch(_){}
   accessToken=null;currentUser=null;driveFileId=null;stickyFileId=null;vaultFileId=null;
   driveFolderId=null;driveBackupFolderId=null;tokenExpiresAt=0;
-  vaultKey=null;vaultItems=[];
+  vaultLock(); // түлхүүр + DOM дахь нууц мэдээллийг цэвэрлэнэ
   localStorage.removeItem('hsti_tok');localStorage.removeItem('hsti_usr');
   localStorage.removeItem('hsti_tok_exp');
   clearFileIdCache();
@@ -2004,8 +2025,16 @@ async function getOrCreateFolder(){
 }
 
 let driveBackupFolderId=null;
-async function getOrCreateBackupFolder(parentFolderId){
-  if(driveBackupFolderId)return driveBackupFolderId;
+// Зэрэг дуудагдвал (load-sync + "Бүгдийг устгах") нэг л хүсэлт явуулна — давхар "backups" хавтас үүсэхээс сэргийлнэ
+let _backupFolderPromise=null;
+function getOrCreateBackupFolder(parentFolderId){
+  if(driveBackupFolderId)return Promise.resolve(driveBackupFolderId);
+  if(!_backupFolderPromise){
+    _backupFolderPromise=_getOrCreateBackupFolderCore(parentFolderId).finally(()=>{_backupFolderPromise=null;});
+  }
+  return _backupFolderPromise;
+}
+async function _getOrCreateBackupFolderCore(parentFolderId){
   const res=await driveJson(`https://www.googleapis.com/drive/v3/files?q=name='backups' and mimeType='application/vnd.google-apps.folder' and '${driveEsc(parentFolderId)}' in parents and trashed=false&spaces=drive&orderBy=createdTime&fields=files(id)`);
   if(res.files&&res.files.length>0){
     driveBackupFolderId=res.files[0].id;
@@ -2171,7 +2200,7 @@ async function restoreFromBackup(fileId){
     const now=Date.now();
     const ep=content.entries||{};
     if(Array.isArray(ep.entries)){
-      const byId={};
+      const byId=Object.create(null);
       entries.forEach(e=>{byId[e.id]=e;});
       sanitizeEntries(ep.entries).forEach(e=>{byId[e.id]={...e,updatedAt:now};});
       entries=Object.values(byId);
@@ -2182,7 +2211,7 @@ async function restoreFromBackup(fileId){
     if(Array.isArray(ep.zaalt_list)&&ep.zaalt_list.length){ZAALT_LIST=ep.zaalt_list;safeSetItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST));rebuildZaaltSelect();}
     if(content.sticky){
       if(Array.isArray(content.sticky.sticky_notes)){
-        const byId={};
+        const byId=Object.create(null);
         (stickyNotes||[]).forEach(n=>{byId[n.id]=n;});
         content.sticky.sticky_notes.forEach(n=>{byId[n.id]={...n,updatedAt:now};});
         stickyNotes=Object.values(byId);
@@ -2235,7 +2264,7 @@ async function openBackupModal(){
     const dateStr=d.toLocaleDateString('mn-MN')+' '+d.toLocaleTimeString('mn-MN',{hour:'2-digit',minute:'2-digit'});
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:9px;background:#fafbfc;border:1.5px solid #f0f2f5;margin-bottom:7px">
       <span style="font-size:13px;color:#1a2332"><i class="ti ti-clock-history" style="font-size:13px;color:#8a97a8"></i> ${dateStr}</span>
-      <button class="btn btn-sm btn-primary" onclick="restoreFromBackup('${b.id}')"><i class="ti ti-restore"></i> Сэргээх</button>
+      <button class="btn btn-sm btn-primary" onclick="restoreFromBackup('${aid(b.id)}')"><i class="ti ti-restore"></i> Сэргээх</button>
     </div>`;
   }).join('');
 }
@@ -2248,12 +2277,12 @@ function _stamp(x){return x.updatedAt||(typeof x.id==='number'?x.id:0);}
 // Drive-ийн бүртгэлийг локал entries-тэй нэгтгэнэ (updatedAt их нь ялна, tombstone тархана)
 function mergeEntriesLWW(driveArr){
   driveArr=sanitizeEntries(driveArr);
-  const byId={};
+  const byId=Object.create(null);
   entries.forEach(e=>{byId[e.id]=e;});
   let added=0,changed=0;
   (driveArr||[]).forEach(de=>{
     const l=byId[de.id];
-    if(!l){byId[de.id]=de;if(!de.deleted)added++;}
+    if(!l){byId[de.id]=de;if(!de.deleted)added++;else changed++;} // tombstone ч гэсэн хадгалагдах ёстой
     else if(_stamp(de)>_stamp(l)){byId[de.id]=de;changed++;}
   });
   if(added||changed){
@@ -2263,7 +2292,7 @@ function mergeEntriesLWW(driveArr){
   return {added,changed};
 }
 function mergeStickyLWW(localArr,driveArr){
-  const byId={};
+  const byId=Object.create(null);
   localArr.forEach(n=>{byId[n.id]=n;});
   let changed=false;
   (driveArr||[]).forEach(dn=>{
@@ -2429,28 +2458,50 @@ async function _syncToDriveCore(opts){
         vault_data:JSON.parse(vaultData),
         updated:new Date().toISOString()
       };
+      // Upload эхлэхээс ӨМНӨХ локал хувилбарын цаг — upload-ийн явцад шинэ засвар хийгдвэл
+      // тэр нь "илгээгдсэн" гэж тэмдэглэгдэхгүй (F06: урьд нь synced=Date.now() байсан)
+      const snapTs=vaultLocalTs();
+      const markUploaded=(payload,ts)=>{
+        safeSetItem('vault_synced_hsti',String(ts));
+        safeSetItem('vault_remote_seen',payload.updated);
+      };
       if(!vaultFileId){
         vaultFileId=await uploadToFile(getVaultFileName(),null,folderId,vaultPayloadNow);
-        safeSetItem('vault_synced_hsti',String(Date.now()));
+        markUploaded(vaultPayloadNow,snapTs);
       }else if(vaultDirty()){
-        // ХАМГААЛАЛТ 3: локал vault хоосон эсвэл тайлж чадахгүй бол Drive-ийн өгөгдлийг дарахгүй
-        let vaultLocalCount=-1;
-        try{
-          if(vaultKey){
-            const decoded=await decryptData(vaultKey,JSON.parse(vaultData));
-            vaultLocalCount=Array.isArray(decoded)?decoded.length:-1;
-          }
-        }catch(_){vaultLocalCount=-1;}
-        let driveHas=false;
-        if(vaultLocalCount<=0){
-          const dc=await getDriveRecordCount(getVaultFileName(),vaultFileId,folderId,c=>(c.vault_data&&c.vault_meta)?1:0);
-          driveHas=(dc>0||dc===-2);
-        }
-        if(vaultLocalCount<=0&&driveHas){
-          skipped.push('Нууц үгийн сан (хамгаалсан — санг нээгээд дахин хадгална уу)');
+        const r=await readDriveFile(vaultFileId);
+        const localMeta=JSON.parse(vaultMeta);
+        let toUpload=null,skipReason='';
+        if(r.status==='missing'){
+          vaultFileId=null;toUpload=vaultPayloadNow;
+        }else if(r.status==='corrupt'||!r.content.vault_data){
+          toUpload=vaultPayloadNow; // Drive-ийн файл гэмтсэн/хоосон — локал хувилбараар засна
         }else{
-          vaultFileId=await uploadToFile(getVaultFileName(),vaultFileId,folderId,vaultPayloadNow);
-          safeSetItem('vault_synced_hsti',String(Date.now()));
+          const remote=r.content;
+          const seen=localStorage.getItem('vault_remote_seen');
+          if(seen&&remote.updated===seen){
+            toUpload=vaultPayloadNow; // Drive бидний сүүлд харснаас хойш өөрчлөгдөөгүй
+          }else if(vaultKey&&remote.vault_meta&&JSON.stringify(remote.vault_meta.salt)===JSON.stringify(localMeta.salt)){
+            // Өөр төхөөрөмж өөрчилсөн — бичлэг бүрээр нэгтгэнэ (дарж устгахгүй)
+            try{
+              const rItems=await decryptData(vaultKey,remote.vault_data);
+              const lItems=await decryptData(vaultKey,JSON.parse(vaultData));
+              const merged=mergeVaultItems(lItems,rItems);
+              const enc=await encryptData(vaultKey,merged);
+              vaultItems=merged;
+              safeSetItem('vault_data_hsti',JSON.stringify(enc));
+              toUpload={vault_meta:localMeta,vault_data:enc,updated:new Date().toISOString()};
+              if(document.getElementById('vault-unlocked')?.style.display==='block')renderVault();
+            }catch(e){skipReason='нэгтгэж чадсангүй';}
+          }else{
+            skipReason=vaultKey?'өөр master нууц үгтэй':'өөр төхөөрөмжид өөрчлөгдсөн — санг нээгээд хадгална уу';
+          }
+        }
+        if(toUpload){
+          vaultFileId=await uploadToFile(getVaultFileName(),vaultFileId,folderId,toUpload);
+          markUploaded(toUpload,snapTs);
+        }else{
+          skipped.push('Нууц үгийн сан ('+skipReason+')');
         }
       }
     }
@@ -2542,7 +2593,7 @@ async function loadFromDrive(){
         headers:{Authorization:'Bearer '+accessToken}});
       if(listRes.ok){
         const data=await listRes.json();
-        const byName={};(data.files||[]).forEach(f=>{if(!byName[f.name])byName[f.name]=f.id;}); // давхар бол хамгийн сүүлд бичигдсэн нь
+        const byName=Object.create(null);(data.files||[]).forEach(f=>{if(!byName[f.name])byName[f.name]=f.id;}); // давхар бол хамгийн сүүлд бичигдсэн нь
         if(!driveFileId)driveFileId=byName[getFileName()]||null;
         if(!stickyFileId)stickyFileId=byName[getStickyFileName()]||null;
         if(!vaultFileId)vaultFileId=byName[getVaultFileName()]||null;
@@ -2597,7 +2648,7 @@ async function loadFromDrive(){
         // ── LAST-WRITER-WINS MERGE ──────────────────────────
         // Хоёр талын бүртгэлийг id-гаар map болгож, updatedAt их-ийг сонгоно.
         // Ингэснээр: устгал (tombstone) тархана, засвар дарж бичигдэнэ.
-        const byId={};
+        const byId=Object.create(null);
         // Эхлээд локал бүртгэлүүдийг map-д хийх
         entries.forEach(e=>{byId[e.id]={...e,updatedAt:e.updatedAt||(typeof e.id==='number'?e.id:0)};});
         // Дараа нь Drive бүртгэлүүдтэй харьцуулах
@@ -2678,7 +2729,7 @@ async function loadFromDrive(){
         // (deleted:true) тархана, засвар дарж бичигдэнэ — наалт амилахгүй.
         // updatedAt байхгүй хуучин наалтыг number-id-аар эсвэл 0-оор тэмдэглэнэ.
         const stamp=n=>n.updatedAt||(typeof n.id==='number'?n.id:0);
-        const byId={};
+        const byId=Object.create(null);
         localArr.forEach(n=>{byId[n.id]=n;});
         let changed=false;
         content.sticky_notes.forEach(dn=>{
@@ -2750,9 +2801,17 @@ async function loadFromDrive(){
 // localStorage 5MB хязгаарт хүрэхэд QuotaExceededError шидэгддэг.
 // Энэ wrapper: алдааг барьж, хэрэглэгчид toast мэдэгдэл өгнө.
 // Бүх localStorage.setItem дуудалт энээр дамжина.
+// Буцаах: true — хадгалагдсан, false — хадгалагдаагүй (дуудагч алдааг шалгаж болно)
 function safeSetItem(key, value) {
+  // ХАМГААЛАЛТЫН ГАРЦ: архив горимд entries нь ХУУЧИН оных тул одоогийн оны локал
+  // хадгалалт (hsti_v3)-ыг дарахыг бүх замаар (quick-add, clear-all, ...) хориглоно.
+  if(key==='hsti_v3'&&typeof viewingOldYear!=='undefined'&&viewingOldYear){
+    console.warn('[Архив] hsti_v3-д бичих оролдлогыг хориглолоо');
+    return false;
+  }
   try {
     localStorage.setItem(key, value);
+    return true;
   } catch(e) {
     if(e.name==='QuotaExceededError'||e.name==='NS_ERROR_DOM_QUOTA_REACHED'||e.code===22){
       console.error('[localStorage] Quota хэтэрсэн:', key, e);
@@ -2765,8 +2824,18 @@ function safeSetItem(key, value) {
       }
     } else {
       console.error('[localStorage] setItem алдаа:', key, e);
+      if(['hsti_v3','vault_data_hsti','vault_meta_hsti'].includes(key))
+        showAlert('Хөтөч өгөгдөл хадгалахыг зөвшөөрсөнгүй ('+(e.name||'алдаа')+'). Хувийн (incognito) горим эсвэл хөтчийн тохиргоог шалгана уу.','error');
     }
+    return false;
   }
+}
+
+// Архив горимд өгөгдөл өөрчлөх үйлдлийг хориглох нэгдсэн шалгалт
+function archiveBlocked(){
+  if(!viewingOldYear)return false;
+  showAlert('Архив горим — зөвхөн харах. Өөрчлөхийн тулд одоогийн он руу буцна уу.','info');
+  return true;
 }
 
 function setSyncBadge(txt,color){
@@ -2820,7 +2889,7 @@ function renderDashboard(){
             <div style="font-size:13px;color:#1a2332;line-height:1.5">${escapeHtml(e.work)}</div>
             ${e.result?`<div style="font-size:11px;color:#27ae60;margin-top:2px"><i class="ti ti-check" style="font-size:10px"></i> ${escapeHtml(e.result)}</div>`:''}
           </div>
-          <button onclick="editEntry('${e.id}')" style="background:none;border:none;cursor:pointer;color:#c9d4e0;font-size:13px;flex-shrink:0;padding:2px"><i class="ti ti-edit"></i></button>
+          <button onclick="editEntry('${aid(e.id)}')" style="background:none;border:none;cursor:pointer;color:#c9d4e0;font-size:13px;flex-shrink:0;padding:2px"><i class="ti ti-edit"></i></button>
         </div>`).join('');
     }
   }
@@ -2835,7 +2904,7 @@ function renderDashboard(){
   const zaaltSet=new Set(A.map(e=>e.zaalt).filter(v=>v&&v!=='custom'&&v!=='nemel'&&v!=='medleg'&&v!=='eelje'));
   const covered=zaaltSet.size;
   const total28=28;
-  const done=A.filter(e=>e.result&&/100%|биелэгдсэн|хамрагдсан|оруулсан|өгсөн|хүргэгдсэн|дээшилсэн|оролцсон|хийгдсэн/.test(e.result)).length;
+  const done=A.filter(isEntryDone).length;
   const pct=total?Math.round(done/total*100):0;
 
   document.getElementById('stats-grid').innerHTML=[
@@ -2915,7 +2984,7 @@ function renderDashboard(){
   }else{
     recentEl.innerHTML=recent.map(e=>`
       <div class="recent-item">
-        <span class="recent-date">${e.date}</span>
+        <span class="recent-date">${escapeHtml(e.date)}</span>
         <span class="recent-work">${escapeHtml(e.work)}</span>
         <span class="recent-tag" style="background:#FFF3E8;color:#9E5E3D">${escapeHtml(e.zaalt)}</span>
       </div>`).join('');
@@ -3126,9 +3195,16 @@ function saveEntry(){
     tool:document.getElementById('entry-tool').value.trim(),
     days:document.getElementById('entry-days').value||'',
     updatedAt:Date.now()};
-  if(editingId){entries=entries.map(e=>e.id==editingId?entry:e);editingId=null;}
-  else entries.push(entry);
-  safeSetItem('hsti_v3',JSON.stringify(entries));
+  const prevEntries=entries;
+  if(editingId){entries=entries.map(e=>e.id==editingId?entry:e);}
+  else entries=[...entries,entry];
+  if(!safeSetItem('hsti_v3',JSON.stringify(entries))){
+    // Хадгалагдсангүй — өгөгдлийг буцааж, форм/ноорогийг ХЭВЭЭР үлдээнэ (урьд нь цэвэрлээд "Хадгалагдлаа!" гэдэг байв)
+    entries=prevEntries;
+    showAlert('Хадгалж чадсангүй! Бичсэн мэдээлэл формд хэвээр байна — "Тохиргоо → JSON татах"-аар нөөцөлнө үү.','error');
+    return;
+  }
+  editingId=null;
   document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
   clearForm();populateFilters();
   clearDraft();
@@ -3183,10 +3259,14 @@ function importJSON(input){
   reader.onload=function(e){
     try{
       const data=JSON.parse(e.target.result);
-      const arr=sanitizeEntries(Array.isArray(data)?data:(data.entries||[]));
+      const rawArr=Array.isArray(data)?data:(data&&Array.isArray(data.entries)?data.entries:[]);
+      const seenIds=new Set();
+      const arr=sanitizeEntries(rawArr.map(e=>(e&&typeof e==='object'&&e.id==null)?{...e,id:genId()}:e))
+        .filter(e=>{const k=String(e.id);if(seenIds.has(k))return false;seenIds.add(k);return true;})
+        .filter(e=>e.date&&e.work); // огноо, ажилгүй мөрийг импортлохгүй
       if(!arr.length){showAlert('JSON хоосон байна','error');return;}
-      const existIds=new Set(entries.map(e=>e.id));
-      const newEntries=arr.filter(e=>!existIds.has(e.id));
+      const existIds=new Set(entries.map(e=>String(e.id)));
+      const newEntries=arr.filter(e=>!existIds.has(String(e.id)));
       if(!newEntries.length){
         showAlert('Бүх бүртгэл аль хэдийн байна (давхардал)','info');
         return;
@@ -3209,6 +3289,7 @@ function importJSON(input){
 }
 
 function openClearAllModal(){
+  if(archiveBlocked())return;
   document.getElementById('clear-all-count').textContent=entries.length;
   document.getElementById('clear-all-confirm-input').value='';
   document.getElementById('clear-all-status').style.display='none';
@@ -3229,6 +3310,7 @@ function checkClearAllInput(){
   btn.style.cursor=ok?'pointer':'not-allowed';
 }
 async function confirmClearAll(){
+  if(archiveBlocked()){closeClearAllModal();return;}
   const val=document.getElementById('clear-all-confirm-input').value.trim();
   if(val!=='БҮХ')return;
   const statusEl=document.getElementById('clear-all-status');
@@ -3237,6 +3319,7 @@ async function confirmClearAll(){
   statusEl.style.display='block';
 
   // 1. Устгахаас өмнө автомат backup үүсгэх
+  let backupOk=false;
   if(accessToken){
     statusEl.textContent='Backup үүсгэж байна...';
     try{
@@ -3257,8 +3340,8 @@ async function confirmClearAll(){
         vault_data:vaultData?JSON.parse(vaultData):null,
         updated:new Date().toISOString()
       };
-      await createBackup(folderId,entriesPayload,stickyPayload,vaultPayload);
-      statusEl.textContent='Backup үүслээ. Устгаж байна...';
+      backupOk=await createBackup(folderId,entriesPayload,stickyPayload,vaultPayload);
+      statusEl.textContent=backupOk?'Backup үүслээ. Устгаж байна...':'Backup амжилтгүй боллоо, устгахыг үргэлжлүүлж байна...';
     }catch(e){
       statusEl.textContent='Backup амжилтгүй боллоо, устгахыг үргэлжлүүлж байна...';
     }
@@ -3290,7 +3373,7 @@ async function confirmClearAll(){
   if(accessToken){
     statusEl.textContent='Drive-д хадгалж байна...';
     const ok=await syncToDrive({quiet:true,confirmedClear:true});
-    showAlert(ok?'Бүх тэмдэглэл устгагдлаа (Drive-д ч устсан). Backup хадгалагдсан.':'Локалд устгагдлаа. Drive холбогдмогц устгал тархана.','success');
+    showAlert((ok?'Бүх тэмдэглэл устгагдлаа (Drive-д ч устсан).':'Локалд устгагдлаа. Drive холбогдмогц устгал тархана.')+(backupOk?' Backup хадгалагдсан.':' ⚠ Drive backup үүсээгүй — татагдсан JSON файлаа хадгална уу.'),backupOk?'success':'error');
   }else{
     showAlert('Локалд устгагдлаа. Drive холбогдмогц устгал тархана.','success');
   }
@@ -3455,7 +3538,7 @@ function renderPieChart(){
   if(!canvas||!legend)return;
 
   // Заалтаар тоолох
-  const counts={};
+  const counts=Object.create(null);
   activeEntries().forEach(e=>{
     const z=e.zaalt||'other';
     counts[z]=(counts[z]||0)+1;
@@ -3571,7 +3654,7 @@ function runSearch(q){
     .slice(0,5).forEach(e=>{
       results.push({type:'entry',icon:'ti-notebook',iconBg:'#EBF3FB',iconColor:'#185FA5',
         title:highlight(e.work.slice(0,60),q),
-        sub:`${e.date} · ${escapeHtml(e.zaalt)}`,
+        sub:`${escapeHtml(e.date)} · ${escapeHtml(e.zaalt)}`,
         action:()=>{closeSearch();showTab('list',document.querySelectorAll('.nav-item')[2]);
           setTimeout(()=>{const s=document.getElementById('filter-search');if(s){s.value=q;renderList();}},100);}
       });
@@ -3582,7 +3665,7 @@ function runSearch(q){
     .slice(0,3).forEach(n=>{
       results.push({type:'sticky',icon:'ti-notes',iconBg:'#FFF9C4',iconColor:'#9E5E3D',
         title:highlight(n.text.slice(0,60),q),
-        sub:`Sticky · ${n.date}`,
+        sub:`Sticky · ${escapeHtml(n.date)}`,
         action:()=>{closeSearch();showTab('sticky',document.querySelectorAll('.nav-item')[4]);}
       });
     });
@@ -3599,7 +3682,7 @@ function runSearch(q){
 
   // 4. Vault (нэр болон URL-аар, нууц үггүй)
   if(vaultItems&&vaultItems.length){
-    vaultItems.filter(v=>(v.name||'').toLowerCase().includes(ql)||(v.url||'').toLowerCase().includes(ql)||(v.user||'').toLowerCase().includes(ql))
+    vaultItems.filter(v=>!v.deleted).filter(v=>(v.name||'').toLowerCase().includes(ql)||(v.url||'').toLowerCase().includes(ql)||(v.user||'').toLowerCase().includes(ql))
       .slice(0,3).forEach(v=>{
         results.push({type:'vault',icon:'ti-lock',iconBg:'#F3E5F5',iconColor:'#6A1B9A',
           title:highlight(v.name,q),
@@ -3612,7 +3695,7 @@ function runSearch(q){
   searchSelectedIdx=-1;
   const el=document.getElementById('search-results');
   if(!results.length){
-    el.innerHTML=`<div style="text-align:center;padding:32px;color:#a0aab4;font-size:13px"><i class="ti ti-search-off" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.3"></i>"${q}" — олдсонгүй</div>`;
+    el.innerHTML=`<div style="text-align:center;padding:32px;color:#a0aab4;font-size:13px"><i class="ti ti-search-off" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.3"></i>"${escapeHtml(q)}" — олдсонгүй</div>`;
     return;
   }
   el.innerHTML=results.map((r,i)=>`
@@ -3736,7 +3819,7 @@ function renderTemplateList(){
         <div style="font-size:13px;font-weight:500;color:#1a2332">${escapeHtml(t.name)}</div>
         <div style="font-size:11px;color:#8a97a8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.zaalt)} · ${escapeHtml(t.work)}</div>
       </div>
-      <button onclick="deleteTemplate('${t.id}')" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:14px;flex-shrink:0" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'"><i class="ti ti-trash"></i></button>
+      <button onclick="deleteTemplate('${aid(t.id)}')" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:14px;flex-shrink:0" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'"><i class="ti ti-trash"></i></button>
     </div>`).join('');
 }
 
@@ -3749,13 +3832,14 @@ function renderQuickAdd(){
   if(!userTemplates.length){row.style.display='none';return;}
   row.style.display='block';
   btns.innerHTML=userTemplates.map(t=>`
-    <button class="template-btn" onclick="quickAddFromTemplate('${t.id}')" style="border-style:solid">
+    <button class="template-btn" onclick="quickAddFromTemplate('${aid(t.id)}')" style="border-style:solid">
       <i class="ti ti-bolt" style="font-size:13px"></i> ${escapeHtml(t.name)}
     </button>`).join('');
 }
 
 // Нэг товшилтоор шаблоноос бүртгэл үүсгэх
 function quickAddFromTemplate(id){
+  if(archiveBlocked())return;
   loadTemplates();
   const t=userTemplates.find(x=>x.id==id);
   if(!t)return;
@@ -3776,8 +3860,9 @@ function quickAddFromTemplate(id){
     location:'',partner:'',tool:'',days:'',
     updatedAt:Date.now()
   };
-  entries.push(entry);
-  safeSetItem('hsti_v3',JSON.stringify(entries));
+  const next=[...entries,entry];
+  if(!safeSetItem('hsti_v3',JSON.stringify(next))){showAlert('Хадгалж чадсангүй','error');return;}
+  entries=next;
   document.getElementById('total-count').textContent=entries.filter(e=>!e.deleted).length;
   populateFilters();
   renderDashboard();
@@ -3917,14 +4002,20 @@ async function deleteYearData(){
     const folderId=await getOrCreateFolder();
     // 3 файлыг хайж устгах
     const filesToDelete=[getFileName(),getStickyFileName(),getVaultFileName()];
-    let deletedCount=0;
+    let deletedCount=0;const failed=[];
     for(const fname of filesToDelete){
       const fid=await findFileInFolder(fname,folderId);
       if(fid){
-        await fetch(`https://www.googleapis.com/drive/v3/files/${fid}`,{
+        const dres=await fetch(`https://www.googleapis.com/drive/v3/files/${fid}`,{
           method:'DELETE',headers:{Authorization:'Bearer '+accessToken}});
-        deletedCount++;
+        if(dres.ok||dres.status===404)deletedCount++;
+        else failed.push(fname+' (HTTP '+dres.status+')');
       }
+    }
+    if(failed.length){
+      statusEl.innerHTML='<span style="color:#e74c3c">⚠ '+deletedCount+' файл устгагдсан, '+failed.length+' устгагдсангүй: '+escapeHtml(failed.join(', '))+'</span>';
+      showAlert('Зарим файл устгагдсангүй — дахин оролдоно уу','error');
+      return;
     }
     statusEl.innerHTML=`<span style="color:#0F6E56">✓ ${yearToDelete} оны ${deletedCount} файл устгагдлаа</span>`;
     showAlert(`${yearToDelete} оны өгөгдөл устгагдлаа`,'success');
@@ -4116,7 +4207,7 @@ function populateFilters(){
   months.forEach(m=>ms.innerHTML+=`<option value="${m}"${m===mv?' selected':''}>${mN[parseInt(m)]}</option>`);
   const zs=document.getElementById('filter-zaalt');const zv=zs.value;
   zs.innerHTML='<option value="">Бүгд</option>';
-  [...new Set(activeEntries().map(e=>e.zaalt))].filter(Boolean).sort().forEach(z=>zs.innerHTML+=`<option value="${z}"${z===zv?' selected':''}>${z}</option>`);
+  [...new Set(activeEntries().map(e=>e.zaalt))].filter(Boolean).sort().forEach(z=>zs.innerHTML+=`<option value="${escapeHtml(z)}"${z===zv?' selected':''}>${escapeHtml(z)}</option>`);
 }
 
 function renderList(){
@@ -4148,7 +4239,7 @@ function renderList(){
     const showPri=pri!=='normal'; // Дунд бол харуулахгүй (default тул)
     return `<div class="entry-item" style="${pri==='important'?'border-left:3px solid #e74c3c':pri==='low'?'border-left:3px solid #dde3ec':''}">
       <div class="entry-header">
-        <span class="entry-date"><i class="ti ti-calendar" style="font-size:11px"></i> ${e.date}</span>
+        <span class="entry-date"><i class="ti ti-calendar" style="font-size:11px"></i> ${escapeHtml(e.date)}</span>
         <div style="display:flex;gap:6px;align-items:center">
           ${showPri?`<span class="pri-badge ${pri}">${priLabel[pri]}</span>`:''}
           <span class="entry-tag">${escapeHtml(e.zaalt)}</span>
@@ -4159,8 +4250,8 @@ function renderList(){
       ${e.tags&&e.tags.length?`<div class="tag-row" style="margin-top:6px">${e.tags.filter(t=>t&&t.trim()).map(t=>`<span class="tag-chip active" style="cursor:default;padding:2px 9px;font-size:11px">${escapeHtml(t)}</span>`).join('')}</div>`:''}
       ${e.location||e.partner||e.tool?`<div class="entry-meta">${[e.location&&'📍'+escapeHtml(e.location),e.partner&&'👤'+escapeHtml(e.partner),e.tool&&'🔧'+escapeHtml(e.tool)].filter(Boolean).join(' · ')}</div>`:''}
       ${viewingOldYear?'':`<div class="entry-actions">
-        <button class="btn btn-sm" onclick="editEntry('${e.id}')"><i class="ti ti-edit"></i> Засах</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteEntry('${e.id}')"><i class="ti ti-trash"></i> Устгах</button>
+        <button class="btn btn-sm" onclick="editEntry('${aid(e.id)}')"><i class="ti ti-edit"></i> Засах</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteEntry('${aid(e.id)}')"><i class="ti ti-trash"></i> Устгах</button>
       </div>`}
     </div>`;
   }).join('');
@@ -4195,25 +4286,27 @@ function selectReportPeriod(btn){
 }
 
 function getReportDateRange(){
-  const today=new Date();
+  // Архив горимд (хуучин он харж байх үед) тухайн оныг ашиглана; "сүүлийн 7/14 хоног" нь
+  // тэр оны 12/31-ээс тооцогдоно. Урьд нь үргэлж одоогийн оныг авдаг тул архивын тайлан хоосон гардаг байв.
+  const today=viewingOldYear?new Date(activeYear,11,31):new Date();
   const todayStr=localDateStr(today);
-  const year=today.getFullYear();
+  const year=viewingOldYear?activeYear:today.getFullYear();
+  const pre=viewingOldYear?year+' оны ':'';
   function pad(n){return String(n).padStart(2,'0');}
+  function daysBefore(n){const d=new Date(today);d.setDate(d.getDate()-n);return localDateStr(d);}
   switch(currentReportPeriod){
     case '7d':{
-      const from=localDateStr(new Date(Date.now()-6*86400000));
-      return{from,to:todayStr,label:'Сүүлийн 7 хоног'};
+      return{from:daysBefore(6),to:todayStr,label:pre+'Сүүлийн 7 хоног'};
     }
     case '14d':{
-      const from=localDateStr(new Date(Date.now()-13*86400000));
-      return{from,to:todayStr,label:'Сүүлийн 14 хоног'};
+      return{from:daysBefore(13),to:todayStr,label:pre+'Сүүлийн 14 хоног'};
     }
     case 'month':{
       const m=document.getElementById('report-month-sel').value;
       const from=`${year}-${m}-01`;
       const lastDay=new Date(year,parseInt(m),0).getDate();
       const to=`${year}-${m}-${pad(lastDay)}`;
-      return{from,to,label:`${parseInt(m)}-р сар`};
+      return{from,to,label:`${pre}${parseInt(m)}-р сар`};
     }
     case 'quarter':{
       const q=parseInt(document.getElementById('report-quarter-sel').value);
@@ -4222,7 +4315,7 @@ function getReportDateRange(){
       const lastDay=new Date(year,endM,0).getDate();
       const from=`${year}-${pad(startM)}-01`;
       const to=`${year}-${pad(endM)}-${pad(lastDay)}`;
-      return{from,to,label:['I','II','III','IV'][q-1]+' улирал'};
+      return{from,to,label:pre+['I','II','III','IV'][q-1]+' улирал'};
     }
     case 'year':
       return{from:`${year}-01-01`,to:`${year}-12-31`,label:`${year} он`};
@@ -4252,7 +4345,7 @@ function generateReport(){
     document.getElementById('report-output').innerHTML='<div class="card"><div class="empty"><i class="ti ti-inbox"></i><div>Энэ хугацаанд тэмдэглэл байхгүй байна</div></div></div>';
     return;
   }
-  const groups={};
+  const groups=Object.create(null);
   filtered.forEach(e=>{if(!groups[e.zaalt])groups[e.zaalt]=[];groups[e.zaalt].push(e);});
   let html=`<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
@@ -4265,10 +4358,11 @@ function generateReport(){
         <button class="btn" onclick="exportToExcel()" style="border-color:#1E8449;color:#1E8449"><i class="ti ti-file-spreadsheet"></i> Excel татах</button>
       </div>
     </div>`;
-  Object.keys(groups).sort().forEach(zaalt=>{
+  Object.keys(groups).sort().forEach((zaalt,gi)=>{
     const items=groups[zaalt].sort((a,b)=>a.date.localeCompare(b.date));
     // Заалтын id-г товчид дамжуулахын тулд аюулгүй болгох
-    const zaaltKey=zaalt.replace(/[^a-zA-Z0-9]/g,'_');
+    // Заалтын нэрээс ID үүсгэвэл кирилл үсэг бүгд "_" болж давхцдаг байсан — дугаараар үүсгэнэ
+    const zaaltKey='g'+gi;
     // Бүртгэлүүдийн ажлын текстийг data attribute-д хадгалах (AI руу илгээхэд)
     const worksData=items.map(e=>({work:e.work,result:e.result})).map(x=>x.work+(x.result?' ('+x.result+')':'')).join(' | ');
     html+=`<div style="margin-bottom:18px">
@@ -4295,7 +4389,7 @@ function generateReport(){
             const pri=e.priority||'normal';
             const priIcon={important:'🔴',normal:'🟡',low:'⚫'};
             return `<tr style="background:${i%2===0?'white':'#fafbfc'}${pri==='important'?';border-left:2px solid #e74c3c':''}">
-              <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5">${e.date}</td>
+              <td style="padding:7px 10px;color:#8a97a8;border-bottom:1px solid #f0f2f5">${escapeHtml(e.date)}</td>
               <td style="padding:7px 10px;color:#1a2332;border-bottom:1px solid #f0f2f5;line-height:1.5">${escapeHtml(e.work)}</td>
               <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5"><span style="color:#27ae60;font-size:11px"><i class="ti ti-check" style="font-size:10px"></i> ${escapeHtml(e.result||'—')}</span></td>
               <td style="padding:7px 10px;border-bottom:1px solid #f0f2f5;text-align:center">${priIcon[pri]||'🟡'}</td>
@@ -4474,7 +4568,7 @@ async function exportToWord(){
   const priLabelW={important:'Чухал',normal:'Дунд',low:'Энгийн'};
 
   // Заалтаар бүлэглэх
-  const groups={};
+  const groups=Object.create(null);
   filtered.forEach(e=>{if(!groups[e.zaalt])groups[e.zaalt]=[];groups[e.zaalt].push(e);});
 
   // Заалт → Word-ын мөрийн индекс
@@ -4729,7 +4823,7 @@ function exportToExcel(){
   styleSheet(ws1);
 
   // ── Sheet 2: Заалтын нэгтгэл (давтамж) ──
-  const zaaltCounts={};
+  const zaaltCounts=Object.create(null);
   filtered.forEach(e=>{const z=e.zaalt||'(хоосон)';zaaltCounts[z]=(zaaltCounts[z]||0)+1;});
   const summaryData=Object.entries(zaaltCounts)
     .sort((a,b)=>b[1]-a[1])
@@ -4922,7 +5016,7 @@ function renderLabelList(){
       <input value="${escapeHtml(l.name)}" style="flex:1;border:none;background:transparent;font-size:13px;outline:none;color:#1a2332;min-width:0"
         onchange="editLabelName('${l.id}',this.value)"
         onblur="editLabelName('${l.id}',this.value)">
-      <button onclick="deleteLabel('${l.id}')" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:13px;flex-shrink:0;padding:2px 4px;border-radius:4px" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'"><i class="ti ti-trash"></i></button>
+      <button onclick="deleteLabel('${aid(l.id)}')" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:13px;flex-shrink:0;padding:2px 4px;border-radius:4px" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'"><i class="ti ti-trash"></i></button>
     </div>`).join('');
 }
 function editLabelName(id,name){
@@ -4968,7 +5062,7 @@ function openNoteLabelModal(noteId){
   el.dataset.noteId=noteId;
   el.innerHTML=stickyLabels.map(l=>{
     const has=(note?.labels||[]).includes(l.id);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;background:${has?'#f0f4f8':'white'};border:1.5px solid ${has?'#EBAD7C':'#e8edf3'}" onclick="toggleNoteLabel('${noteId}','${l.id}',this)">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;background:${has?'#f0f4f8':'white'};border:1.5px solid ${has?'#EBAD7C':'#e8edf3'}" onclick="toggleNoteLabel('${aid(noteId)}','${aid(l.id)}',this)">
       <span style="width:12px;height:12px;border-radius:50%;background:${l.color};flex-shrink:0;display:inline-block"></span>
       <span style="flex:1;font-size:13px">${escapeHtml(l.name)}</span>
       ${has?'<i class="ti ti-check" style="color:#EBAD7C"></i>':''}
@@ -5002,7 +5096,7 @@ function renderLabelFilters(){
   const el=document.getElementById('sticky-label-filters');if(!el)return;
   let html=`<span class="label-chip${activeFilterLabel===null?' active':''}" onclick="filterByLabel(null)">Бүгд</span>`;
   stickyLabels.forEach(l=>{
-    html+=`<span class="label-chip${activeFilterLabel===l.id?' active':''}" onclick="filterByLabel('${l.id}')">
+    html+=`<span class="label-chip${activeFilterLabel===l.id?' active':''}" onclick="filterByLabel('${aid(l.id)}')">
       <span style="width:8px;height:8px;border-radius:50%;background:${l.color};display:inline-block;margin-right:4px;vertical-align:middle"></span>${escapeHtml(l.name)}
     </span>`;
   });
@@ -5030,11 +5124,11 @@ function renderStickyNotes(){
     }).join('');
     return `<div class="sticky-note" style="background:${n.color}">
       <div class="sticky-note-header">
-        <span class="sticky-note-date">${n.date}</span>
+        <span class="sticky-note-date">${escapeHtml(n.date)}</span>
         <div class="sticky-note-actions">
-          <button class="sticky-note-btn" onclick="openNoteLabelModal('${n.id}')" title="Шошго"><i class="ti ti-tag"></i></button>
-          <button class="sticky-note-btn" onclick="changeStickyColor('${n.id}')" title="Өнгө солих"><i class="ti ti-palette"></i></button>
-          <button class="sticky-note-btn" onclick="deleteStickyNote('${n.id}')" title="Устгах"><i class="ti ti-trash"></i></button>
+          <button class="sticky-note-btn" onclick="openNoteLabelModal('${aid(n.id)}')" title="Шошго"><i class="ti ti-tag"></i></button>
+          <button class="sticky-note-btn" onclick="changeStickyColor('${aid(n.id)}')" title="Өнгө солих"><i class="ti ti-palette"></i></button>
+          <button class="sticky-note-btn" onclick="deleteStickyNote('${aid(n.id)}')" title="Устгах"><i class="ti ti-trash"></i></button>
         </div>
       </div>
       ${noteLabels?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${noteLabels}</div>`:''}
@@ -5229,12 +5323,17 @@ async function calAddEvent(){
   const time=document.getElementById('cal-new-time').value||'09:00';
   const loc=document.getElementById('cal-new-location').value.trim();
   const desc=document.getElementById('cal-new-desc').value.trim();
-  const [hh,mm]=time.split(':');
-  const endHH=String(Math.min(parseInt(hh)+1,23)).padStart(2,'0');
+  const [hh,mm]=time.split(':').map(Number);
+  const [cy,cm,cd]=calSelectedDate.split('-').map(Number);
+  // Урьд нь дуусах цагийг 23-аар хязгаарладаг тул 23:xx-д эхэлсэн event 0 минут үргэлжилдэг байв
+  const startDt=new Date(cy,cm-1,cd,hh,mm);
+  const endDt=new Date(startDt.getTime()+60*60*1000); // 1 цаг — шаардвал дараагийн өдөр рүү шилжинэ
+  const p2=n=>String(n).padStart(2,'0');
+  const fmtDt=d=>`${localDateStr(d)}T${p2(d.getHours())}:${p2(d.getMinutes())}:00`;
   const tz='Asia/Ulaanbaatar';
   const body={summary:title,
-    start:{dateTime:`${calSelectedDate}T${time}:00`,timeZone:tz},
-    end:{dateTime:`${calSelectedDate}T${endHH}:${mm}:00`,timeZone:tz}};
+    start:{dateTime:fmtDt(startDt),timeZone:tz},
+    end:{dateTime:fmtDt(endDt),timeZone:tz}};
   if(loc)body.location=loc;
   if(desc)body.description=desc;
   try{
@@ -5465,12 +5564,12 @@ function renderTodos(){
     const bDays=b.deadline?getDeadlineStatus(b.deadline)?.days??99:99;
     if(aDays!==bDays)return aDays-bDays;
     const po={urgent:0,important:1,normal:2};
-    return (po[a.priority]||2)-(po[b.priority]||2);
+    return (po[a.priority]??2)-(po[b.priority]??2);
   });
   el.innerHTML=sorted.map(t=>{
     const st=t.deadline&&!t.done?getDeadlineStatus(t.deadline):null;
     return `<div class="todo-item${t.done?' done':''}" style="${st&&!t.done?'border-color:'+st.color+'44':''}">
-      <div class="todo-check${t.done?' checked':''}" onclick="todoToggle('${t.id}')"></div>
+      <div class="todo-check${t.done?' checked':''}" onclick="todoToggle('${aid(t.id)}')"></div>
       <div style="flex:1;min-width:0">
         <div class="todo-text">${escapeHtml(t.text)}</div>
         ${t.deadline&&!t.done&&st?`<div style="font-size:11px;color:${st.color};margin-top:2px"><i class="ti ti-calendar-due" style="font-size:10px"></i> ${t.deadline} · ${st.label}</div>`:''}
@@ -5478,7 +5577,7 @@ function renderTodos(){
         ${t.date!==today&&!t.done?`<span style="font-size:10px;color:#a0aab4">${t.date.slice(5).replace('-','/')} →</span>`:''}
       </div>
       <span class="todo-badge ${t.priority}">${priLabel[t.priority]}</span>
-      <button class="todo-del" onclick="todoDelete('${t.id}')"><i class="ti ti-x"></i></button>
+      <button class="todo-del" onclick="todoDelete('${aid(t.id)}')"><i class="ti ti-x"></i></button>
     </div>`;
   }).join('');
 }
@@ -5612,34 +5711,59 @@ async function vaultUnlock(){
     // Decode хийх
     const raw=localStorage.getItem('vault_data_hsti');
     if(raw){
-      try{vaultItems=await decryptData(vaultKey,JSON.parse(raw));}
+      try{vaultItems=await decryptData(vaultKey,JSON.parse(raw));if(!Array.isArray(vaultItems))throw new Error('format');}
       catch(e){
+        // Нууц үг зөв (check тайлагдсан) атлаа өгөгдөл тайлагдахгүй = өгөгдөл гэмтсэн.
+        // Урьд нь хоосон сан нээгддэг байсан тул шинэ бичлэг нэмэхэд гэмтсэн (сэргээх боломжтой)
+        // шифрлэгдсэн өгөгдөл ДАРАГДДАГ байв. Одоо түгжээтэй үлдэж, backup-аас сэргээхийг санал болгоно.
         console.error('[Vault] Тайлахад алдаа:',e);
-        vaultItems=[];
-        showAlert('Нууц үгийн санг уншихад алдаа гарлаа. Өгөгдөл устаагүй байж магадгүй — Тохиргоо хэсгээс backup шалгана уу.','error');
+        if(window.Sentry)Sentry.captureMessage('Vault data decrypt failed','error');
+        vaultLock();
+        showAlert('Нууц үгийн сангийн өгөгдөл гэмтсэн байна. Өгөгдлийг хамгаалахын тулд сан нээгдсэнгүй — Тохиргоо → Backup-аас сэргээнэ үү.','error');
+        return;
       }
     }
   }
   document.getElementById('vault-master-input').value='';
   document.getElementById('vault-locked').style.display='none';
   document.getElementById('vault-unlocked').style.display='block';
+  touchVaultIdle();
   renderVault();
 }
 
+// Түгжих — түлхүүр, санах ой БОЛОН DOM-д үлдсэн нууц мэдээллийг бүрэн цэвэрлэнэ.
+// Урьд нь зөвхөн панелийг нуудаг байсан тул нууц үг grid-ийн data-vault-val атрибут,
+// засварын формын талбаруудад (v-pw г.м.) хэвээр үлддэг байв.
 function vaultLock(){
-  vaultKey=null;vaultItems=[];
-  document.getElementById('vault-locked').style.display='block';
-  document.getElementById('vault-unlocked').style.display='none';
-  document.getElementById('vault-master-input').value='';
+  vaultKey=null;vaultItems=[];editingVaultId=null;
+  const $=id=>document.getElementById(id);
+  const grid=$('vault-grid');if(grid)grid.replaceChildren();
+  ['v-name','v-url','v-user','v-pw','v-note','vault-search','vault-master-input'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  const pw=$('v-pw');if(pw)pw.type='password';
+  const form=$('vault-add-form');if(form)form.style.display='none';
+  const sr=$('search-results');if(sr)sr.replaceChildren();
+  if($('vault-locked'))$('vault-locked').style.display='block';
+  if($('vault-unlocked'))$('vault-unlocked').style.display='none';
 }
+// Идэвхгүй 10 минут болбол vault автоматаар түгжигдэнэ
+let vaultIdleTimer=null;
+function touchVaultIdle(){
+  if(!vaultKey)return;
+  clearTimeout(vaultIdleTimer);
+  vaultIdleTimer=setTimeout(()=>{if(vaultKey){vaultLock();showAlert('Нууц үгийн сан идэвхгүй байсан тул түгжигдлээ','info');}},10*60*1000);
+}
+['pointerdown','keydown'].forEach(t=>document.addEventListener(t,touchVaultIdle,true));
 
 // Drive-ийн vault-ыг локалд хэрэглэх. Буцаах: 'applied' | 'kept' | 'none'
 // force=false үед локал илгээгээгүй өөрчлөлт (локал шинэ) байвал дарахгүй.
 async function applyDriveVault(content,force){
   if(!content||!content.vault_data||!content.vault_meta)return 'none';
-  const driveTs=Date.parse(content.updated)||0;
   const hasLocal=!!localStorage.getItem('vault_data_hsti')&&!!localStorage.getItem('vault_meta_hsti');
-  if(!force&&hasLocal&&vaultLocalTs()>driveTs)return 'kept';
+  // Илгээгээгүй локал өөрчлөлт байвал дарахгүй — sync үед бичлэг бүрээр нэгтгэнэ
+  if(!force&&hasLocal&&vaultDirty())return 'kept';
+  // Drive-ийн хувилбар аль хэдийн харсан хувилбартай ижил бол шинэ зүйлгүй
+  if(hasLocal&&content.updated&&content.updated===localStorage.getItem('vault_remote_seen'))return 'kept';
+  const driveTs=Date.now();
   const newMeta=JSON.stringify(content.vault_meta);
   const metaChanged=localStorage.getItem('vault_meta_hsti')!==newMeta;
   // meta (salt) болон data-г ХАМТ хадгална — өөр salt-тай data хольж болохгүй
@@ -5647,6 +5771,7 @@ async function applyDriveVault(content,force){
   safeSetItem('vault_data_hsti',JSON.stringify(content.vault_data));
   safeSetItem('vault_updated_hsti',String(driveTs));
   safeSetItem('vault_synced_hsti',String(driveTs));
+  if(content.updated)safeSetItem('vault_remote_seen',content.updated);
   if(vaultKey){
     if(metaChanged){vaultLock();}
     else{
@@ -5681,8 +5806,27 @@ async function pullVaultFromDrive(force){
   }
 }
 
+// Хоёр vault жагсаалтыг бичлэг бүрээр нэгтгэх (updatedAt их нь ялна, tombstone тархана)
+function mergeVaultItems(localArr,remoteArr){
+  const by=Object.create(null);
+  (remoteArr||[]).forEach(i=>{if(i&&i.id!=null)by[i.id]=i;});
+  (localArr||[]).forEach(i=>{
+    if(!i||i.id==null)return;
+    const r=by[i.id];
+    if(!r||(i.updatedAt||0)>=(r.updatedAt||0))by[i.id]=i;
+  });
+  // Эрэмбэ: локал дараалал эхэнд, дараа нь зөвхөн remote-д байгаа
+  const out=[],seen=new Set();
+  (localArr||[]).forEach(i=>{if(i&&by[i.id]&&!seen.has(String(i.id))){out.push(by[i.id]);seen.add(String(i.id));}});
+  Object.keys(by).forEach(k=>{if(!seen.has(k))out.push(by[k]);});
+  return out;
+}
+
 async function vaultSaveData(){
   if(!vaultKey)return;
+  // 90 хоногоос хуучин tombstone-ыг цэвэрлэнэ
+  const cut=Date.now()-TOMBSTONE_MAX_AGE;
+  vaultItems=vaultItems.filter(i=>!(i.deleted&&(i.updatedAt||0)<cut));
   const enc=await encryptData(vaultKey,vaultItems);
   safeSetItem('vault_data_hsti',JSON.stringify(enc));
   safeSetItem('vault_updated_hsti',String(Date.now())); // илгээх шаардлагатай гэж тэмдэглэнэ
@@ -5723,12 +5867,12 @@ async function vaultSave(){
     // Хуучин бичлэгийг шинэчлэх — id, date хадгална
     const idx=vaultItems.findIndex(i=>i.id==editingVaultId);
     if(idx>=0){
-      vaultItems[idx]={...vaultItems[idx],...data};
+      vaultItems[idx]={...vaultItems[idx],...data,updatedAt:Date.now()};
     }
     editingVaultId=null;
   } else {
     // Шинэ бичлэг үүсгэх
-    vaultItems.unshift({id:genId(),...data,date:localDateStr()});
+    vaultItems.unshift({id:genId(),...data,date:localDateStr(),updatedAt:Date.now()});
   }
   await vaultSaveData();
   toggleVaultForm();
@@ -5738,7 +5882,7 @@ async function vaultSave(){
 
 // Vault бичлэг засах — утгыг форм руу ачаалж, форм нээх
 function editVault(id){
-  const item=vaultItems.find(i=>i.id==id);
+  const item=vaultItems.find(i=>i.id==id&&!i.deleted);
   if(!item)return;
   editingVaultId=id;
   const form=document.getElementById('vault-add-form');
@@ -5757,7 +5901,12 @@ function editVault(id){
 }
 
 async function vaultDelete(id){
-  vaultItems=vaultItems.filter(i=>i.id!=id);
+  // Tombstone — бусад төхөөрөмжтэй нэгтгэхэд устгал тархана, сүүлийн бичлэгийг ч устгах боломжтой
+  const it=vaultItems.find(i=>i.id==id);
+  if(it){
+    Object.keys(it).forEach(k=>{if(k!=='id')delete it[k];}); // нууц утгыг шууд устгана
+    it.deleted=true;it.updatedAt=Date.now();
+  }
   await vaultSaveData();
   renderVault();
 }
@@ -5843,7 +5992,7 @@ function renderVault(){
   const grid=document.getElementById('vault-grid');
   if(!grid)return;
   initVaultDelegation(); // delegation нэг удаа тохируулна
-  const filtered=vaultItems.filter(i=>
+  const filtered=vaultItems.filter(i=>!i.deleted).filter(i=>
     i.name.toLowerCase().includes(q)||
     (i.url||'').toLowerCase().includes(q)||
     (i.user||'').toLowerCase().includes(q)
@@ -5864,8 +6013,8 @@ function renderVault(){
           ${item.url?`<div class="vault-url"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" style="color:#8a97a8;text-decoration:none">${escapeHtml(item.url)}</a></div>`:''}
         </div>
         <div style="display:flex;gap:4px">
-          <button onclick="editVault('${item.id}')" style="background:none;border:none;cursor:pointer;color:#e8edf3;font-size:14px" title="Засах"><i class="ti ti-edit"></i></button>
-          <button onclick="vaultDelete('${item.id}')" style="background:none;border:none;cursor:pointer;color:#e8edf3;font-size:14px" title="Устгах"><i class="ti ti-trash"></i></button>
+          <button onclick="editVault('${aid(item.id)}')" style="background:none;border:none;cursor:pointer;color:#e8edf3;font-size:14px" title="Засах"><i class="ti ti-edit"></i></button>
+          <button onclick="vaultDelete('${aid(item.id)}')" style="background:none;border:none;cursor:pointer;color:#e8edf3;font-size:14px" title="Устгах"><i class="ti ti-trash"></i></button>
         </div>
       </div>
       ${item.user?`<div class="vault-field">
