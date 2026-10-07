@@ -715,44 +715,7 @@ details[open] summary .chevron{transform:rotate(90deg)}
                 <label><span class="req">*</span> Төлөвлөгөөний заалт</label>
                 <select id="zaalt-select" onchange="onZaaltChange();scheduleDraftSave();updateAccBadge()">
                   <option value="">-- Жагсаалтаас сонгох --</option>
-                  <optgroup label="Стратеги"><option value="1.1">1.1 Интернэтийн хурд нэмэгдүүлэх</option></optgroup>
-                  <optgroup label="ХАБ"><option value="2.1">2.1 ХАБ зааварчилгаа мөрдөх</option></optgroup>
-                  <optgroup label="1.2.1 Сүлжээ"><option value="1.2.1.1">1.2.1.1 Интернэтийн сүлжээ хянах</option></optgroup>
-                  <optgroup label="1.2.2 Тоног төхөөрөмж">
-                    <option value="1.2.2.1">1.2.2.1 Өртөө харуулын мэдээ хяналт</option>
-                    <option value="1.2.2.2">1.2.2.2 Автомат станцын мэдээ хяналт</option>
-                    <option value="1.2.2.3">1.2.2.3 AWS310, 310R станцын хяналт</option>
-                    <option value="1.2.2.4">1.2.2.4 Компьютер, принтер үзлэг</option>
-                    <option value="1.2.2.5">1.2.2.5 Киоск, камер паспортжуулах</option>
-                  </optgroup>
-                  <optgroup label="1.2.3 Мэдээллийн аюулгүй байдал">
-                    <option value="1.2.3.1">1.2.3.1 Цахим хуудасны хяналт</option>
-                    <option value="1.2.3.2">1.2.3.2 Мэдээллийн нууцлал</option>
-                    <option value="1.2.3.3">1.2.3.3 Microsoft Office лиценз</option>
-                  </optgroup>
-                  <optgroup label="1.2.4 Салбарын ажиллагаа">
-                    <option value="1.2.4.1">1.2.4.1 Дархан бороо экспедиц</option>
-                    <option value="1.2.4.2">1.2.4.2 Хур тунадас нэмэгдүүлэх</option>
-                    <option value="1.2.4.3">1.2.4.3 Шарын гол гулдрилын зураглал</option>
-                  </optgroup>
-                  <optgroup label="1.3 Төрийн үйлчилгээ">
-                    <option value="1.3.1">1.3.1 Мэдээллийн технологи нэвтрүүлэх</option>
-                    <option value="1.3.2">1.3.2 Нээлттэй хаалганы өдөр</option>
-                  </optgroup>
-                  <optgroup label="1.4 Төрийн албан хаагчийн үүрэг">
-                    <option value="1.4.1">1.4.1 Жилийн төлөвлөгөөний хэрэгжилт</option>
-                    <option value="1.4.2">1.4.2 Сургалтанд оролцох</option>
-                    <option value="1.4.3">1.4.3 Үүрэг даалгавар хэрэгжүүлэх</option>
-                    <option value="1.4.4">1.4.4 Цэвэрлэгээ, арга хэмжээ</option>
-                    <option value="1.4.5">1.4.5 Аймгийн арга хэмжээ</option>
-                    <option value="1.4.6">1.4.6 Ёс зүй, авлигагүй ажиллах</option>
-                    <option value="1.4.7">1.4.7 Тэрбум мод тарих</option>
-                    <option value="1.4.8">1.4.8 Архивт баримт хүлээлгэн өгөх</option>
-                    <option value="1.4.9">1.4.9 ӨХБЗ үйл ажиллагаа</option>
-                    <option value="1.4.10">1.4.10 Гамшгийн эрсдэлийн үнэлгээ</option>
-                    <option value="1.4.11">1.4.11 Удирдлагын нэгдсэн систем</option>
-                    <option value="1.4.12">1.4.12 Ахмадуудын дурсамж видео</option>
-                  </optgroup>
+                  <!-- Заалтууд ZAALT_LIST-ээс rebuildZaaltSelect()-ээр үүснэ -->
                   <option value="nemel">Нэмэлт үүрэг даалгавар</option>
                   <option value="medleg">Мэдлэг чадвар дээшлүүлэх</option>
                   <option value="eelje">Ээлж хүлээлцэх</option>
@@ -1460,48 +1423,108 @@ function cleanupOldTombstones(){
   return removed;
 }
 
-// Заалтын анхны жагсаалт (default) — localStorage-д байхгүй үед энэ ашиглагдана
+// Заалтын анхны жагсаалт — жилийн гүйцэтгэлийн төлөвлөгөөний дараалал (Word экспортын ZAALT_ROW-тэй ижил).
+// ЭНЭ Л цорын ганц эх сурвалж: формын dropdown, тайлан, самбар, Word/Excel бүгд эндээс нэр авна.
 const ZAALT_LIST_DEFAULT=[
-  {id:'1.2.1.1',name:'Сүлжээний хяналт, удирдлага'},
-  {id:'1.2.2.1',name:'AWS310 автомат станц'},
-  {id:'1.2.2.2',name:'Дархан бороо систем'},
-  {id:'1.2.2.3',name:'Агаар, цаг уурын мэдээлэл'},
-  {id:'1.2.2.4',name:'Компьютер, тоног төхөөрөмж'},
-  {id:'1.2.2.5',name:'Видео хяналт, камер'},
-  {id:'1.2.3.1',name:'Цахим хуудас хяналт'},
-  {id:'1.2.3.2',name:'Программ хангамж'},
-  {id:'1.2.3.3',name:'Мэдээллийн сан'},
-  {id:'1.2.4.1',name:'Цахилгаан хангамж'},
-  {id:'1.2.4.2',name:'Гал унтраах систем'},
-  {id:'1.2.4.3',name:'Шарын гол гулдрилын зураглал'},
-  {id:'1.3.1',name:'Мэдээллийн технологи нэвтрүүлэх'},
-  {id:'1.3.2',name:'Нээлттэй хаалганы өдөр'},
-  {id:'1.4.1',name:'Жилийн төлөвлөгөөний хэрэгжилт'},
-  {id:'1.4.2',name:'Сургалтанд оролцох'},
-  {id:'1.4.3',name:'Үүрэг даалгавар хэрэгжүүлэх'},
-  {id:'1.4.4',name:'Цэвэрлэгээ, арга хэмжээ'},
-  {id:'1.4.5',name:'Аймгийн арга хэмжээ'},
-  {id:'1.4.6',name:'Ёс зүй, авлигагүй ажиллах'},
-  {id:'1.4.7',name:'Тэрбум мод тарих'},
-  {id:'1.4.8',name:'Архивт баримт хүлээлгэн өгөх'},
-  {id:'1.4.9',name:'ӨХБЗ үйл ажиллагаа'},
-  {id:'1.4.10',name:'Гамшгийн эрсдэлийн үнэлгээ'},
-  {id:'1.4.11',name:'Удирдлагын нэгдсэн систем'},
-  {id:'1.4.12',name:'Ахмадуудын дурсамж видео'},
-  {id:'1.1',name:'Хагас жилийн тайлан'},
-  {id:'2.1',name:'Жилийн тайлан'},
+  {id:'1.1',name:'Интернэтийн хурд нэмэгдүүлэх',group:'Стратеги'},
+  {id:'2.1',name:'ХАБ зааварчилгаа мөрдөх',group:'ХАБ'},
+  {id:'1.2.1.1',name:'Интернэтийн сүлжээ хянах',group:'1.2.1 Сүлжээ'},
+  {id:'1.2.2.1',name:'Өртөө харуулын мэдээ хяналт',group:'1.2.2 Тоног төхөөрөмж'},
+  {id:'1.2.2.2',name:'Автомат станцын мэдээ хяналт',group:'1.2.2 Тоног төхөөрөмж'},
+  {id:'1.2.2.3',name:'AWS310, 310R станцын хяналт',group:'1.2.2 Тоног төхөөрөмж'},
+  {id:'1.2.2.4',name:'Компьютер, принтер үзлэг',group:'1.2.2 Тоног төхөөрөмж'},
+  {id:'1.2.2.5',name:'Киоск, камер паспортжуулах',group:'1.2.2 Тоног төхөөрөмж'},
+  {id:'1.2.3.1',name:'Цахим хуудасны хяналт',group:'1.2.3 Мэдээллийн аюулгүй байдал'},
+  {id:'1.2.3.2',name:'Мэдээллийн нууцлал',group:'1.2.3 Мэдээллийн аюулгүй байдал'},
+  {id:'1.2.3.3',name:'Microsoft Office лиценз',group:'1.2.3 Мэдээллийн аюулгүй байдал'},
+  {id:'1.2.4.1',name:'Дархан бороо экспедиц',group:'1.2.4 Салбарын ажиллагаа'},
+  {id:'1.2.4.2',name:'Хур тунадас нэмэгдүүлэх',group:'1.2.4 Салбарын ажиллагаа'},
+  {id:'1.2.4.3',name:'Шарын гол гулдрилын зураглал',group:'1.2.4 Салбарын ажиллагаа'},
+  {id:'1.3.1',name:'Мэдээллийн технологи нэвтрүүлэх',group:'1.3 Төрийн үйлчилгээ'},
+  {id:'1.3.2',name:'Нээлттэй хаалганы өдөр',group:'1.3 Төрийн үйлчилгээ'},
+  {id:'1.4.1',name:'Жилийн төлөвлөгөөний хэрэгжилт',group:'1.4 Төрийн албан хаагчийн үүрэг'},
+  {id:'1.4.2',name:'Сургалтанд оролцох',group:'1.4 Төрийн албан хаагчийн үүрэг'},
+  {id:'1.4.3',name:'Үүрэг даалгавар хэрэгжүүлэх',group:'1.4 Төрийн албан хаагчийн үүрэг'},
+  {id:'1.4.4',name:'Цэвэрлэгээ, арга хэмжээ',group:'1.4 Төрийн албан хаагчийн үүрэг'},
+  {id:'1.4.5',name:'Аймгийн арга хэмжээ',group:'1.4 Төрийн албан хаагчийн үүрэг'},
+  {id:'1.4.6',name:'Ёс зүй, авлигагүй ажиллах',group:'1.4 Төрийн албан хаагчийн үүрэг'},
+  {id:'1.4.7',name:'Тэрбум мод тарих',group:'1.4 Төрийн албан хаагчийн үүрэг'},
+  {id:'1.4.8',name:'Архивт баримт хүлээлгэн өгөх',group:'1.4 Төрийн албан хаагчийн үүрэг'},
+  {id:'1.4.9',name:'ӨХБЗ үйл ажиллагаа',group:'1.4 Төрийн албан хаагчийн үүрэг'},
+  {id:'1.4.10',name:'Гамшгийн эрсдэлийн үнэлгээ',group:'1.4 Төрийн албан хаагчийн үүрэг'},
+  {id:'1.4.11',name:'Удирдлагын нэгдсэн систем',group:'1.4 Төрийн албан хаагчийн үүрэг'},
+  {id:'1.4.12',name:'Ахмадуудын дурсамж видео',group:'1.4 Төрийн албан хаагчийн үүрэг'},
 ];
+
+// Өмнөх хувилбарын БУРУУ default нэрс (формын dropdown-оос өөр байсан 13 нэр).
+// Хадгалагдсан жагсаалтад яг энэ нэр байвал хэрэглэгч өөрчлөөгүй гэсэн үг → зөв нэрээр солино.
+// Хэрэглэгч өөрөө засварласан нэрт ХҮРЭХГҮЙ.
+const ZAALT_OLD_DEFAULT_NAMES={
+  '1.1':'Хагас жилийн тайлан','2.1':'Жилийн тайлан',
+  '1.2.1.1':'Сүлжээний хяналт, удирдлага',
+  '1.2.2.1':'AWS310 автомат станц','1.2.2.2':'Дархан бороо систем','1.2.2.3':'Агаар, цаг уурын мэдээлэл',
+  '1.2.2.4':'Компьютер, тоног төхөөрөмж','1.2.2.5':'Видео хяналт, камер',
+  '1.2.3.1':'Цахим хуудас хяналт','1.2.3.2':'Программ хангамж','1.2.3.3':'Мэдээллийн сан',
+  '1.2.4.1':'Цахилгаан хангамж','1.2.4.2':'Гал унтраах систем',
+};
+
+const ZAALT_OLD_DEFAULT_ORDER='1.2.1.1,1.2.2.1,1.2.2.2,1.2.2.3,1.2.2.4,1.2.2.5,1.2.3.1,1.2.3.2,1.2.3.3,1.2.4.1,1.2.4.2,1.2.4.3,1.3.1,1.3.2,1.4.1,1.4.2,1.4.3,1.4.4,1.4.5,1.4.6,1.4.7,1.4.8,1.4.9,1.4.10,1.4.11,1.4.12,1.1,2.1';
+
+// Гаднаас (localStorage, Drive) ирсэн жагсаалтыг цэвэрлэж, хуучин default нэрийг засна.
+// Буцаах: {list, changed}
+function normalizeZaaltList(raw){
+  if(!Array.isArray(raw))return{list:null,changed:false};
+  const defById=Object.create(null);ZAALT_LIST_DEFAULT.forEach(z=>{defById[z.id]=z;});
+  let changed=false;const seen=new Set();
+  const list=raw.filter(z=>z&&typeof z==='object'&&z.id!=null&&String(z.id).trim()).map(z=>{
+    const id=String(z.id).trim();let name=z.name==null?'':String(z.name);
+    let group=typeof z.group==='string'?z.group:undefined;
+    const def=defById[id];
+    if(def&&ZAALT_OLD_DEFAULT_NAMES[id]===name){name=def.name;changed=true;}
+    if(def&&group===undefined){group=def.group;changed=true;}
+    const out={id,name};if(group)out.group=group;return out;
+  }).filter(z=>{if(seen.has(z.id)){changed=true;return false;}seen.add(z.id);return true;});
+  if(list.length!==raw.length)changed=true;
+  // Хуучин default-ын дарааллаар (1.1, 2.1 хамгийн сүүлд) хадгалагдсан бол төлөвлөгөөний дараалалд оруулна
+  if(list.map(z=>z.id).join(',')===ZAALT_OLD_DEFAULT_ORDER){
+    const pos=Object.create(null);ZAALT_LIST_DEFAULT.forEach((z,i)=>{pos[z.id]=i;});
+    list.sort((x,y)=>pos[x.id]-pos[y.id]);changed=true;
+  }
+  return{list:list.length?list:null,changed};
+}
+
+// Drive/localStorage-оос ирсэн жагсаалтыг идэвхжүүлэх (хуучин нэр засагдсан бол буцаж хадгална)
+function applyZaaltList(raw){
+  const {list,changed}=normalizeZaaltList(raw);
+  if(!list)return false;
+  ZAALT_LIST=list;
+  safeSetItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST));
+  if(changed)console.info('[Заалт] Хуучин нэр/бүтэц шинэчлэгдлээ');
+  rebuildZaaltSelect();
+  return true;
+}
+
+// Заалтыг төлөвлөгөөний дарааллаар эрэмбэлэх (string sort "1.4.10"-ийг "1.4.2"-оос өмнө тавьдаг байв)
+function zaaltCompare(a,b){
+  const ia=ZAALT_LIST.findIndex(z=>z.id===a),ib=ZAALT_LIST.findIndex(z=>z.id===b);
+  if(ia>=0&&ib>=0)return ia-ib;
+  if(ia>=0)return -1;if(ib>=0)return 1;
+  return String(a).localeCompare(String(b),undefined,{numeric:true});
+}
 
 // Идэвхтэй ашиглагдах жагсаалт — localStorage-оос ачаална
 let ZAALT_LIST=(function(){
   try{
     const saved=localStorage.getItem('zaalt_list_hsti');
     if(saved){
-      const parsed=JSON.parse(saved);
-      if(Array.isArray(parsed)&&parsed.length>0)return parsed;
+      const {list,changed}=normalizeZaaltList(JSON.parse(saved));
+      if(list){
+        if(changed){try{localStorage.setItem('zaalt_list_hsti',JSON.stringify(list));}catch(e){}}
+        return list;
+      }
     }
   }catch(e){}
-  return [...ZAALT_LIST_DEFAULT];
+  return ZAALT_LIST_DEFAULT.map(z=>({...z}));
 })();
 
 
@@ -1669,10 +1692,8 @@ function init(){
   }
   // 90 хоногоос хуучин устгалыг (tombstone) бүрмөсөн цэвэрлэх — файл багасгах
   cleanupOldTombstones();
-  // Хэрэв хэрэглэгч заалтын жагсаалтыг өөрчилсөн бол dropdown-г шинэчлэх
-  if(localStorage.getItem('zaalt_list_hsti')){
-    rebuildZaaltSelect();
-  }
+  // Dropdown-г ZAALT_LIST-ээс үүсгэнэ (нэр нэг эх сурвалжтай — тайлан, самбартай ижил)
+  rebuildZaaltSelect();
   // ── Он шилжилт илрүүлэх ──
   // hsti_data_year — локал бүртгэл аль оных болохыг тэмдэглэнэ
   const dataYear=parseInt(localStorage.getItem('hsti_data_year')||'0');
@@ -2208,7 +2229,7 @@ async function restoreFromBackup(fileId){
       safeSetItem('hsti_v3',JSON.stringify(entries));
     }
     if(Array.isArray(ep.templates)){userTemplates=ep.templates;safeSetItem('templates_hsti',JSON.stringify(userTemplates));renderQuickAdd();}
-    if(Array.isArray(ep.zaalt_list)&&ep.zaalt_list.length){ZAALT_LIST=ep.zaalt_list;safeSetItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST));rebuildZaaltSelect();}
+    if(Array.isArray(ep.zaalt_list)&&ep.zaalt_list.length)applyZaaltList(ep.zaalt_list);
     if(content.sticky){
       if(Array.isArray(content.sticky.sticky_notes)){
         const byId=Object.create(null);
@@ -2686,11 +2707,7 @@ async function loadFromDrive(){
         renderQuickAdd();
       }
       // Заалтын жагсаалт — Drive дээр байвал шинэчлэх
-      if(content.zaalt_list&&Array.isArray(content.zaalt_list)&&content.zaalt_list.length>0){
-        ZAALT_LIST=content.zaalt_list;
-        safeSetItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST));
-        rebuildZaaltSelect();
-      }
+      if(Array.isArray(content.zaalt_list)&&content.zaalt_list.length>0)applyZaaltList(content.zaalt_list);
       } // else{ (404 fallback) төгсгөл
     }
   }catch(e){
@@ -4062,8 +4079,8 @@ function renderZaaltEditor(){
   if(!el)return;
   el.innerHTML=ZAALT_LIST.map((z,i)=>`
     <div class="zaalt-editor-row" data-idx="${i}" style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #f0f2f5">
-      <input value="${(z.id||'').replace(/"/g,'&quot;')}" placeholder="1.2.3" style="width:80px;padding:6px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none;flex-shrink:0" data-field="id">
-      <input value="${(z.name||'').replace(/"/g,'&quot;')}" placeholder="Заалтын нэр" style="flex:1;min-width:0;padding:6px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none" data-field="name">
+      <input value="${escapeHtml(z.id||'')}" placeholder="1.2.3" style="width:80px;padding:6px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none;flex-shrink:0" data-field="id">
+      <input value="${escapeHtml(z.name||'')}" placeholder="Заалтын нэр" style="flex:1;min-width:0;padding:6px 8px;border:1.5px solid #dde3ec;border-radius:7px;font-size:12px;outline:none" data-field="name">
       <button onclick="removeZaaltRow(${i})" style="background:none;border:none;cursor:pointer;color:#e0e7ef;font-size:14px;flex-shrink:0;padding:4px" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#e0e7ef'" title="Устгах"><i class="ti ti-trash"></i></button>
     </div>`).join('');
 }
@@ -4092,7 +4109,11 @@ function collectZaaltEditor(){
   rows.forEach(row=>{
     const id=row.querySelector('input[data-field="id"]').value.trim();
     const name=row.querySelector('input[data-field="name"]').value.trim();
-    if(id||name)newList.push({id,name});
+    if(id||name){
+      const prev=ZAALT_LIST.find(z=>z.id===id)||ZAALT_LIST_DEFAULT.find(z=>z.id===id);
+      const item={id,name};if(prev&&prev.group)item.group=prev.group;
+      newList.push(item);
+    }
   });
   if(newList.length)ZAALT_LIST=newList;
 }
@@ -4112,14 +4133,13 @@ function saveZaaltList(){
     showAlert('Давхардсан дугаар байна: '+dup,'error');
     return;
   }
-  try{
-    localStorage.setItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST));
-  }catch(e){
+  if(!safeSetItem('zaalt_list_hsti',JSON.stringify(ZAALT_LIST))){
     showAlert('Хадгалахад алдаа гарлаа','error');
     return;
   }
   // Dropdown-г шинэчлэх
   rebuildZaaltSelect();
+  if(accessToken&&!viewingOldYear)syncToDrive({quiet:true}); // бусад төхөөрөмж рүү
   showAlert('Заалтын жагсаалт хадгалагдлаа','success');
 }
 
@@ -4137,9 +4157,17 @@ function rebuildZaaltSelect(){
     <option value="custom">Өөр (гараар бичих)</option>`;
 
   let html='<option value="">-- Жагсаалтаас сонгох --</option>';
+  let openGroup=null;
   ZAALT_LIST.forEach(z=>{
+    const g=z.group||'';
+    if(g!==openGroup){
+      if(openGroup)html+='</optgroup>';
+      if(g)html+=`<optgroup label="${escapeHtml(g)}">`;
+      openGroup=g||null;
+    }
     html+=`<option value="${escapeHtml(z.id)}">${escapeHtml(z.id)} ${escapeHtml(z.name)}</option>`;
   });
+  if(openGroup)html+='</optgroup>';
   html+=specialOpts;
   sel.innerHTML=html;
 
@@ -4207,7 +4235,7 @@ function populateFilters(){
   months.forEach(m=>ms.innerHTML+=`<option value="${m}"${m===mv?' selected':''}>${mN[parseInt(m)]}</option>`);
   const zs=document.getElementById('filter-zaalt');const zv=zs.value;
   zs.innerHTML='<option value="">Бүгд</option>';
-  [...new Set(activeEntries().map(e=>e.zaalt))].filter(Boolean).sort().forEach(z=>zs.innerHTML+=`<option value="${escapeHtml(z)}"${z===zv?' selected':''}>${escapeHtml(z)}</option>`);
+  [...new Set(activeEntries().map(e=>e.zaalt))].filter(Boolean).sort(zaaltCompare).forEach(z=>{const zn=(ZAALT_LIST.find(x=>x.id===z)||{}).name;zs.innerHTML+=`<option value="${escapeHtml(z)}"${z===zv?' selected':''}>${escapeHtml(z)}${zn?' '+escapeHtml(zn):''}</option>`;});
 }
 
 function renderList(){
@@ -4358,7 +4386,7 @@ function generateReport(){
         <button class="btn" onclick="exportToExcel()" style="border-color:#1E8449;color:#1E8449"><i class="ti ti-file-spreadsheet"></i> Excel татах</button>
       </div>
     </div>`;
-  Object.keys(groups).sort().forEach((zaalt,gi)=>{
+  Object.keys(groups).sort(zaaltCompare).forEach((zaalt,gi)=>{
     const items=groups[zaalt].sort((a,b)=>a.date.localeCompare(b.date));
     // Заалтын id-г товчид дамжуулахын тулд аюулгүй болгох
     // Заалтын нэрээс ID үүсгэвэл кирилл үсэг бүгд "_" болж давхцдаг байсан — дугаараар үүсгэнэ
@@ -4620,7 +4648,7 @@ async function exportToWord(){
   const tableRows=[makeHeader()];
 
   // Заалт бүрийн мөрүүд
-  const sortedZaalts=Object.keys(groups).sort();
+  const sortedZaalts=Object.keys(groups).sort(zaaltCompare);
   sortedZaalts.forEach(zaalt=>{
     const items=groups[zaalt].sort((a,b)=>a.date.localeCompare(b.date));
     items.forEach((e,i)=>{
