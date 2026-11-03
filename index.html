@@ -30,6 +30,15 @@
       replaysOnErrorSampleRate: 0,
       sendDefaultPii: false,        // хувийн мэдээлэл автоматаар илгээхгүй
       // Алдааны event дотор token/vault мэдээлэл орсон бол цэвэрлэх/хасах
+      // Breadcrumb (fetch URL, console мессеж)-ээс token/код/шифрлэгдсэн хайрцгийг арилгана
+      beforeBreadcrumb: function(b){
+        try{
+          var RX=/(access_token|refresh_token|token|code|rt)=[^&\s"]+/gi, SECRET=/Bearer\s+[\w.\-]+|\b(v1|a1)\.[\w\-]{20,}[\w.\-]*|ya29\.[\w.\-]+/g;
+          if(b.data&&typeof b.data.url==='string')b.data.url=b.data.url.replace(RX,'$1=[x]');
+          if(typeof b.message==='string')b.message=b.message.replace(RX,'$1=[x]').replace(SECRET,'[x]');
+        }catch(e){}
+        return b;
+      },
       beforeSend: function(event){
         try{
           var s=JSON.stringify(event);
@@ -72,7 +81,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .main-app{display:none;min-height:100vh;flex-direction:row;position:relative;width:100%}
 
 /* SIDEBAR */
-.sidebar{width:210px;min-height:100vh;background:linear-gradient(to top,#9E5E3D,#EBAD7C);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100}
+.sidebar{width:210px;min-height:100vh;background:linear-gradient(180deg,#17A8C4 0%,#2C3E8C 100%);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100}
 .sidebar-header{padding:16px;border-bottom:0.5px solid rgba(255,255,255,0.15);display:flex;align-items:center;gap:10px}
 .sidebar-logo{width:38px;height:38px;border-radius:10px;background:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.15)}
 .sidebar-logo img{width:100%;height:100%;object-fit:contain;padding:3px}
@@ -120,20 +129,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a2332;mi
 .theme-option.active{border-color:#1a2332}
 .theme-option span{font-size:11px;color:#6b7a8d}
 
-/* THEME: Brown (default) */
-body.theme-brown .sidebar{background:linear-gradient(180deg,#EBAD7C 0%,#9E5E3D 100%)}
-body.theme-brown .btn-primary{background:linear-gradient(135deg,#EBAD7C,#9E5E3D)}
-body.theme-brown .nav-item.active{background:rgba(255,255,255,0.2)}
-body.theme-brown .stat-card:nth-child(4){background:linear-gradient(135deg,#EBAD7C,#9E5E3D)}
 
-/* THEME: Blue */
-body.theme-blue .sidebar{background:linear-gradient(180deg,#5B9BD5 0%,#1A5276 100%)}
-body.theme-blue .btn-primary{background:linear-gradient(135deg,#5B9BD5,#1A5276)}
-body.theme-blue .nav-item.active{background:rgba(255,255,255,0.2)}
-body.theme-blue .entry-tag{background:#E6F1FB;color:#1A5276}
-body.theme-blue .tag-chip.active{background:linear-gradient(135deg,#5B9BD5,#1A5276)}
-body.theme-blue .cal-day.today{border-color:#5B9BD5;background:#EBF3FB}
-body.theme-blue .cal-day.today .cal-day-num{background:linear-gradient(135deg,#5B9BD5,#1A5276)}
 
 /* THEME: Green */
 body.theme-green .sidebar{background:linear-gradient(180deg,#52BE80 0%,#1E8449 100%)}
@@ -153,14 +149,6 @@ body.theme-ocean .tag-chip.active{background:linear-gradient(135deg,#17A8C4,#2C3
 body.theme-ocean .cal-day.today{border-color:#17A8C4;background:#E0F7FA}
 body.theme-ocean .cal-day.today .cal-day-num{background:linear-gradient(135deg,#17A8C4,#2C3E8C)}
 
-/* THEME: Тэнгэр (цайвар цэнхэр) */
-body.theme-sky .sidebar{background:linear-gradient(180deg,#4FC3F7 0%,#0277BD 100%)}
-body.theme-sky .btn-primary{background:linear-gradient(135deg,#4FC3F7,#0277BD)}
-body.theme-sky .nav-item.active{background:rgba(255,255,255,0.25)}
-body.theme-sky .entry-tag{background:#E1F5FE;color:#01579B}
-body.theme-sky .tag-chip.active{background:linear-gradient(135deg,#4FC3F7,#0277BD)}
-body.theme-sky .cal-day.today{border-color:#4FC3F7;background:#E1F5FE}
-body.theme-sky .cal-day.today .cal-day-num{background:linear-gradient(135deg,#4FC3F7,#0277BD)}
 
 /* THEME: Нил (violet) */
 body.theme-violet .sidebar{background:linear-gradient(180deg,#7B1FA2 0%,#4527A0 100%)}
@@ -171,54 +159,6 @@ body.theme-violet .tag-chip.active{background:linear-gradient(135deg,#7B1FA2,#45
 body.theme-violet .cal-day.today{border-color:#7B1FA2;background:#F3E5F5}
 body.theme-violet .cal-day.today .cal-day-num{background:linear-gradient(135deg,#7B1FA2,#4527A0)}
 
-/* THEME: Харанхуй (Dark Mode) — бүх дэлгэц харанхуй */
-body.theme-dark{background:#0F1620;color:#C8D0DA}
-body.theme-dark .main-content,body.theme-dark .content{background:#0F1620}
-body.theme-dark .sidebar{background:linear-gradient(180deg,#1A2634 0%,#0D1119 100%)}
-body.theme-dark .btn-primary{background:linear-gradient(135deg,#2980B9,#1A5276)}
-body.theme-dark .nav-item.active{background:rgba(255,255,255,0.12)}
-body.theme-dark .content-header{background:#161F2B;border-color:#2A3644}
-body.theme-dark .content-header-title{color:#E8EDF3}
-body.theme-dark .content-header-sub{color:#8A97A8}
-body.theme-dark .card{background:#161F2B;border-color:#2A3644;color:#C8D0DA}
-body.theme-dark .card-title{color:#E8EDF3}
-body.theme-dark input,body.theme-dark select,body.theme-dark textarea{background:#1E2A38;border-color:#2A3644;color:#E8EDF3}
-body.theme-dark input::placeholder,body.theme-dark textarea::placeholder{color:#5A6674}
-body.theme-dark .btn{background:#1E2A38;border-color:#2A3644;color:#C8D0DA}
-body.theme-dark .btn:hover{background:#2A3644}
-body.theme-dark .entry-item{background:#161F2B;border-color:#2A3644}
-body.theme-dark .entry-work{color:#E8EDF3}
-body.theme-dark .entry-tag{background:#1E3A4A;color:#7FD4E8}
-body.theme-dark .recent-item{background:#1E2A38}
-body.theme-dark .recent-work{color:#C8D0DA}
-body.theme-dark .stat-card{background:#161F2B;border-color:#2A3644}
-body.theme-dark .stat-value{color:#E8EDF3}
-body.theme-dark .stat-label{color:#8A97A8}
-body.theme-dark .cal-day{background:#161F2B;border-color:#2A3644}
-body.theme-dark .cal-day-num{color:#C8D0DA}
-body.theme-dark .cal-day.other{background:#0D1119}
-body.theme-dark .cal-day.today{border-color:#2980B9;background:#1E3A4A}
-body.theme-dark .cal-day.today .cal-day-num{background:linear-gradient(135deg,#2980B9,#1A5276)}
-body.theme-dark .tag-chip{background:#1E2A38;border-color:#2A3644;color:#C8D0DA}
-body.theme-dark .tag-chip.active{background:linear-gradient(135deg,#2980B9,#1A5276);color:white}
-body.theme-dark label{color:#A0AAB8}
-body.theme-dark table{color:#C8D0DA}
-body.theme-dark th{background:#1E2A38 !important;color:#E8EDF3 !important}
-body.theme-dark td{border-color:#2A3644 !important}
-body.theme-dark .acc-section{border-color:#2A3644}
-body.theme-dark .acc-header{background:#161F2B}
-body.theme-dark .acc-header:hover,body.theme-dark .acc-header.open{background:#1E2A38}
-body.theme-dark .acc-title{color:#E8EDF3}
-body.theme-dark .acc-body{background:#161F2B}
-body.theme-dark .nav-group-label{color:rgba(255,255,255,0.3)}
-body.theme-dark .sticky-note-text{color:#1a2332}
-body.theme-dark .report-period-btn{background:#1E2A38;border-color:#2A3644;color:#A0AAB8}
-body.theme-dark .report-period-btn.active{background:linear-gradient(135deg,#2980B9,#1A5276);color:white}
-body.theme-dark .empty{color:#5A6674}
-body.theme-dark #search-modal>div{background:#161F2B}
-body.theme-dark #search-input{background:transparent;color:#E8EDF3}
-body.theme-dark .search-result-item:hover,body.theme-dark .search-result-item.selected{background:#1E2A38}
-body.theme-dark .search-result-title{color:#E8EDF3}
 
 /* HEATMAP */
 .heatmap-wrap{display:flex;gap:3px}
@@ -1080,14 +1020,6 @@ details[open] summary .chevron{transform:rotate(90deg)}
         <div class="card">
           <div class="card-title"><i class="ti ti-palette"></i> Загвар (Theme)</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <div class="theme-option" data-theme="brown" onclick="setTheme('brown')" title="Улбар хүрэн">
-              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#EBAD7C,#9E5E3D)"></div>
-              <span>Хүрэн</span>
-            </div>
-            <div class="theme-option" data-theme="blue" onclick="setTheme('blue')" title="Хөх">
-              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#5B9BD5,#1A5276)"></div>
-              <span>Хөх</span>
-            </div>
             <div class="theme-option" data-theme="green" onclick="setTheme('green')" title="Ногоон">
               <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#52BE80,#1E8449)"></div>
               <span>Ногоон</span>
@@ -1096,17 +1028,9 @@ details[open] summary .chevron{transform:rotate(90deg)}
               <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#17A8C4,#2C3E8C)"></div>
               <span>Далай</span>
             </div>
-            <div class="theme-option" data-theme="sky" onclick="setTheme('sky')" title="Тэнгэр">
-              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#4FC3F7,#0277BD)"></div>
-              <span>Тэнгэр</span>
-            </div>
             <div class="theme-option" data-theme="violet" onclick="setTheme('violet')" title="Нил">
               <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7B1FA2,#4527A0)"></div>
               <span>Нил</span>
-            </div>
-            <div class="theme-option" data-theme="dark" onclick="setTheme('dark')" title="Харанхуй">
-              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#1A2634,#0D1119);border:1px solid #2A3644"></div>
-              <span>Харанхуй</span>
             </div>
           </div>
         </div>
@@ -1358,11 +1282,35 @@ function localDateStr(d){
 const NOT_DONE_RE=/хийгдээгүй|биелээгүй|биелэгдээгүй|дутуу|хүлээгдэж|үргэлжилж|явагдаж|хийгдэж байна|эхлээгүй|цуцлагдсан|хойшлогдсон|шийдэгдээгүй|засагдаагүй/i;
 function isEntryDone(e){
   const r=(e&&typeof e.result==='string')?e.result.trim():'';
-  return r!==''&&!NOT_DONE_RE.test(r);
+  if(r===''||NOT_DONE_RE.test(r))return false;
+  // "Биелэлт 50%" гэх мэт 100-аас бага хувь → дуусаагүй
+  const pct=/(\d{1,3})\s*%/.exec(r);
+  if(pct&&+pct[1]<100)return false;
+  return true;
 }
 
 // ID-г inline onclick болон HTML атрибутад аюулгүй хэлбэрт оруулах (тогтмол — бүх төхөөрөмжид ижил үр дүн)
-function safeIdStr(id){return String(id).replace(/[^\w.-]/g,'_').slice(0,80)||'x';}
+// ID-г inline onclick/HTML-д аюулгүй болгох. Аюулгүй ID (үсэг, тоо, _ . -) ӨӨРЧЛӨГДӨХГҮЙ.
+// Бусдыг ДАВХЦАХГҮЙ хөрвүүлнэ: UTF-8 hex ("ажил-1" → "u_d0b0d0b6..."), урт бол hash.
+// Урьд нь кирилл бүрийг "_" болгодог тул "ажил-1", "тест-1" хоёулаа "____-1" болж импортод нэг нь чимээгүй хасагддаг байв (N04).
+function safeIdStr(id){
+  const s=String(id);
+  if(/^[\w.-]{1,80}$/.test(s))return s;
+  const bytes=new TextEncoder().encode(s);
+  let hex='';for(const b of bytes)hex+=b.toString(16).padStart(2,'0');
+  if(hex&&hex.length<=74)return 'u_'+hex;
+  let h1=0x811c9dc5,h2=0x9747b28c;
+  for(const b of bytes){h1=Math.imul(h1^b,16777619)>>>0;h2=Math.imul(h2^b,0x5bd1e995)>>>0;h2^=h2>>>15;}
+  return 'h_'+h1.toString(16).padStart(8,'0')+h2.toString(16).padStart(8,'0')+'_'+bytes.length;
+}
+// Бодит огноо эсэх (2026-02-31 гэх мэтийг татгалзана)
+function isRealDate(s){
+  const m=/^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(s||''));
+  if(!m)return false;
+  const y=+m[1],mo=+m[2],d=+m[3];
+  const dt=new Date(y,mo-1,d);
+  return y>=2000&&y<=2100&&dt.getFullYear()===y&&dt.getMonth()===mo-1&&dt.getDate()===d;
+}
 // Render хийхэд: onclick="fn('${aid(x.id)}')" — хэвийн ID өөрчлөгдөхгүй, хортой тэмдэгт арилна
 function aid(id){return typeof id==='number'?String(id):safeIdStr(id);}
 
@@ -1414,7 +1362,7 @@ function cleanupOldTombstones(){
       const arr=JSON.parse(s);
       const kept=arr.filter(n=>!n.deleted||(now-(n.updatedAt||0))<TOMBSTONE_MAX_AGE);
       if(kept.length<arr.length){
-        localStorage.setItem('sticky_notes_hsti',JSON.stringify(kept));
+        safeSetItem('sticky_notes_hsti',JSON.stringify(kept));
         if(typeof stickyNotes!=='undefined')stickyNotes=kept;
         console.log(`[Tombstone] ${arr.length-kept.length} хуучин наалтын устгалыг цэвэрлэлээ`);
       }
@@ -1703,6 +1651,7 @@ function init(){
     activeYear=dataYear;yearRolloverPending=true;
   }
   const tok=localStorage.getItem('hsti_tok'),usr=localStorage.getItem('hsti_usr');
+  if(!(tok&&usr))checkAuthWorker();
   if(tok&&usr){
     accessToken=tok;currentUser=JSON.parse(usr);
     // F02 migration: эзэн тэмдэглэгдээгүй бол одоо нэвтэрсэн акаунт эзэн
@@ -1714,11 +1663,16 @@ function init(){
     initGSI(); // GSI-г урьдчилан бэлдэх — дараа товч дарахад шууд ажиллана
     if(isTokenExpired()){
       // Хугацаа дууссан token-оор Drive руу хандвал 401 алдаа л гарна.
-      // Локал өгөгдлөөр ажиллуулж, "Холболт сэргээх" banner харуулна.
-      showReauthBanner();
+      // Refresh token байвал чимээгүй сэргээнэ; үгүй бол локал өгөгдлөөр ажиллаж banner харуулна.
+      if(getRtBlob()){
+        setSyncBadge('Холболт сэргээж байна...','#f39c12');
+        refreshViaWorker().then(ok=>{if(ok)loadFromDrive();else showReauthBanner();});
+      }else showReauthBanner();
     }else{
       setTimeout(loadFromDrive,200);
     }
+    // Worker refresh дэмжих эсэх — дараа нь санал болгох banner-т
+    checkAuthWorker().then(()=>setTimeout(checkTokenState,1500));
   }
 }
 
@@ -1759,45 +1713,27 @@ function initGSI(){
         }
         alert('Нэвтрэх алдаа: '+resp.error);return;
       }
-      const newTok=resp.access_token;
       const expiresIn=resp.expires_in?parseInt(resp.expires_in):3600;
-      const commitToken=()=>{
-        accessToken=newTok;
-        tokenExpiresAt=Date.now()+expiresIn*1000;
-        safeSetItem('hsti_tok',accessToken);
-        safeSetItem('hsti_tok_exp',String(tokenExpiresAt));
-      };
-
       // Token сэргээлт байсан бол userinfo дахин татахгүй (hint-ээр ижил акаунт)
       if(silentRefreshInProgress){
-        commitToken();
+        // B13: hint-тэй ч popup дээр өөр акаунт сонгогдож болно — эзэнтэй тулгана
+        const owner=localStorage.getItem(OWNER_KEY);
+        if(owner){
+          let sub=null;
+          try{const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+resp.access_token}});
+            if(r.ok)sub=(await r.json()).sub||null;}catch(_){}
+          if(sub!==owner){
+            try{google.accounts.oauth2.revoke(resp.access_token,()=>{});}catch(_){}
+            showAlert(sub?'Өөр Google акаунт сонгогдсон — энэ системийн акаунтаар дахин холбогдоно уу':'Google акаунтыг шалгаж чадсангүй','error');
+            finishRefresh(false);
+            return;
+          }
+        }
+        commitToken(resp.access_token,expiresIn);
         finishRefresh(true);
         return;
       }
-      // F02: Шинэ token-ийг ашиглаж (sync хийж) эхлэхээс ӨМНӨ акаунтыг шалгана.
-      // Урьд нь өөр акаунт нэвтрэхэд өмнөх хүний локал өгөгдөл шинэ акаунтын Drive руу нэгтгэгддэг байв.
-      let info=null;
-      try{
-        const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+newTok}});
-        if(!r.ok)throw new Error('HTTP '+r.status);
-        info=await r.json();
-      }catch(e){console.warn('[Auth] userinfo алдаа:',e);}
-      const verdict=resolveAccountOwner(info);
-      if(verdict===false){
-        try{google.accounts.oauth2.revoke(newTok,()=>{});}catch(_){}
-        return;
-      }
-      commitToken();
-      currentUser=info||currentUser||{name:'Хэрэглэгч'};
-      if(info)safeSetItem('hsti_usr',JSON.stringify(info));
-      if(verdict==='reload'){
-        // Өмнөх акаунтын өгөгдөл цэвэрлэгдсэн — санах ойн төлөвийг бүрэн шинэчлэхийн тулд дахин ачаална
-        showAlert('Өмнөх өгөгдлийг файлаар татлаа. Шинэ акаунтын өгөгдлийг ачаалж байна...','info');
-        setTimeout(()=>location.reload(),900);
-        return;
-      }
-      hideReauthBanner();
-      showMain();await loadFromDrive();
+      await acceptNewToken(resp.access_token,expiresIn,null,'login');
     },
     // ── ШИНЭ: popup нээгдэж чадаагүй / хаагдсан үед Google энийг дууддаг ──
     // Урьд нь байхгүй байсан тул popup хаагдахад 10 сек хүлээгээд л бууж өгдөг байв.
@@ -1855,7 +1791,15 @@ function finishRefresh(ok){
 // товч дараагүй үед (timer, хуудас ачаалах г.м.) popup-ыг ХААДАГ. Тиймээс:
 //   • Хэрэглэгчийн үйлдлийн дотор → шууд сэргээнэ (popup 1 сек анивчаад хаагдана)
 //   • Үйлдэлгүй үед → popup оролдохгүй, оронд нь "Холболт сэргээх" товчтой banner харуулна
-function silentRefresh(){
+async function silentRefresh(){
+  // 1. Refresh token байвал — popup-гүй, дарлтгүй
+  if(getRtBlob()){
+    if(await refreshViaWorker())return true;
+  }
+  // 2. Хуучин арга — popup (зөвхөн хэрэглэгчийн дарлт дотор)
+  return popupRefresh();
+}
+function popupRefresh(){
   return new Promise((resolve)=>{
     if(!hasUserActivation()){
       if(isTokenExpired())showReauthBanner();
@@ -1933,7 +1877,15 @@ function hideReauthBanner(){
 async function reconnectGoogle(){
   const btn=document.getElementById('reauth-btn');
   if(btn){btn.disabled=true;btn.textContent='Сэргээж байна...';}
-  const ok=await silentRefresh();
+  // Refresh token байхгүй + Worker бэлэн → энэ дарлтаар нэг удаа зөвшөөрөл авч, цаашид автомат болгоно
+  let ok;
+  if(!getRtBlob()&&refreshSupported){
+    const r=await requestOfflineAccess('reconnect');
+    ok=r==='ok';
+    if(r==='reload')return;
+  }else{
+    ok=await silentRefresh();
+  }
   if(ok){
     showAlert('Холболт сэргээгдлээ','success');
     // Эхлээд sync: Drive-тай нэгтгээд локал өөрчлөлтийг илгээнэ (шаблон зэрэг алдагдахгүй)
@@ -1952,14 +1904,16 @@ const OWNER_KEY='hsti_owner_sub',OWNER_NAME_KEY='hsti_owner_name';
 const USER_DATA_KEYS=['hsti_v3','hsti_data_year','hsti_file_ids','hsti_last_backup','hsti_draft_v1',
   'sticky_notes_hsti','sticky_labels_hsti','sticky_labels_ts',
   'vault_data_hsti','vault_meta_hsti','vault_updated_hsti','vault_synced_hsti','vault_remote_seen',
-  'zaalt_list_hsti','templates_hsti','todos_hsti'];
+  'zaalt_list_hsti','templates_hsti','todos_hsti','hsti_rt','vault_pending_hsti'];
+// Акаунт солигдож хуудас дахин ачаалагдах хүртэл (reload) ямар ч Drive бичилт/уншилт хийхгүй.
+var accountSwitching=false; // var: safeSetItem эрт дуудагдсан ч TDZ алдаа гарахгүй
 function hasLocalUserData(){
   const nonEmpty=k=>{try{const v=JSON.parse(localStorage.getItem(k)||'null');return Array.isArray(v)?v.some(x=>x&&!x.deleted):!!v;}catch(_){return false;}};
   return ['hsti_v3','sticky_notes_hsti','todos_hsti','templates_hsti'].some(nonEmpty)||!!localStorage.getItem('vault_meta_hsti');
 }
 function exportLocalSnapshot(ownerName){
   try{
-    const data={};USER_DATA_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)data[k]=v;});
+    const data={};USER_DATA_KEYS.filter(k=>k!=='hsti_rt').forEach(k=>{const v=localStorage.getItem(k);if(v!=null)data[k]=v;});
     const blob=new Blob([JSON.stringify({reason:'account_switch',owner_name:ownerName,exported:new Date().toISOString(),data},null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download='hsti_omnokh_akaunt_'+localDateStr()+'.json';
@@ -1997,7 +1951,193 @@ function resolveAccountOwner(info){
   return 'reload';
 }
 
+// Token хадгалах (rtBlob байвал refresh token-ийн шифрлэгдсэн хайрцгийг ч хадгална)
+function commitToken(tok,expiresIn,rtBlob){
+  accessToken=tok;
+  tokenExpiresAt=Date.now()+(parseInt(expiresIn)||3600)*1000;
+  safeSetItem('hsti_tok',accessToken);
+  safeSetItem('hsti_tok_exp',String(tokenExpiresAt));
+  if(rtBlob)safeSetItem(RT_KEY,rtBlob);
+}
+// Шинэ access token (нэвтрэх эсвэл код солилцоо) — F02 акаунт шалгалт, хадгалалт.
+// mode: 'login' — нэвтрэх дэлгэцээс; 'reconnect' — апп доторх холболт сэргээх.
+// Буцаах: 'ok' | 'reload' | 'cancel'
+async function acceptNewToken(newTok,expiresIn,rtBlob,mode){
+  // F02: Шинэ token-ийг ашиглаж (sync хийж) эхлэхээс ӨМНӨ акаунтыг шалгана.
+  // Урьд нь өөр акаунт нэвтрэхэд өмнөх хүний локал өгөгдөл шинэ акаунтын Drive руу нэгтгэгддэг байв.
+  let info=null;
+  try{
+    const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+newTok}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    info=await r.json();
+  }catch(e){console.warn('[Auth] userinfo алдаа:',e);}
+  const verdict=resolveAccountOwner(info);
+  if(verdict===false){
+    try{google.accounts.oauth2.revoke(newTok,()=>{});}catch(_){} // refresh token-ийг ч цуцална
+    return 'cancel';
+  }
+  if(verdict==='reload'){
+    // N05: хуучин хэрэглэгчийн өгөгдөл санах ойд байсаар байна — reload хүртэл бүх sync-ийг хааж,
+    // шинэ token-ийг ЗӨВХӨН localStorage-д бичнэ (санах ойн accessToken-д биш).
+    accountSwitching=true;
+    accessToken=null;entries=[];stickyNotes=[];todos=[];vaultLock();
+    clearTimeout(todoSyncTimer);clearTimeout(stickyAutoSyncTimer);
+    safeSetItem('hsti_tok',newTok);
+    safeSetItem('hsti_tok_exp',String(Date.now()+(parseInt(expiresIn)||3600)*1000));
+    if(rtBlob)safeSetItem(RT_KEY,rtBlob);
+    if(info)safeSetItem('hsti_usr',JSON.stringify(info));
+  }else{
+    commitToken(newTok,expiresIn,rtBlob);
+    currentUser=info||currentUser||{name:'Хэрэглэгч'};
+    if(info)safeSetItem('hsti_usr',JSON.stringify(info));
+  }
+  if(verdict==='reload'){
+    // Өмнөх акаунтын өгөгдөл цэвэрлэгдсэн — санах ойн төлөвийг бүрэн шинэчлэхийн тулд дахин ачаална
+    showAlert('Өмнөх өгөгдлийг файлаар татлаа. Шинэ акаунтын өгөгдлийг ачаалж байна...','info');
+    setTimeout(()=>location.reload(),900);
+    return 'reload';
+  }
+  hideReauthBanner();hideRtOffer();
+  if(mode==='login'){showMain();await loadFromDrive();}
+  return 'ok';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  REFRESH TOKEN — Cloudflare Worker-аар (popup-гүй сэргээлт)
+// ═══════════════════════════════════════════════════════════
+// Google access token 1 цаг. Урьд нь сэргээхэд popup шаардлагатай байсан тул браузер зөвхөн
+// хэрэглэгчийн дарлт дотор зөвшөөрч, "Холболт сэргээх" banner байнга гардаг байв.
+// Одоо: нэг удаа зөвшөөрөл (код) → Worker refresh token авч ШИФРЛЭЭД буцаана (client_secret Worker-т л бий)
+// → цаашид token дуусахаас өмнө Worker-ээс шинэ token авна, хэрэглэгч юу ч дарахгүй.
+const AUTH_WORKER='https://odd-breeze-d4e0.examples-code.workers.dev';
+const RT_KEY='hsti_rt';
+let refreshSupported=false; // Worker тохируулагдсан эсэх (/auth/status)
+// N01: AI-д зориулсан Worker-ийн богино хугацааны түлхүүр — Google (Drive/Calendar) token AI хүсэлтэд явахгүй
+let aiToken=null,aiTokenExp=0;
+function setAiToken(t,ttl){if(t){aiToken=t;aiTokenExp=Date.now()+(parseInt(ttl)||3600)*1000;}}
+async function getAiAuthHeader(){
+  if(aiToken&&Date.now()<aiTokenExp-60000)return 'AI '+aiToken;
+  if(!accessToken||!(await ensureValidToken()))throw new Error('NO_TOKEN');
+  if(aiToken&&Date.now()>=aiTokenExp-60000)aiToken=null;
+  try{
+    const r=await fetch(AUTH_WORKER+'/auth/ai-session',{method:'POST',
+      headers:{'Content-Type':'application/json','X-Requested-With':'XmlHttpRequest',Authorization:'Bearer '+accessToken},body:'{}'});
+    if(r.ok){const d=await r.json();if(d.ai_token){setAiToken(d.ai_token,d.expires_in);return 'AI '+aiToken;}}
+  }catch(_){}
+  return 'Bearer '+accessToken; // Worker-т AI түлхүүр тохируулаагүй — хуучин арга
+}
+function getRtBlob(){try{return localStorage.getItem(RT_KEY)||'';}catch(_){return '';}}
+async function authWorker(path,body){
+  const res=await fetch(AUTH_WORKER+path,{method:'POST',
+    headers:{'Content-Type':'application/json','X-Requested-With':'XmlHttpRequest'},
+    body:JSON.stringify(body||{})});
+  let data={};try{data=await res.json();}catch(_){}
+  return {ok:res.ok,status:res.status,data};
+}
+async function checkAuthWorker(){
+  try{
+    const ctl=typeof AbortController!=='undefined'?new AbortController():null;
+    const t=setTimeout(()=>ctl&&ctl.abort(),4000);
+    const r=await fetch(AUTH_WORKER+'/auth/status',ctl?{signal:ctl.signal}:{});
+    clearTimeout(t);
+    refreshSupported=r.ok&&(await r.json()).refresh===true;
+  }catch(_){refreshSupported=false;}
+  return refreshSupported;
+}
+
+// Refresh token-оор шинэ access token авах — popup, дарлт ШААРДЛАГАГҮЙ. Зэрэг дуудалтыг нэгтгэнэ.
+let _rtRefreshing=null;
+function refreshViaWorker(){
+  if(_rtRefreshing)return _rtRefreshing;
+  const blob=getRtBlob();
+  if(!blob)return Promise.resolve(false);
+  _rtRefreshing=(async()=>{
+    try{
+      const r=await authWorker('/auth/refresh',{rt:blob});
+      if(r.ok&&r.data.access_token){
+        commitToken(r.data.access_token,r.data.expires_in);
+        setAiToken(r.data.ai_token,r.data.ai_expires_in);
+        hideReauthBanner();
+        return true;
+      }
+      if(r.status===401){
+        // Хэрэглэгч эрхээ цуцалсан / Google Testing горимд 7 хоног өнгөрсөн → хайрцаг хүчингүй
+        console.warn('[Auth] Refresh token хүчингүй:',r.data.error);
+        try{localStorage.removeItem(RT_KEY);}catch(_){}
+      }
+      return false;
+    }catch(e){console.warn('[Auth] Worker refresh алдаа:',e);return false;}
+    finally{setTimeout(()=>{_rtRefreshing=null;},0);}
+  })();
+  return _rtRefreshing;
+}
+
+// Нэг удаагийн зөвшөөрөл (popup) → refresh token. ЗААВАЛ хэрэглэгчийн дарлт дотор дуудна.
+// Буцаах: 'ok' | 'reload' | 'cancel' | 'fail'
+function requestOfflineAccess(mode){
+  return new Promise(resolve=>{
+    if(typeof google==='undefined'||!google.accounts?.oauth2?.initCodeClient){resolve('fail');return;}
+    let done=false;const finish=v=>{if(!done){done=true;resolve(v);}};
+    const hint=getAccountHint();
+    const cfg={client_id:CLIENT_ID,scope:SCOPES,ux_mode:'popup',
+      callback:async(resp)=>{
+        if(!resp||resp.error||!resp.code){finish('fail');return;}
+        try{
+          const r=await authWorker('/auth/exchange',{code:resp.code});
+          if(!r.ok||!r.data.access_token){
+            console.warn('[Auth] Код солилцоо амжилтгүй:',r.status,r.data.error);
+            if(r.status===501)refreshSupported=false;
+            finish('fail');return;
+          }
+          if(!r.data.rt){
+            // Google refresh token өгөөгүй (өмнө нь зөвшөөрсөн) — access token-оор үргэлжилнэ
+            showAlert('Автомат холболт идэвхжсэнгүй: Google refresh token өгсөнгүй. "Гарах" → дахин "Нэвтрэх" хийгээд оролдоно уу.','info');
+          }
+          setAiToken(r.data.ai_token,r.data.ai_expires_in);
+          finish(await acceptNewToken(r.data.access_token,r.data.expires_in,r.data.rt,mode));
+        }catch(e){console.warn('[Auth] Код солилцоо алдаа:',e);finish('fail');}
+      },
+      error_callback:(err)=>{console.warn('[Auth] Code client:',err&&err.type);finish('fail');}};
+    if(hint)cfg.hint=hint;
+    try{google.accounts.oauth2.initCodeClient(cfg).requestCode();}
+    catch(e){console.warn('[Auth] requestCode алдаа:',e);finish('fail');}
+  });
+}
+
+// Refresh token-гүй хуучин нэвтрэлттэй үед — нэг удаа санал болгох banner
+function showRtOffer(){
+  if(!refreshSupported||getRtBlob()||!accessToken)return;
+  if(document.getElementById('rt-offer-banner')||document.getElementById('reauth-banner'))return;
+  try{if(sessionStorage.getItem('rt_offer_dismissed'))return;}catch(_){}
+  const b=document.createElement('div');
+  b.id='rt-offer-banner';
+  b.style.cssText='position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1a2332;color:#fff;padding:10px 12px 10px 16px;border-radius:10px;font-size:13px;z-index:10000;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-width:calc(100vw - 32px)';
+  b.innerHTML=`<i class="ti ti-plug-connected" style="color:#4CAF50;font-size:18px;flex-shrink:0"></i>
+    <span>Нэг удаа зөвшөөрвөл цаашид "Холболт сэргээх" гарахгүй.</span>
+    <button id="rt-offer-btn" style="background:#4CAF50;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap">Идэвхжүүлэх</button>
+    <button id="rt-offer-x" style="background:none;border:none;color:#a0aab4;cursor:pointer;font-size:16px;padding:2px 4px" title="Дараа">×</button>`;
+  document.body.appendChild(b);
+  document.getElementById('rt-offer-btn').addEventListener('click',async()=>{
+    const r=await requestOfflineAccess('reconnect');
+    if(r==='ok'&&getRtBlob())showAlert('Автомат холболт идэвхжлээ','success');
+    else if(r==='fail')showAlert('Идэвхжүүлж чадсангүй, дараа дахин оролдоно уу','info');
+  });
+  document.getElementById('rt-offer-x').addEventListener('click',()=>{
+    try{sessionStorage.setItem('rt_offer_dismissed','1');}catch(_){}
+    hideRtOffer();
+  });
+}
+function hideRtOffer(){const b=document.getElementById('rt-offer-banner');if(b)b.remove();}
+
 async function signIn(){
+  // Refresh token дэмжигдвэл код урсгал (нэг popup → цаашид автомат). requestCode-ийг дарлт дотор
+  // шууд дуудах ёстой тул refreshSupported-ийг хуудас ачаалахад урьдчилан шалгадаг.
+  if(refreshSupported&&typeof google!=='undefined'&&google.accounts?.oauth2?.initCodeClient){
+    const r=await requestOfflineAccess('login');
+    if(r!=='fail')return;
+    showAlert('Нэвтрэх товчийг дахин дарна уу','info'); // Worker алдаа → дараагийн дарлтаар хуучин аргаар
+    refreshSupported=false;return;
+  }
   if(!(await waitForGSI())){alert('Google нэвтрэлт ачааллаж байна, хэсэг хүлээгээд дахин оролдоно уу');return;}
   tokenClient.requestAccessToken();
 }
@@ -2012,6 +2152,9 @@ function signOut(){
   accessToken=null;currentUser=null;driveFileId=null;stickyFileId=null;vaultFileId=null;
   driveFolderId=null;driveBackupFolderId=null;tokenExpiresAt=0;
   vaultLock(); // түлхүүр + DOM дахь нууц мэдээллийг цэвэрлэнэ
+  const rtBlob=getRtBlob();
+  if(rtBlob)authWorker('/auth/revoke',{rt:rtBlob}).catch(()=>{}); // access token дууссан байсан ч refresh token цуцлагдана
+  localStorage.removeItem(RT_KEY);hideRtOffer();aiToken=null;
   localStorage.removeItem('hsti_tok');localStorage.removeItem('hsti_usr');
   localStorage.removeItem('hsti_tok_exp');
   clearFileIdCache();
@@ -2030,8 +2173,18 @@ function startTokenRefreshTimer(){
 }
 function checkTokenState(){
   if(!accessToken)return;
+  if(getRtBlob()&&isTokenExpiringSoon(5*60*1000)){
+    // Дуусахаас 5 минутын өмнө чимээгүй сэргээнэ; бүтэлгүйтвэл хуучин аргаар
+    refreshViaWorker().then(ok=>{
+      if(ok)return;
+      if(isTokenExpired())showReauthBanner();
+      else armReauthOnNextInteraction();
+    });
+    return;
+  }
   if(isTokenExpired())showReauthBanner();
   else if(isTokenExpiringSoon(5*60*1000))armReauthOnNextInteraction();
+  else if(!getRtBlob())showRtOffer();
 }
 // Таб буцаж нээгдэх / компьютер сэрэх үед шууд шалгах (timer унтсан байж болно)
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkTokenState();});
@@ -2260,11 +2413,14 @@ async function cleanupOldBackups(backupFolderId){
     const res=await driveJson(`https://www.googleapis.com/drive/v3/files?q='${driveEsc(backupFolderId)}' in parents and trashed=false&orderBy=createdTime desc&spaces=drive&fields=files(id,name,createdTime)`);
     if(res.files&&res.files.length>MAX_BACKUPS){
       const toDelete=res.files.slice(MAX_BACKUPS);
+      let failed=0;
       for(const f of toDelete){
-        await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`,{
+        const dres=await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`,{
           method:'DELETE',headers:{Authorization:'Bearer '+accessToken}
         });
+        if(!dres.ok&&dres.status!==404)failed++;
       }
+      if(failed)console.warn('[Backup] '+failed+' хуучин backup устгагдсангүй — дараагийн удаа дахин оролдоно');
     }
   }catch(e){console.error('Backup цэвэрлэхэд алдаа:',e);}
 }
@@ -2321,9 +2477,9 @@ async function restoreFromBackup(fileId){
     }
     if(content.vault&&content.vault.vault_data&&content.vault.vault_meta){
       // meta болон data-г ХАМТ сэргээнэ (өөр salt-тай хольж болохгүй)
-      safeSetItem('vault_meta_hsti',JSON.stringify(content.vault.vault_meta));
-      safeSetItem('vault_data_hsti',JSON.stringify(content.vault.vault_data));
-      safeSetItem('vault_updated_hsti',String(now));
+      if(vaultCommit(JSON.stringify(content.vault.vault_meta),JSON.stringify(content.vault.vault_data)))
+        safeSetItem('vault_updated_hsti',String(now));
+      else showAlert('Нууц үгийн санг сэргээж чадсангүй (хадгалах зай?) — хуучин сан хэвээр','error');
       vaultLock(); // санах ой дахь хуучин vault-ыг цэвэрлэнэ — дахин нээж тайлна
     }
     document.getElementById('total-count').textContent=activeEntries().length;
@@ -2418,6 +2574,32 @@ function vaultDirty(){return vaultLocalTs()>vaultSyncedTs();}
 // Урьд нь хадгалах + наалтын timer зэрэг дуудагдвал хоёулаа "файл байхгүй" гэж үзээд
 // ДАВХАР файл үүсгэх боломжтой байв. Одоо дуудалт бүр өмнөхөө дуусахыг хүлээнэ.
 // Буцаах утга: true — ажлын бүртгэл Drive-д амжилттай бичигдсэн.
+// ── B01/F05: Зэрэг бичилтийн шалгалт ─────────────────────────
+// Drive-д "хэрэв өөрчлөгдөөгүй бол бич" (conditional write) байхгүй. Хоёр төхөөрөмж ижил хувилбар
+// уншаад зэрэг бичвэл сүүлд бичсэн нь нөгөөгийнхөө шинэ мөрийг Drive-аас түр арилгана
+// (локалд хэвээр). Тиймээс бичсний 30 сек дараа Drive-ийг дахин уншиж, манай мөр бүр тэнд
+// байгаа эсэхийг шалгана; дутуу бол дахин нэгтгэж илгээнэ. 3 удаа дараалан дутуу бол зогсоно.
+let verifyTimer=null,verifyStreak=0;
+const VERIFY_DELAY=30000;
+function scheduleVerifySync(){clearTimeout(verifyTimer);verifyTimer=setTimeout(verifyDriveConsistency,VERIFY_DELAY);}
+async function verifyDriveConsistency(){
+  if(accountSwitching||!accessToken||viewingOldYear||!driveFileId)return;
+  if(isTokenExpired()&&!getRtBlob())return;
+  try{
+    if(!(await ensureValidToken()))return;
+    const r=await readDriveFile(driveFileId);
+    if(r.status!=='ok'||!Array.isArray(r.content.entries))return;
+    const re=Object.create(null);r.content.entries.forEach(e=>{if(e&&e.id!=null)re[String(e.id)]=_stamp(e);});
+    const rt=Object.create(null);(Array.isArray(r.content.todos)?r.content.todos:[]).forEach(t=>{if(t&&t.id!=null)rt[String(t.id)]=Number(t.updatedAt)||0;});
+    const lost=entries.filter(e=>{const t=re[String(e.id)];return t===undefined||_stamp(e)>t;}).length
+              +loadAllTodos().filter(t=>{const x=rt[String(t.id)];return x===undefined||t.updatedAt>x;}).length;
+    if(!lost){verifyStreak=0;return;}
+    if(++verifyStreak>3){console.warn('[Sync] Drive дээр дутуу мөр үлдсээр байна — дараагийн хадгалалтаар дахин оролдоно');verifyStreak=0;return;}
+    console.warn('[Sync] Өөр төхөөрөмж зэрэг бичсэн тул '+lost+' мөр Drive-д дутуу — дахин нэгтгэж илгээнэ');
+    syncToDrive({quiet:true});
+  }catch(e){console.warn('[Sync] Шалгалт амжилтгүй:',e);}
+}
+
 let _syncChain=Promise.resolve();
 function syncToDrive(opts){
   const p=_syncChain.then(()=>_syncToDriveCore(opts||{}));
@@ -2426,6 +2608,7 @@ function syncToDrive(opts){
 }
 
 async function _syncToDriveCore(opts){
+  if(accountSwitching)return false;
   if(!accessToken){if(!opts.quiet)showAlert('Нэвтэрнэ үү','error');return false;}
   // Хуучин он харж байвал хадгалахгүй — архивыг санамсаргүй дарж бичихээс сэргийлэх
   if(viewingOldYear){
@@ -2547,9 +2730,11 @@ async function _syncToDriveCore(opts){
     // Зөвхөн ЛОКАЛ ДЭЭР ӨӨРЧЛӨГДСӨН үед (эсвэл Drive-д огт байхгүй үед) илгээнэ.
     // Урьд нь sync бүрт илгээдэг байсан тул хуучин vault-тай төхөөрөмж өөр төхөөрөмж
     // дээр нэмсэн нууц үгийг дарж устгах боломжтой байв.
+    if(vaultPendingExists())vaultRecoverPending();
     const vaultMeta=localStorage.getItem('vault_meta_hsti');
     const vaultData=localStorage.getItem('vault_data_hsti');
-    if(vaultMeta&&vaultData){
+    let vaultRetryNeeded=false;
+    if(vaultMeta&&vaultData&&!vaultPendingExists()){
       if(!vaultFileId)vaultFileId=await findFileInFolder(getVaultFileName(),folderId);
       const vaultPayloadNow={
         vault_meta:JSON.parse(vaultMeta),
@@ -2584,12 +2769,20 @@ async function _syncToDriveCore(opts){
             try{
               const rItems=await decryptData(vaultKey,remote.vault_data);
               const lItems=await decryptData(vaultKey,JSON.parse(vaultData));
+              const keyAtStart=vaultKey;
               const merged=mergeVaultItems(lItems,rItems);
-              const enc=await encryptData(vaultKey,merged);
-              vaultItems=merged;
-              safeSetItem('vault_data_hsti',JSON.stringify(enc));
-              toUpload={vault_meta:localMeta,vault_data:enc,updated:new Date().toISOString()};
-              if(document.getElementById('vault-unlocked')?.style.display==='block')renderVault();
+              const enc=await encryptData(keyAtStart,merged);
+              // N03: тайлах/шифрлэх хооронд хэрэглэгч засвар хийсэн (эсвэл түгжсэн) бол энэ нэгтгэл ХУУЧИРСАН —
+              // хадгалахгүй, дараагийн sync шинэ төлөвөөр дахин нэгтгэнэ. Урьд нь засварыг дарж устгадаг байв.
+              if(vaultLocalTs()!==snapTs||vaultKey!==keyAtStart||localStorage.getItem('vault_data_hsti')!==vaultData){
+                vaultRetryNeeded=true;
+              }else if(!vaultCommit(null,JSON.stringify(enc))){
+                skipReason='локалд хадгалж чадсангүй';
+              }else{
+                vaultItems=merged;
+                toUpload={vault_meta:localMeta,vault_data:enc,updated:new Date().toISOString()};
+                if(document.getElementById('vault-unlocked')?.style.display==='block')renderVault();
+              }
             }catch(e){skipReason='нэгтгэж чадсангүй';}
           }else{
             skipReason=vaultKey?'өөр төхөөрөмж түлхүүрийг шинэчилсэн — санг түгжээд дахин нээнэ үү (автоматаар нэгтгэнэ)':'өөр төхөөрөмжид өөрчлөгдсөн — санг нээнэ үү (автоматаар нэгтгэнэ)';
@@ -2598,7 +2791,7 @@ async function _syncToDriveCore(opts){
         if(toUpload){
           vaultFileId=await uploadToFile(getVaultFileName(),vaultFileId,folderId,toUpload);
           markUploaded(toUpload,snapTs);
-        }else{
+        }else if(skipReason){
           skipped.push('Нууц үгийн сан ('+skipReason+')');
         }
       }
@@ -2614,6 +2807,7 @@ async function _syncToDriveCore(opts){
       createBackup(folderId,entriesPayload,stickyPayload,vaultPayload);
     }
 
+    if(vaultRetryNeeded)setTimeout(()=>syncToDrive({quiet:true}),1500); // хуучирсан нэгтгэлийг шинэ төлөвөөр дахин
     if(skipped.length>0){
       setSyncBadge('Хэсэгчлэн хадгаллаа','#f39c12');
       showAlert('Дараах хэсгийг ХАМГААЛЖ, дарж бичсэнгүй: '+skipped.join(', ')+'.','info');
@@ -2621,6 +2815,7 @@ async function _syncToDriveCore(opts){
       setSyncBadge('Хадгалагдсан','#0F6E56');
       if(!opts.quiet)showAlert('Drive-д хадгалагдлаа!','success');
     }
+    if(entriesWritten)scheduleVerifySync();
     return entriesWritten;
   }catch(e){
     console.error('[Drive sync алдаа]',e);
@@ -2657,7 +2852,7 @@ async function performYearRollover(){
 }
 
 async function loadFromDrive(){
-  if(!accessToken)return;
+  if(accountSwitching||!accessToken)return;
   // Архив горимд (хуучин он харж байх үед) entries нь ХУУЧИН оных — энд одоогийн оны
   // Drive өгөгдлийг нэгтгэвэл хоёр он холилдож локалд (hsti_v3) хадгалагдана.
   if(viewingOldYear){showAlert('Архив горимд Drive-аас унших боломжгүй. Одоогийн он руу буцна уу.','info');return;}
@@ -2901,6 +3096,8 @@ async function loadFromDrive(){
 function safeSetItem(key, value) {
   // ХАМГААЛАЛТЫН ГАРЦ: архив горимд entries нь ХУУЧИН оных тул одоогийн оны локал
   // хадгалалт (hsti_v3)-ыг дарахыг бүх замаар (quick-add, clear-all, ...) хориглоно.
+  // N05: акаунт солигдож байх үед хуучин хэрэглэгчийн (ард явж буй) бичилтийг хориглоно
+  if(accountSwitching&&key!=='hsti_tok'&&key!=='hsti_tok_exp'&&key!=='hsti_usr'&&key!=='hsti_rt'&&key!=='hsti_owner_sub'&&key!=='hsti_owner_name')return false;
   if(key==='hsti_v3'&&typeof viewingOldYear!=='undefined'&&viewingOldYear){
     console.warn('[Архив] hsti_v3-д бичих оролдлогыг хориглолоо');
     return false;
@@ -3189,7 +3386,7 @@ function saveDraftNow(){
     savedAt:new Date().toISOString()
   };
   try{
-    localStorage.setItem(DRAFT_KEY,JSON.stringify(draft));
+    if(!safeSetItem(DRAFT_KEY,JSON.stringify(draft)))return; // зай дүүрсэн — safeSetItem мэдэгдэнэ
     const statusEl=document.getElementById('draft-status');
     if(statusEl){
       statusEl.innerHTML='<i class="ti ti-check" style="font-size:11px;color:#27ae60"></i> Ноорог хадгалагдсан';
@@ -3356,24 +3553,28 @@ function importJSON(input){
     try{
       const data=JSON.parse(e.target.result);
       const rawArr=Array.isArray(data)?data:(data&&Array.isArray(data.entries)?data.entries:[]);
+      // Мөр бүрийн хувь заяаг тоолно — юу ч чимээгүй хасагдахгүй
+      const stat={total:rawArr.length,dupInFile:0,exists:0,invalid:0};
       const seenIds=new Set();
       const arr=sanitizeEntries(rawArr.map(e=>(e&&typeof e==='object'&&e.id==null)?{...e,id:genId()}:e))
-        .filter(e=>{const k=String(e.id);if(seenIds.has(k))return false;seenIds.add(k);return true;})
-        .filter(e=>e.date&&e.work); // огноо, ажилгүй мөрийг импортлохгүй
-      if(!arr.length){showAlert('JSON хоосон байна','error');return;}
+        .filter(e=>{const k=String(e.id);if(seenIds.has(k)){stat.dupInFile++;return false;}seenIds.add(k);return true;})
+        .filter(e=>{const ok=e.date&&isRealDate(e.date)&&String(e.work).trim();if(!ok)stat.invalid++;return ok;});
+      stat.invalid+=rawArr.length-stat.dupInFile-stat.invalid-arr.length; // бүтэцгүй (объект биш) мөр
       const existIds=new Set(entries.map(e=>String(e.id)));
-      const newEntries=arr.filter(e=>!existIds.has(String(e.id)));
+      const newEntries=arr.filter(e=>{if(existIds.has(String(e.id))){stat.exists++;return false;}return true;});
+      const skipNote=[stat.exists?stat.exists+' аль хэдийн байгаа':'',stat.dupInFile?stat.dupInFile+' файл дотор давхардсан':'',stat.invalid?stat.invalid+' огноо/ажил буруу':''].filter(Boolean).join(', ');
       if(!newEntries.length){
-        showAlert('Бүх бүртгэл аль хэдийн байна (давхардал)','info');
+        showAlert('Шинэ бүртгэл алга'+(skipNote?' ('+skipNote+')':''),'info');
+        document.getElementById('import-status').textContent='Нийт '+stat.total+' мөр: '+(skipNote||'хоосон');
         return;
       }
       entries=[...entries,...newEntries];
       entries.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
       safeSetItem('hsti_v3',JSON.stringify(entries));
       document.getElementById('total-count').textContent=entries.length;
-      document.getElementById('import-status').textContent=`✓ ${newEntries.length} бүртгэл нэмэгдлээ`;
+      document.getElementById('import-status').textContent=`✓ ${stat.total} мөрөөс ${newEntries.length} нэмэгдлээ`+(skipNote?` · алгассан: ${skipNote}`:'');
       renderDashboard();populateFilters();
-      showAlert(`${newEntries.length} бүртгэл импортлогдлоо!`,'success');
+      showAlert(`${newEntries.length} бүртгэл импортлогдлоо`+(skipNote?` (алгассан: ${skipNote})`:'!'),'success');
       if(accessToken)syncToDrive();
     }catch(err){
       console.error('[Импорт] JSON parse алдаа:',err);
@@ -3420,7 +3621,10 @@ async function confirmClearAll(){
     statusEl.textContent='Backup үүсгэж байна...';
     try{
       const folderId=await getOrCreateFolder();
-      const entriesPayload={entries,updated:new Date().toISOString()};
+      // Устгахын өмнөх backup-д ажлын файлын БҮХ хэсэг (даалгавар, шаблон, заалт) орно
+      const entriesPayload={entries,templates:userTemplates,
+        zaalt_list:(localStorage.getItem('zaalt_list_hsti')?JSON.parse(localStorage.getItem('zaalt_list_hsti')):null),
+        todos:loadAllTodos(),updated:new Date().toISOString()};
       const stickyData=localStorage.getItem('sticky_notes_hsti');
       const stickyLabelsData=localStorage.getItem('sticky_labels_hsti');
       const stickyPayload={
@@ -3444,10 +3648,19 @@ async function confirmClearAll(){
   } else {
     statusEl.textContent='Drive холбогдоогүй тул backup алгасав. Устгаж байна...';
   }
+  // Drive backup бүтэлгүйтвэл үргэлжлүүлэх эсэхийг асууна (урьд нь шууд устгадаг байв)
+  if(accessToken&&!backupOk&&!confirm('⚠ Drive дээр backup үүсгэж чадсангүй.\n\nКомпьютерт JSON файл татагдана. Тэр файлаа хадгалсан бол "OK" дарж устгалыг үргэлжлүүлнэ үү. Эс бөгөөс "Cancel".')){
+    // JSON-оо эхлээд татуулна
+    try{
+      const blob=new Blob([JSON.stringify({entries,todos:loadAllTodos(),templates:userTemplates,exported:new Date().toISOString(),reason:'before_clear_all'},null,2)],{type:'application/json'});
+      const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`tailan_backup_устгахаас_өмнө_${localDateStr()}.json`;a.click();URL.revokeObjectURL(u);
+    }catch(_){}
+    statusEl.textContent='Устгал цуцлагдлаа';btn.disabled=false;return;
+  }
 
   // 2. Локал JSON татах (нэмэлт хамгаалалт)
   try{
-    const exportData={entries,exported:new Date().toISOString(),reason:'before_clear_all'};
+    const exportData={entries,todos:loadAllTodos(),templates:userTemplates,exported:new Date().toISOString(),reason:'before_clear_all'};
     const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
@@ -3852,8 +4065,9 @@ function loadTemplates(){
   try{const s=localStorage.getItem('templates_hsti');if(s)userTemplates=JSON.parse(s);}catch(e){userTemplates=[];}
 }
 function saveTemplates(){
-  try{localStorage.setItem('templates_hsti',JSON.stringify(userTemplates));}catch(e){}
+  if(!safeSetItem('templates_hsti',JSON.stringify(userTemplates))){showAlert('Шаблон хадгалагдсангүй','error');return false;}
   if(accessToken)syncToDrive();
+  return true;
 }
 
 function openTemplateForm(){
@@ -4569,12 +4783,13 @@ async function draftWithAI(zaaltKey,btn){
     const prompt=`Заалт: ${zaalt}\n\nХийсэн ажлууд:\n${worksText}\n\nДээрх ажлуудыг нэг эвлэг, албан ёсны тайлангийн догол мөр болгон найруулан бич. Жагсаалт биш, урсгалтай догол мөр байх ёстой.`;
 
     // F22: Worker зөвхөн энэ аппын Google token-той хүсэлтийг хүлээн авна (бусдад AI квот зарцуулуулахгүй)
-    if(!accessToken||!(await ensureValidToken()))throw new Error('NO_TOKEN');
-    const res=await fetch('https://odd-breeze-d4e0.examples-code.workers.dev/api/ai',{
+    const authHeader=await getAiAuthHeader();
+    const res=await fetch(AUTH_WORKER+'/api/ai',{
       method:'POST',
-      headers:{'Content-Type':'application/json',Authorization:'Bearer '+accessToken},
+      headers:{'Content-Type':'application/json',Authorization:authHeader},
       body:JSON.stringify({prompt})
     });
+    if(res.status===401&&authHeader.startsWith('AI '))aiToken=null; // дараагийн удаа шинээр авна
 
     if(!res.ok)throw new Error('HTTP '+res.status);
     const data=await res.json();
@@ -5065,8 +5280,11 @@ function loadStickyNotes(){
 }
 let stickyAutoSyncTimer=null;
 function saveStickyNotes(){
-  try{localStorage.setItem('sticky_notes_hsti',JSON.stringify(stickyNotes));}catch(e){}
-  try{localStorage.setItem('sticky_labels_hsti',JSON.stringify(stickyLabels));}catch(e){}
+  // Урьд нь алдааг чимээгүй залгидаг байсан — зай дүүрвэл хэрэглэгч мэдэхгүй үлддэг байв
+  if(!safeSetItem('sticky_notes_hsti',JSON.stringify(stickyNotes))||!safeSetItem('sticky_labels_hsti',JSON.stringify(stickyLabels))){
+    showAlert('Тэмдэглэл хадгалагдсангүй — хадгалах зай дүүрсэн байж магадгүй','error');
+    return false;
+  }
   // 2 секунд хүлээгээд Drive-д хадгалах (debounce)
   if(accessToken){
     clearTimeout(stickyAutoSyncTimer);
@@ -5132,8 +5350,7 @@ function editLabelName(id,name){
   const l=stickyLabels.find(l=>l.id===id);
   if(l&&name.trim()){
     l.name=name.trim();
-    try{localStorage.setItem('sticky_labels_hsti',JSON.stringify(stickyLabels));
-        localStorage.setItem('sticky_labels_ts',String(Date.now()));}catch(e){}
+    if(safeSetItem('sticky_labels_hsti',JSON.stringify(stickyLabels)))safeSetItem('sticky_labels_ts',String(Date.now()));
     if(accessToken){clearTimeout(stickyAutoSyncTimer);stickyAutoSyncTimer=setTimeout(()=>syncToDrive(),2000);}
   }
 }
@@ -5144,8 +5361,8 @@ function addNewLabel(){
   if(!name){inp.focus();return;}
   stickyLabels.push({id:'l'+Date.now(),name,color:col.value});
   // localStorage-д хадгалах + өөрчлөлтийн цаг тэмдэглэх (LWW-д хэрэгтэй)
-  try{localStorage.setItem('sticky_labels_hsti',JSON.stringify(stickyLabels));
-      localStorage.setItem('sticky_labels_ts',String(Date.now()));}catch(e){}
+  if(!safeSetItem('sticky_labels_hsti',JSON.stringify(stickyLabels))){stickyLabels.pop();showAlert('Шошго хадгалагдсангүй','error');return;}
+  safeSetItem('sticky_labels_ts',String(Date.now()));
   if(accessToken){clearTimeout(stickyAutoSyncTimer);stickyAutoSyncTimer=setTimeout(()=>syncToDrive(),2000);}
   inp.value='';
   renderLabelList();
@@ -5160,7 +5377,7 @@ function deleteLabel(id){
     if((n.labels||[]).includes(id)){n.labels=n.labels.filter(lid=>lid!==id);n.updatedAt=Date.now();}
   });
   if(activeFilterLabel===id)activeFilterLabel=null;
-  try{localStorage.setItem('sticky_labels_ts',String(Date.now()));}catch(e){}
+  safeSetItem('sticky_labels_ts',String(Date.now()));
   saveStickyNotes();renderLabelList();renderLabelFilters();
 }
 
@@ -5473,7 +5690,7 @@ function calGoToday(){
 function calRefresh(){fetchCalEvents();}
 
 // ── THEME ─────────────────────────────────────────────────
-const THEMES=['brown','blue','green','ocean','sky','violet','dark'];
+const THEMES=['green','ocean','violet']; // 2026-11: Хүрэн, Хөх, Тэнгэр, Харанхуй хасагдсан
 
 // ═══════════════════════════════════════════════════════════
 //  THEME — өнгөний загвар
@@ -5488,7 +5705,8 @@ function setTheme(theme){
 }
 
 function initTheme(){
-  const saved=localStorage.getItem('app_theme_hsti')||'ocean';
+  let saved=localStorage.getItem('app_theme_hsti')||'ocean';
+  if(!THEMES.includes(saved))saved='ocean'; // хасагдсан theme сонгосон байсан бол
   setTheme(saved);
 }
 
@@ -5535,8 +5753,9 @@ function saveTodos(){
   });
   const cut=now-TOMBSTONE_MAX_AGE;
   const out=Object.values(byId).filter(t=>!(t.deleted&&t.updatedAt<cut));
-  safeSetItem('todos_hsti',JSON.stringify(out));
+  if(!safeSetItem('todos_hsti',JSON.stringify(out))){showAlert('Даалгавар хадгалагдсангүй (хадгалах зай?)','error');return false;}
   if(accessToken&&!viewingOldYear){clearTimeout(todoSyncTimer);todoSyncTimer=setTimeout(()=>syncToDrive({quiet:true}),2500);}
+  return true;
 }
 // Drive-аас ирсэн даалгаврыг LWW-ээр нэгтгэх. Буцаах: өөрчлөгдсөн эсэх
 function mergeTodosFromDrive(driveArr){
@@ -5582,7 +5801,7 @@ function todoAdd(){
   const deadline=document.getElementById('todo-deadline').value||null;
   const today=localDateStr();
   todos.unshift({id:genId(),text,priority:pri,done:false,date:today,deadline});
-  saveTodos();
+  if(!saveTodos()){todos.shift();return;} // бичсэн текст талбарт хэвээр үлдэнэ
   inp.value='';
   document.getElementById('todo-deadline').value='';
   document.getElementById('todo-add-form').style.display='none';
@@ -5591,11 +5810,13 @@ function todoAdd(){
 }
 function todoToggle(id){
   const t=todos.find(t=>String(t.id)===String(id));
-  if(t){t.done=!t.done;saveTodos();renderTodos();renderAttention();}
+  if(t){t.done=!t.done;if(!saveTodos())t.done=!t.done;renderTodos();renderAttention();}
 }
 function todoDelete(id){
+  const prev=todos;
   todos=todos.filter(t=>String(t.id)!==String(id)); // number/string ID хольц
-  saveTodos();renderTodos();renderAttention();
+  if(!saveTodos())todos=prev;
+  renderTodos();renderAttention();
 }
 
 function renderAttention(){
@@ -5801,6 +6022,7 @@ async function vaultUnlock(){
   const errEl=document.getElementById('vault-lock-err');
   errEl.style.display='none';
 
+  if(vaultPendingExists())vaultRecoverPending();
   let stored=localStorage.getItem('vault_meta_hsti');
   if(!stored){
     // Локалд vault байхгүй — шинэ браузер, цэвэрлэсэн storage эсвэл анх удаа.
@@ -5844,8 +6066,9 @@ async function vaultUnlock(){
     vaultKey=await deriveKey(pw,salt,VAULT_KDF_ITER);
     // Шалгах утга хадгалах
     const check=await encryptData(vaultKey,{check:'ok'});
-    safeSetItem('vault_meta_hsti',JSON.stringify({salt:Array.from(salt),check,iter:VAULT_KDF_ITER}));
-    safeSetItem('vault_data_hsti',JSON.stringify(await encryptData(vaultKey,[])));
+    if(!vaultCommit(JSON.stringify({salt:Array.from(salt),check,iter:VAULT_KDF_ITER}),JSON.stringify(await encryptData(vaultKey,[])))){
+      vaultKey=null;showAlert('Нууц үгийн сан үүсгэж чадсангүй (хадгалах зай?)','error');return;
+    }
     safeSetItem('vault_updated_hsti',String(Date.now()));
     vaultItems=[];
     showAlert('Master нууц үг тохирогдлоо. Битгий мартаарай!','success');
@@ -5918,8 +6141,10 @@ async function vaultUpgradeKdf(pw){
   const check=await encryptData(newKey,{check:'ok'});
   const data=await encryptData(newKey,vaultItems);
   // meta, data-г ХАМТ солино (өөр түлхүүртэй хольж болохгүй)
-  if(!safeSetItem('vault_data_hsti',JSON.stringify(data)))return;
-  safeSetItem('vault_meta_hsti',JSON.stringify({salt:Array.from(salt),check,iter:VAULT_KDF_ITER}));
+  // Шилжүүлэхээс ӨМНӨ шинэ түлхүүрээр тайлж баталгаажуулна
+  const verify=await decryptData(newKey,data);
+  if(!Array.isArray(verify)||verify.length!==vaultItems.length)throw new Error('KDF verify failed');
+  if(!vaultCommit(JSON.stringify({salt:Array.from(salt),check,iter:VAULT_KDF_ITER}),JSON.stringify(data)))return;
   vaultKey=newKey;
   safeSetItem('vault_updated_hsti',String(Date.now()));
   console.info('[Vault] PBKDF2 600,000 давталт руу шилжлээ');
@@ -5944,8 +6169,7 @@ async function reconcileVaultMeta(pw){
   const rItems=await decryptData(rKey,remote.vault_data);
   const merged=mergeVaultItems(vaultItems,rItems);
   const enc=await encryptData(rKey,merged);
-  if(!safeSetItem('vault_data_hsti',JSON.stringify(enc)))return;
-  safeSetItem('vault_meta_hsti',JSON.stringify(remote.vault_meta));
+  if(!vaultCommit(JSON.stringify(remote.vault_meta),JSON.stringify(enc)))return;
   vaultKey=rKey;vaultItems=merged;
   // Drive-ийн энэ хувилбарыг "харсан" гэж тэмдэглэнэ → дараагийн sync шууд илгээнэ
   if(remote.updated)safeSetItem('vault_remote_seen',remote.updated);
@@ -5989,8 +6213,7 @@ async function applyDriveVault(content,force){
   const newMeta=JSON.stringify(content.vault_meta);
   const metaChanged=localStorage.getItem('vault_meta_hsti')!==newMeta;
   // meta (salt) болон data-г ХАМТ хадгална — өөр salt-тай data хольж болохгүй
-  safeSetItem('vault_meta_hsti',newMeta);
-  safeSetItem('vault_data_hsti',JSON.stringify(content.vault_data));
+  if(!vaultCommit(newMeta,JSON.stringify(content.vault_data)))return 'error';
   safeSetItem('vault_updated_hsti',String(driveTs));
   safeSetItem('vault_synced_hsti',String(driveTs));
   if(content.updated)safeSetItem('vault_remote_seen',content.updated);
@@ -6028,6 +6251,45 @@ async function pullVaultFromDrive(force){
   }
 }
 
+// ── Vault-ийн meta + data-г ХАМТ хадгалах (N02) ─────────────────
+// localStorage-д хоёр key-г нэг transaction-аар бичих боломжгүй. Тиймээс:
+//   1) Эхлээд бүтэн хосыг vault_pending_hsti-д НЭГ бичилтээр хадгална (амжилтгүй бол юу ч өөрчлөгдөхгүй)
+//   2) data, meta-г бичнэ → 3) pending-ийг устгана.
+// 2-р алхам дунд нь тасарвал (quota, хуудас хаагдах) хуучин хосыг сэргээнэ; сэргээж чадахгүй бол
+// pending үлдэх бөгөөд дараагийн ачааллаар vaultRecoverPending() бүтэн хосыг тавина.
+// Ингэснээр ямар ч үед дор хаяж нэг БҮТЭН, нээгддэг сан үлдэнэ.
+const VAULT_PENDING_KEY='vault_pending_hsti';
+function vaultCommit(metaStr,dataStr){
+  const oldM=localStorage.getItem('vault_meta_hsti'),oldD=localStorage.getItem('vault_data_hsti');
+  const m=metaStr==null?oldM:metaStr;
+  if(!safeSetItem(VAULT_PENDING_KEY,JSON.stringify({m,d:dataStr})))return false;
+  const okD=safeSetItem('vault_data_hsti',dataStr);
+  const okM=okD&&(metaStr==null||safeSetItem('vault_meta_hsti',metaStr));
+  if(okD&&okM){try{localStorage.removeItem(VAULT_PENDING_KEY);}catch(_){}return true;}
+  // Буцаах — хуучин бүтэн хос
+  let restored=false;
+  try{
+    if(oldD==null)localStorage.removeItem('vault_data_hsti');else localStorage.setItem('vault_data_hsti',oldD);
+    if(oldM==null)localStorage.removeItem('vault_meta_hsti');else localStorage.setItem('vault_meta_hsti',oldM);
+    restored=true;
+  }catch(_){}
+  if(restored){try{localStorage.removeItem(VAULT_PENDING_KEY);}catch(_){}}
+  console.error('[Vault] Хадгалж чадсангүй — '+(restored?'хуучин хувилбар хэвээр':'pending-ээс сэргээнэ'));
+  return false;
+}
+// Тасарсан бичилтийг сэргээх — ачаалах үед, vault унших бүрийн өмнө
+function vaultRecoverPending(){
+  let p;try{p=JSON.parse(localStorage.getItem(VAULT_PENDING_KEY)||'null');}catch(_){p=null;}
+  if(!p||!p.d){try{localStorage.removeItem(VAULT_PENDING_KEY);}catch(_){}return;}
+  try{
+    localStorage.setItem('vault_data_hsti',p.d);
+    if(p.m!=null)localStorage.setItem('vault_meta_hsti',p.m);
+    localStorage.removeItem(VAULT_PENDING_KEY);
+    console.warn('[Vault] Тасарсан хадгалалтыг сэргээлээ');
+  }catch(e){console.error('[Vault] pending сэргээж чадсангүй:',e);}
+}
+function vaultPendingExists(){try{return !!localStorage.getItem(VAULT_PENDING_KEY);}catch(_){return false;}}
+
 // Хоёр vault жагсаалтыг бичлэг бүрээр нэгтгэх (updatedAt их нь ялна, tombstone тархана)
 function mergeVaultItems(localArr,remoteArr){
   const by=Object.create(null);
@@ -6050,7 +6312,10 @@ async function vaultSaveData(){
   const cut=Date.now()-TOMBSTONE_MAX_AGE;
   vaultItems=vaultItems.filter(i=>!(i.deleted&&(i.updatedAt||0)<cut));
   const enc=await encryptData(vaultKey,vaultItems);
-  safeSetItem('vault_data_hsti',JSON.stringify(enc));
+  if(!vaultCommit(null,JSON.stringify(enc))){
+    showAlert('Нууц үгийн санд хадгалж чадсангүй (хадгалах зай дүүрсэн?) — өөрчлөлт хадгалагдаагүй','error');
+    return false;
+  }
   safeSetItem('vault_updated_hsti',String(Date.now())); // илгээх шаардлагатай гэж тэмдэглэнэ
   // Drive-д автоматаар хадгалах
   if(accessToken)syncToDrive();
