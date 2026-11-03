@@ -397,8 +397,118 @@ details[open] summary .chevron{transform:rotate(90deg)}
   .dashboard-top-row>*,.dashboard-bottom>*{min-width:0;overflow:hidden;box-sizing:border-box}
 }
 </style>
+<style id="glass-ui">
+/* ═══════════════════════════════════════════════════════════
+   GLASS UI — 1-р үе (2026-11)
+   Зөвхөн харагдах байдал. JS логик, өгөгдөлд хүрэхгүй.
+   Бүх дүрэм body.glass дор — Тохиргоо → "Шилэн загвар"-аар унтраавал хуучин загвар бүрэн буцна.
+   Өнгө бүхэлдээ CSS хувьсагчаар: theme солиход (Ногоон/Далай/Нил) бүх зүйл дагаж солигдоно.
+   ═══════════════════════════════════════════════════════════ */
+body{
+  --accent:#17A8C4;--accent-2:#2C3E8C;--accent-soft:rgba(23,168,196,.14);
+  --blob-a:#17A8C4;--blob-b:#8fd3f0;--blob-c:#f2c79b;
+  --bg:#e4eef1;--fg:#0e2830;--muted:#557079;--faint:#8aa3ab;
+  --glass:rgba(255,255,255,.55);--glass-strong:rgba(255,255,255,.74);--glass-solid:rgba(255,255,255,.86);
+  --edge:rgba(255,255,255,.8);--line:rgba(14,40,48,.09);
+  --shadow:0 10px 36px -14px rgba(16,70,86,.30);
+  --blur:18px;
+}
+body.theme-green{--accent:#1E9E5A;--accent-2:#1E8449;--accent-soft:rgba(30,158,90,.14);--blob-a:#52BE80;--blob-b:#a6e3c4;--blob-c:#f2d59b;--bg:#e6f0ea;--fg:#0f2a1c;--muted:#4f6e5d}
+body.theme-ocean{--accent:#17A8C4;--accent-2:#2C3E8C;--accent-soft:rgba(23,168,196,.14);--blob-a:#17A8C4;--blob-b:#8fd3f0;--blob-c:#f2c79b;--bg:#e4eef1;--fg:#0e2830;--muted:#557079}
+body.theme-violet{--accent:#7B1FA2;--accent-2:#4527A0;--accent-soft:rgba(123,31,162,.12);--blob-a:#8b5cf6;--blob-b:#d4c4ff;--blob-c:#f5c6d8;--bg:#ece8f3;--fg:#21163a;--muted:#655a7c}
+
+/* Арын өнгөт толбо — хөдөлгөөнгүй (сул компьютер дээр backdrop-filter-ийг байнга дахин тооцуулахгүй) */
+.glass-scene{display:none}
+body.glass .glass-scene{display:block;position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+body.glass .glass-scene i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.7}
+body.glass .glass-scene i:nth-child(1){width:46vw;height:46vw;left:-6vw;top:-12vw;background:var(--blob-a)}
+body.glass .glass-scene i:nth-child(2){width:40vw;height:40vw;right:-10vw;top:12vh;background:var(--blob-b)}
+body.glass .glass-scene i:nth-child(3){width:34vw;height:34vw;left:34vw;bottom:-16vw;background:var(--blob-c);opacity:.5}
+
+body.glass{background:var(--bg);color:var(--fg)}
+body.glass .main-app{position:relative;z-index:1}
+body.glass .login-screen{position:relative;z-index:1}
+
+/* Шилэн гадаргуу — нэгдсэн дүрэм */
+body.glass .card,body.glass .chart-wrap,
+body.glass .content-header{
+  background:var(--glass);
+  border:1px solid var(--edge);
+  box-shadow:var(--shadow),inset 0 1px 0 var(--edge);
+  -webkit-backdrop-filter:blur(var(--blur)) saturate(160%);
+  backdrop-filter:blur(var(--blur)) saturate(160%);
+}
+body.glass .card,body.glass .chart-wrap{border-radius:18px}
+body.glass .content-header{border-radius:0 0 18px 18px;border-top:none;margin:0 24px;width:auto;position:sticky;top:0;z-index:50}
+body.glass .content{background:transparent}
+
+/* Sidebar — өнгөт шил: theme-ийн градиент тунгалаг болж, ардах толбо нэвт харагдана. Цагаан текст хэвээр. */
+body.glass .sidebar{
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 82%,transparent) 0%,color-mix(in srgb,var(--accent-2) 88%,transparent) 100%)!important;
+  -webkit-backdrop-filter:blur(var(--blur)) saturate(150%);backdrop-filter:blur(var(--blur)) saturate(150%);
+  border-right:1px solid rgba(255,255,255,.25);
+  box-shadow:4px 0 30px -12px rgba(0,0,0,.25);
+}
+body.glass .nav-item{border-left:none}
+body.glass .nav-item.active{background:rgba(255,255,255,.24);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+
+/* Картын доторх элементүүд — илүү өтгөн шил (урт текст, хүснэгт уншигдахуйц) */
+body.glass .entry-item,body.glass .acc-section,body.glass .acc-header,body.glass .todo-item,
+body.glass .vault-card,body.glass .cal-day,body.glass .template-btn{background:var(--glass-strong);border-color:var(--edge)}
+body.glass input,body.glass select,body.glass textarea{background:var(--glass-solid);border-color:rgba(14,40,48,.12)}
+body.glass input:focus,body.glass select:focus,body.glass textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+body.glass table{background:var(--glass-solid);border-radius:12px}
+
+/* Товч, чип — theme өнгөөр (урьд нь зарим нь хүрэн өнгөөр хатуу бичигдсэн байв) */
+body.glass .btn{background:var(--glass-strong);border-color:var(--edge)}
+body.glass .btn:hover{background:var(--glass-solid)}
+body.glass .btn-primary,
+body.glass .report-period-btn.active,
+body.glass .tag-chip.active{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;border-color:transparent;box-shadow:0 6px 16px -8px var(--accent)}
+body.glass .report-period-btn,body.glass .tag-chip{background:var(--glass-strong);border-color:var(--edge)}
+body.glass .report-period-btn:hover,body.glass .entry-item:hover,body.glass .vault-card:hover{border-color:var(--accent);color:inherit}
+body.glass .theme-option:hover{background:var(--glass-strong)}
+body.glass .theme-option.active{border-color:var(--accent)}
+body.glass .alert-info{background:var(--accent-soft);color:var(--accent-2);border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+body.glass .sync-badge{background:var(--glass-strong);border:1px solid var(--edge)}
+
+/* Статистик карт — өнгөт дэвсгэрийн оронд шил + өнгөт дүрс (inline өнгийг !important-аар давна) */
+body.glass .stat-card{
+  background:var(--glass)!important;color:var(--fg);border:1px solid var(--edge);border-radius:18px;
+  box-shadow:var(--shadow),inset 0 1px 0 var(--edge);
+  -webkit-backdrop-filter:blur(var(--blur)) saturate(160%);backdrop-filter:blur(var(--blur)) saturate(160%);
+  transition:transform .2s ease;
+}
+body.glass .stat-card:hover{transform:translateY(-2px)}
+body.glass .stat-label{color:var(--muted);opacity:1;font-weight:600}
+body.glass .stat-icon{background:var(--accent-soft);color:var(--accent)}
+body.glass .stat-value{font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+body.glass .stat-sub{color:var(--muted);opacity:1}
+
+/* Heatmap — ногоон хатуу өнгийн оронд theme өнгөөр (0 / 1-2 / 3-5 / 6+) */
+body.glass .heatmap-cell[style*="#f0f4f8"]{background:var(--line)!important}
+body.glass .heatmap-cell[style*="#C8E6C9"]{background:color-mix(in srgb,var(--accent) 30%,transparent)!important}
+body.glass .heatmap-cell[style*="#66BB6A"]{background:color-mix(in srgb,var(--accent) 62%,transparent)!important}
+body.glass .heatmap-cell[style*="#2E7D32"]{background:var(--accent)!important}
+
+/* Утас/таблет — blur багасгаж гүйцэтгэл хэмнэнэ */
+@media(max-width:768px){
+  body.glass{--blur:10px}
+  body.glass .content-header{margin:0 10px;border-radius:0 0 14px 14px}
+  body.glass .glass-scene i{filter:blur(50px)}
+}
+/* backdrop-filter дэмждэггүй хөтөч — бараг цагаан картаар уншигдахуйц байлгана */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  body.glass .card,body.glass .content-header,body.glass .stat-card{background:rgba(255,255,255,.92)!important}
+}
+@media (prefers-reduced-transparency:reduce){
+  body.glass .card,body.glass .content-header,body.glass .stat-card{background:rgba(255,255,255,.94)!important}
+}
+@media print{.glass-scene{display:none!important}body.glass .card{backdrop-filter:none;background:#fff}}
+</style>
 </head>
 <body>
+<div class="glass-scene" aria-hidden="true"><i></i><i></i><i></i></div>
 
 <!-- LOGIN -->
 <div id="login-screen" class="login-screen">
@@ -1019,6 +1129,10 @@ details[open] summary .chevron{transform:rotate(90deg)}
         <!-- THEME СОНГОГЧ -->
         <div class="card">
           <div class="card-title"><i class="ti ti-palette"></i> Загвар (Theme)</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;cursor:pointer;width:auto">
+            <input type="checkbox" id="glass-toggle" onchange="setGlass(this.checked)" style="width:16px;height:16px;flex:none">
+            Шилэн загвар (Glass) — удаан ажиллавал унтраана уу
+          </label>
           <div style="display:flex;gap:12px;flex-wrap:wrap">
             <div class="theme-option" data-theme="green" onclick="setTheme('green')" title="Ногоон">
               <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#52BE80,#1E8449)"></div>
@@ -5704,7 +5818,14 @@ function setTheme(theme){
   });
 }
 
+// Шилэн загвар — төхөөрөмжийн тохиргоо (sync хийхгүй), анхдагч: асаалттай
+function setGlass(on){
+  document.body.classList.toggle('glass',!!on);
+  safeSetItem('app_glass_hsti',on?'1':'0');
+  const t=document.getElementById('glass-toggle');if(t)t.checked=!!on;
+}
 function initTheme(){
+  setGlass(localStorage.getItem('app_glass_hsti')!=='0');
   let saved=localStorage.getItem('app_theme_hsti')||'ocean';
   if(!THEMES.includes(saved))saved='ocean'; // хасагдсан theme сонгосон байсан бол
   setTheme(saved);
