@@ -461,7 +461,9 @@ body.glass table{background:var(--glass-solid);border-radius:12px}
 
 /* Товч, чип — theme өнгөөр (урьд нь зарим нь хүрэн өнгөөр хатуу бичигдсэн байв) */
 body.glass .btn{background:var(--glass-strong);border-color:var(--edge)}
-body.glass .btn:hover{background:var(--glass-solid)}
+body.glass .btn:not(.btn-primary):hover{background:var(--glass-solid)}
+/* Үндсэн товч hover — өнгөт дэвсгэр хэвээр, бага зэрэг тодорно (урьд нь цагаан болж бичиг алга болдог байв) */
+body.glass .btn.btn-primary:hover{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;filter:brightness(1.08);opacity:1}
 body.glass .btn-primary,
 body.glass .report-period-btn.active,
 body.glass .tag-chip.active{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;border-color:transparent;box-shadow:0 6px 16px -8px var(--accent)}
