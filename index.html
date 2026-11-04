@@ -504,6 +504,50 @@ body.glass .heatmap-cell[style*="#2E7D32"]{background:var(--accent)!important}
 @media (prefers-reduced-transparency:reduce){
   body.glass .card,body.glass .content-header,body.glass .stat-card{background:rgba(255,255,255,.94)!important}
 }
+
+/* --chart: графикийн тэмдэгтийн өнгө — цагаан дэвсгэр дээр ≥3:1 (dataviz validator). Далайн #17A8C4 нь 2.75:1 тул бараан хувилбар */
+body{--chart:var(--accent)}
+body.theme-ocean{--chart:#138CA4}
+/* ── Glass 2-р үе: sparkline, сарын/долоо хоногийн багана, эрэмбэлсэн хуваарилалт ── */
+.stat-spark{display:block;width:100%;height:30px;margin-top:8px;overflow:visible}
+.stat-spark .sp-line{fill:none;stroke:currentColor;stroke-opacity:.55;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.stat-spark .sp-area{fill:currentColor;fill-opacity:.08;stroke:none}
+.stat-spark .sp-dot{fill:#fff;stroke:currentColor;stroke-width:2}
+body.glass .stat-spark .sp-line{stroke:var(--faint);stroke-opacity:1}
+body.glass .stat-spark .sp-area{fill:var(--chart);fill-opacity:.10}
+body.glass .stat-spark .sp-dot{fill:var(--chart);stroke:var(--glass-solid)}
+
+.chart-bar-col{position:relative}
+.chart-bar{max-width:24px;border-radius:4px 4px 0 0;background:color-mix(in srgb,var(--chart) 38%,transparent)}
+.chart-bar.cur{background:var(--chart)}
+.chart-bar-val{font-size:10px;font-weight:600;color:#52514e;margin-bottom:2px;font-variant-numeric:tabular-nums}
+.chart-bars-row{border-bottom:1px solid rgba(14,40,48,.12)}
+.chart-label.cur{color:var(--chart)}
+
+.rank-bars{display:grid;gap:10px}
+.rank-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;font-size:12px;align-items:baseline}
+.rank-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;color:#1a2332}
+.rank-val{font-variant-numeric:tabular-nums;font-weight:600;color:#1a2332}
+.rank-val small{font-weight:500;color:#8a97a8;margin-left:2px}
+.rank-track{grid-column:1/-1;height:8px;border-radius:99px;background:rgba(14,40,48,.07);overflow:hidden}
+.rank-track i{display:block;height:100%;border-radius:99px;background:var(--chart)}
+
+.week-chart{display:flex;align-items:flex-end;gap:6px;height:96px;padding:0 2px 0;margin:2px 0 12px;border-bottom:1px solid rgba(14,40,48,.12)}
+.wk-col{flex:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;padding-bottom:16px;cursor:default}
+.wk-bar{width:100%;max-width:24px;border-radius:4px 4px 0 0;background:color-mix(in srgb,var(--chart) 38%,transparent);transition:height .3s}
+.wk-col.today .wk-bar{background:var(--chart)}
+.wk-col:hover .wk-bar{filter:brightness(.9)}
+.wk-val{font-size:10px;font-weight:600;color:#52514e;margin-bottom:2px;font-variant-numeric:tabular-nums;min-height:13px}
+.wk-lab{position:absolute;bottom:0;font-size:10px;color:#8a97a8}
+.wk-col.today .wk-lab{color:var(--chart);font-weight:600}
+body.glass .rank-name,body.glass .rank-val{color:var(--fg)}
+body.glass .rank-track{background:var(--line)}
+
+/* Heatmap-ийн тайлбарын өнгөт дөрвөлжин — theme өнгөөр */
+body.glass span[style*="width:10px"][style*="#f0f4f8"]{background:var(--line)!important}
+body.glass span[style*="width:10px"][style*="#C8E6C9"]{background:color-mix(in srgb,var(--chart) 30%,transparent)!important}
+body.glass span[style*="width:10px"][style*="#66BB6A"]{background:color-mix(in srgb,var(--chart) 62%,transparent)!important}
+body.glass span[style*="width:10px"][style*="#2E7D32"]{background:var(--chart)!important}
 @media print{.glass-scene{display:none!important}body.glass .card{backdrop-filter:none;background:#fff}}
 </style>
 </head>
@@ -694,6 +738,7 @@ body.glass .heatmap-cell[style*="#2E7D32"]{background:var(--accent)!important}
         <div class="dashboard-bottom">
           <div class="card" style="margin-bottom:0">
             <div class="card-title"><i class="ti ti-clock"></i> Энэ долоо хоногт нэмсэн ажлууд</div>
+            <div id="week-chart" class="week-chart" aria-label="Сүүлийн 7 хоногийн бүртгэлийн тоо"></div>
             <div id="recent-list"></div>
           </div>
           <div class="card" style="margin-bottom:0">
@@ -720,10 +765,7 @@ body.glass .heatmap-cell[style*="#2E7D32"]{background:var(--accent)!important}
           <!-- Pie chart -->
           <div class="card" style="margin-bottom:0">
             <div class="card-title" style="margin-bottom:12px"><i class="ti ti-chart-pie"></i> Заалтын хуваарилалт</div>
-            <div style="display:flex;align-items:flex-start;gap:14px">
-              <canvas id="pie-canvas" width="130" height="130" style="flex-shrink:0"></canvas>
-              <div id="pie-legend" style="flex:1;min-width:0;font-size:11px;line-height:1.8"></div>
-            </div>
+            <div id="zaalt-dist" class="rank-bars"></div>
           </div>
         </div>
       </div>
@@ -2300,6 +2342,8 @@ function checkTokenState(){
   else if(isTokenExpiringSoon(5*60*1000))armReauthOnNextInteraction();
   else if(!getRtBlob())showRtOffer();
 }
+// Интернэт сэргэхэд локалд хадгалсныг Drive руу илгээнэ
+addEventListener('online',()=>{if(accessToken&&!viewingOldYear&&!accountSwitching){setTimeout(()=>syncToDrive({quiet:true}),1500);}});
 // Таб буцаж нээгдэх / компьютер сэрэх үед шууд шалгах (timer унтсан байж болно)
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkTokenState();});
 
@@ -2714,6 +2758,17 @@ async function verifyDriveConsistency(){
   }catch(e){console.warn('[Sync] Шалгалт амжилтгүй:',e);}
 }
 
+// Хуудас хаагдах/дахин ачаалагдах үед тасарсан fetch, эсвэл офлайн — жинхэнэ алдаа биш.
+// Урьд нь Console болон Sentry-д "Failed to fetch" гэж алдаа болж бүртгэгддэг байв.
+let pageUnloading=false;
+addEventListener('pagehide',()=>{pageUnloading=true;});
+addEventListener('beforeunload',()=>{pageUnloading=true;});
+function isBenignNetErr(e){
+  if(pageUnloading||(typeof navigator!=='undefined'&&navigator.onLine===false))return true;
+  const msg=String(e&&e.message||'');
+  return (e&&(e.name==='AbortError'))||(/Failed to fetch|NetworkError|Load failed|network/i.test(msg)&&document.visibilityState==='hidden');
+}
+
 let _syncChain=Promise.resolve();
 function syncToDrive(opts){
   const p=_syncChain.then(()=>_syncToDriveCore(opts||{}));
@@ -2932,6 +2987,10 @@ async function _syncToDriveCore(opts){
     if(entriesWritten)scheduleVerifySync();
     return entriesWritten;
   }catch(e){
+    if(isBenignNetErr(e)){
+      if(!pageUnloading)setSyncBadge('Сүлжээгүй — локалд хадгалсан','#8a97a8');
+      return false;
+    }
     console.error('[Drive sync алдаа]',e);
     if(window.Sentry)Sentry.captureException(e,{tags:{op:'syncToDrive'}});
     setSyncBadge('Drive холболтгүй','#e74c3c');
@@ -2974,7 +3033,7 @@ async function loadFromDrive(){
   // Он солигдсон бол эхлээд хуучин оныг архивлаж, шинэ он руу шилжинэ
   if(yearRolloverPending)await performYearRollover();
   setSyncBadge('Уншиж байна...','#f39c12');
-  let hadError=false;
+  let hadError=false;let netSkipped=false;
 
   // ── ГҮЙЦЭТГЭЛ: файлын ID-г кэшээс авах, эсвэл НЭГ жагсаалтаар олох ──
   // Кэш байвал: фолдер+жагсаалт хайлтыг АЛГАСаж, шууд татах руу орно (2 round-trip хэмнэнэ).
@@ -3099,6 +3158,7 @@ async function loadFromDrive(){
       } // else{ (404 fallback) төгсгөл
     }
   }catch(e){
+    if(isBenignNetErr(e)){netSkipped=true;console.info('[Drive] Сүлжээ тасарсан — дараагийн ачааллаар дахин татна');return;}
     hadError=true;
     console.error('[Drive] Тэмдэглэл уншихад алдаа:',e);
     if(window.Sentry&&e.message!=='AUTH_FAILED')Sentry.captureException(e,{tags:{op:'loadFromDrive'}});
@@ -3166,6 +3226,7 @@ async function loadFromDrive(){
       }
     }
   }catch(e){
+    if(isBenignNetErr(e)){netSkipped=true;return;}
     hadError=true;
     console.error('[Drive] Sticky notes уншихад алдаа:',e);
     // Sticky-ийн алдааг тийм ноцтой биш тул чимээгүй log хийгээд үргэлжлүүлнэ
@@ -3191,6 +3252,7 @@ async function loadFromDrive(){
       }
     }
   }catch(e){
+    if(isBenignNetErr(e)){netSkipped=true;return;}
     hadError=true;
     console.error('[Drive] Vault уншихад алдаа:',e);
     // Vault-ийн алдааг чимээгүй log хийнэ — учир нь нэвтрэх үед дахин оролдоно
@@ -3198,7 +3260,8 @@ async function loadFromDrive(){
   };
   // Гурвыг ЗЭРЭГ ажиллуулна — нэг нь алдаа өгвөл бусад нь үргэлжилнэ (татах хугацаа давхцана)
   await Promise.allSettled([loadEntries(),loadSticky(),loadVault()]);
-
+  if(pageUnloading)return;
+  if(netSkipped&&!hadError){setSyncBadge('Сүлжээгүй — локал өгөгдөл','#8a97a8');return;}
   setSyncBadge(hadError?'Хэсэгчилсэн алдаа':'Синктэй',hadError?'#f39c12':'#0F6E56');
 }
 
@@ -3313,15 +3376,17 @@ function renderDashboard(){
   const total28=28;
   const done=A.filter(isEntryDone).length;
   const pct=total?Math.round(done/total*100):0;
+  const sparkSeries=buildSparkSeries(A,now);
 
   document.getElementById('stats-grid').innerHTML=[
     {label:'Нийт тэмдэглэл',value:total,icon:'ti-notebook',bg:'linear-gradient(135deg,#1D9E75,#0F6E56)',sub:'Нийт бүртгэл',click:''},
     {label:'Энэ сар',value:thisM,icon:'ti-calendar',bg:'linear-gradient(135deg,#378ADD,#185FA5)',sub:MONTH_NAMES[now.getMonth()],click:''},
     {label:'Заалт хамрагдсан',value:covered+'/'+total28,icon:'ti-list-check',bg:'linear-gradient(135deg,#D85A30,#993C1D)',sub:Math.round(covered/total28*100)+'% · дарж дэлгэрэнгүй харах',click:'onclick="toggleUncoveredPanel()"'},
     {label:'Биелэлт',value:pct+'%',icon:'ti-chart-bar',bg:'linear-gradient(135deg,#BA7517,#854F0B)',sub:'Дуусгасан ажил',click:''}
-  ].map(s=>`<div class="stat-card" style="background:${s.bg};${s.click?'cursor:pointer;':''}" ${s.click}>
+  ].map((s,i)=>`<div class="stat-card" style="background:${s.bg};${s.click?'cursor:pointer;':''}" ${s.click}>
     <div class="stat-card-top"><span class="stat-label">${s.label}</span><div class="stat-icon"><i class="ti ${s.icon}"></i></div></div>
     <div class="stat-value">${s.value}</div><div class="stat-sub">${s.sub}</div>
+    ${statSpark(sparkSeries[i])}
   </div>`).join('');
 
   // Chart: bar + line
@@ -3330,16 +3395,20 @@ function renderDashboard(){
   const maxM=now.getMonth();
   const showCounts=counts.slice(0,maxM+1);
   const maxC=Math.max(...showCounts,1);
-  const barColors=showCounts.map((_,i)=>i===maxM?'#EBAD7C':'#1a3a5c');
+  // Багана: 0 бүртгэлтэй сар — багана зурахгүй (урьд нь 8% өндөртэй харагдаж төөрөгдүүлдэг байв).
+  // Утга: зөвхөн хамгийн их болон энэ сарын дээр; бусдыг хулганаар заахад.
+  const peakI=showCounts.indexOf(Math.max(...showCounts));
   document.getElementById('chart-bars').innerHTML=showCounts.map((c,i)=>`
-    <div class="chart-bar-col">
-      <div class="chart-bar" style="height:${Math.max(c/maxC*100,8)}%;background:${barColors[i]}"></div>
+    <div class="chart-bar-col" title="${MONTH_NAMES[i]}: ${c} бүртгэл">
+      ${(c>0&&(i===maxM||i===peakI))?`<span class="chart-bar-val">${c}</span>`:''}
+      <div class="chart-bar${i===maxM?' cur':''}" style="height:${c?Math.max(c/maxC*100,3):0}%"></div>
     </div>`).join('');
   document.getElementById('chart-labels').innerHTML=showCounts.map((_,i)=>`
     <span class="chart-label${i===maxM?' cur':''}">${MONTH_NAMES[i]}</span>`).join('');
 
-  // SVG line over bars
-  if(showCounts.length>1){
+  // Багана ба шугам ижил өгөгдлийг давхар харуулдаг байсан тул шугамыг хассан (нэг өгөгдөл — нэг хэлбэр)
+  document.getElementById('chart-line').innerHTML='';
+  if(false){
     const w=560,h=110,pad=20;
     const pts=showCounts.map((c,i)=>{
       const x=pad+(i/(showCounts.length-1))*(w-pad*2);
@@ -3385,6 +3454,7 @@ function renderDashboard(){
   // Recent week
   const weekAgo=new Date(now);weekAgo.setDate(now.getDate()-7);
   const recent=A.filter(e=>new Date(e.date)>=weekAgo).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6);
+  renderWeekChart(A);
   const recentEl=document.getElementById('recent-list');
   if(!recent.length){
     recentEl.innerHTML='<div class="empty" style="padding:20px"><i class="ti ti-inbox"></i><div style="font-size:13px">Энэ долоо хоногт тэмдэглэл байхгүй</div></div>';
@@ -3955,76 +4025,80 @@ function renderHeatmap(){
 }
 
 // ── PIE CHART (Canvas) ────────────────────────────────────
+// ── Статистик картын жижиг чиг хандлага (sparkline) ─────────────
+// Сар бүрээр (1-р сараас одоог хүртэл); "Энэ сар" нь өдөр бүрээр. Шугам — бүдэг өнгө,
+// сүүлийн цэг — онцлох өнгө. Утгыг хулганаар заахад (title) харуулна.
+function renderWeekChart(A){
+  const el=document.getElementById('week-chart');if(!el)return;
+  const WD=['Ня','Да','Мя','Лх','Пү','Ба','Бя'];
+  const gOf=Object.create(null);ZAALT_LIST.forEach(z=>{gOf[z.id]=(z.group||'').replace(/^[\d.]+\s*/,'')||'Бусад';});
+  const days=[];
+  for(let k=6;k>=0;k--){const d=new Date();d.setDate(d.getDate()-k);days.push(d);}
+  const norm=s=>{const p=String(s||'').split('-');return p.length===3?`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`:s;};
+  const data=days.map(d=>{const ds=localDateStr(d);const es=A.filter(e=>norm(e.date)===ds);
+    const by=Object.create(null);es.forEach(e=>{const g=gOf[e.zaalt]||'Ээлж, нэмэлт, бусад';by[g]=(by[g]||0)+1;});
+    return {d,n:es.length,by};});
+  const max=Math.max(1,...data.map(x=>x.n));
+  el.innerHTML=data.map((x,i)=>{
+    const tip=WD[x.d.getDay()]+' '+(x.d.getMonth()+1)+'/'+x.d.getDate()+': '+x.n+' бүртгэл'+(x.n?' — '+Object.entries(x.by).sort((a,b)=>b[1]-a[1]).map(([g,v])=>g+' '+v).join(', '):'');
+    return `<div class="wk-col${i===6?' today':''}" title="${escapeHtml(tip)}">
+      <span class="wk-val">${x.n||''}</span>
+      <span class="wk-bar" style="height:${x.n?Math.max(x.n/max*100,6):0}%"></span>
+      <span class="wk-lab">${WD[x.d.getDay()]}</span>
+    </div>`;}).join('');
+}
+
+function buildSparkSeries(A,now){
+  const curMi=now.getMonth(),y=now.getFullYear();
+  const byMonth=Array.from({length:curMi+1},()=>[]);
+  A.forEach(e=>{const m=parseInt(String(e.date).slice(5,7),10)-1;if(m>=0&&m<=curMi)byMonth[m].push(e);});
+  const mLab=i=>MONTH_NAMES[i];
+  const planIds=new Set(ZAALT_LIST.map(z=>z.id));
+  const days=now.getDate(),dCounts=Array(days).fill(0);
+  const pre=`${y}-${String(curMi+1).padStart(2,'0')}-`;
+  A.forEach(e=>{const d=String(e.date);if(d.startsWith(pre)){const n=parseInt(d.slice(8),10);if(n>=1&&n<=days)dCounts[n-1]++;}});
+  return [
+    {vals:byMonth.map(a=>a.length),labs:byMonth.map((_,i)=>mLab(i)),unit:'бүртгэл'},
+    {vals:dCounts,labs:dCounts.map((_,i)=>(i+1)+'-ний'),unit:'бүртгэл'},
+    {vals:byMonth.map(a=>new Set(a.map(e=>e.zaalt).filter(z=>planIds.has(z))).size),labs:byMonth.map((_,i)=>mLab(i)),unit:'заалт'},
+    {vals:byMonth.map(a=>a.length?Math.round(a.filter(isEntryDone).length/a.length*100):0),labs:byMonth.map((_,i)=>mLab(i)),unit:'%'}
+  ];
+}
+function statSpark(s){
+  if(!s||s.vals.length<2)return '';
+  const W=200,H=30,P=4,mx=Math.max(...s.vals),mn=Math.min(...s.vals),r=(mx-mn)||1;
+  const pts=s.vals.map((v,i)=>[P+i*(W-2*P)/(s.vals.length-1),H-P-(v-mn)/r*(H-2*P)]);
+  const line=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const last=pts[pts.length-1];
+  const tip=s.vals.map((v,i)=>s.labs[i]+': '+v+(s.unit==='%'?'%':' '+s.unit)).slice(-6).join(' · ');
+  return `<svg class="stat-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${escapeHtml(tip)}"><title>${escapeHtml(tip)}</title>
+    <path class="sp-area" d="${line} L${last[0].toFixed(1)} ${H} L${P} ${H}Z"/>
+    <path class="sp-line" d="${line}" vector-effect="non-scaling-stroke"/>
+    <circle class="sp-dot" cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.5" vector-effect="non-scaling-stroke"/></svg>`;
+}
+
+// Заалтын бүлгээрх хуваарилалт — эрэмбэлсэн хэвтээ багана (нэг өнгө, их нь дээр).
+// Урьд нь canvas pie байсан: ойролцоо хэмжээг ялгахад хэцүү, өнгө theme-ийг дагадаггүй байв.
+// Бүлэг нь ZAALT_LIST-ийн group талбараас (Багц 2) — заалт нэмэгдэхэд автоматаар дагана.
 function renderPieChart(){
-  const canvas=document.getElementById('pie-canvas');
-  const legend=document.getElementById('pie-legend');
-  if(!canvas||!legend)return;
-
-  // Заалтаар тоолох
+  const el=document.getElementById('zaalt-dist');
+  if(!el)return;
+  const gOf=Object.create(null);
+  ZAALT_LIST.forEach(z=>{gOf[z.id]=(z.group||'Бусад').replace(/^[\d.]+\s*/,'')||z.group;});
   const counts=Object.create(null);
-  activeEntries().forEach(e=>{
-    const z=e.zaalt||'other';
-    counts[z]=(counts[z]||0)+1;
-  });
-
-  // Бүлгэлэх — заалтын бүлгээр (1.2.2.x → "Тоног төхөөрөмж")
-  const groups={
-    'Тоног төхөөрөмж':0,'Сүлжээ':0,'Аюулгүй байдал':0,
-    'Салбарын ажил':0,'Үйлчилгээ':0,'Үүрэг':0,'Бусад':0
-  };
-  Object.entries(counts).forEach(([z,c])=>{
-    if(z.startsWith('1.2.2'))groups['Тоног төхөөрөмж']+=c;
-    else if(z.startsWith('1.2.1')||z.startsWith('1.2.3'))groups['Сүлжээ']+=c;
-    else if(z.startsWith('1.2.4'))groups['Салбарын ажил']+=c;
-    else if(z.startsWith('1.3'))groups['Үйлчилгээ']+=c;
-    else if(z.startsWith('1.4'))groups['Үүрэг']+=c;
-    else if(z==='eelje'||z==='nemel'||z==='medleg')groups['Бусад']+=c;
-    else groups['Бусад']+=c;
-  });
-
-  const COLORS=['#2980B9','#27AE60','#E67E22','#8E44AD','#e74c3c','#16A085','#7f8c8d'];
-  const filtered=Object.entries(groups).filter(([,v])=>v>0);
-  const total=filtered.reduce((s,[,v])=>s+v,0);
-  if(!total){legend.innerHTML='<div style="color:#a0aab4;font-size:12px">Өгөгдөл байхгүй</div>';return;}
-
-  const ctx=canvas.getContext('2d');
-  const cx=65,cy=65,r=58,iR=30;
-  ctx.clearRect(0,0,130,130);
-
-  let angle=-Math.PI/2;
-  filtered.forEach(([,v],i)=>{
-    const slice=(v/total)*Math.PI*2;
-    ctx.beginPath();
-    ctx.moveTo(cx,cy);
-    ctx.arc(cx,cy,r,angle,angle+slice);
-    ctx.closePath();
-    ctx.fillStyle=COLORS[i%COLORS.length];
-    ctx.fill();
-    ctx.strokeStyle='white';
-    ctx.lineWidth=2;
-    ctx.stroke();
-    angle+=slice;
-  });
-  // Дотоод цагаан тойрог (donut)
-  ctx.beginPath();
-  ctx.arc(cx,cy,iR,0,Math.PI*2);
-  ctx.fillStyle='white';
-  ctx.fill();
-  // Нийт тоо дунд
-  ctx.fillStyle='#1a2332';
-  ctx.font='bold 14px Arial';
-  ctx.textAlign='center';
-  ctx.textBaseline='middle';
-  ctx.fillText(total,cx,cy);
-
-  // Legend
-  legend.innerHTML=filtered.map(([name,v],i)=>`
-    <div style="display:flex;align-items:center;gap:6px">
-      <span style="width:10px;height:10px;border-radius:2px;background:${COLORS[i%COLORS.length]};flex-shrink:0;display:inline-block"></span>
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1a2332">${name}</span>
-      <span style="color:#8a97a8;flex-shrink:0">${v}</span>
-      <span style="color:#a0aab4;flex-shrink:0;font-size:10px">${Math.round(v/total*100)}%</span>
-    </div>`).join('');
+  activeEntries().forEach(e=>{const g=gOf[e.zaalt]||'Ээлж, нэмэлт, бусад';counts[g]=(counts[g]||0)+1;});
+  const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const total=rows.reduce((s,[,v])=>s+v,0);
+  if(!total){el.innerHTML='<div style="color:#a0aab4;font-size:12px">Өгөгдөл байхгүй</div>';return;}
+  const max=rows[0][1];
+  el.innerHTML=rows.map(([g,v])=>{
+    const pct=Math.round(v/total*100);
+    return `<div class="rank-row" title="${escapeHtml(g)}: ${v} бүртгэл (${pct}%)">
+      <span class="rank-name">${escapeHtml(g)}</span>
+      <span class="rank-val">${v} <small>${pct}%</small></span>
+      <span class="rank-track"><i style="width:${Math.max(v/max*100,2)}%"></i></span>
+    </div>`;
+  }).join('');
 }
 
 // ── GLOBAL SEARCH (Ctrl+K) ────────────────────────────────
