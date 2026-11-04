@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Нууцлалын бодлого — ХСТИ Гүйцэтгэлийн систем</title>
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;max-width:760px;margin:0 auto;padding:32px 20px;line-height:1.7;color:#1a2332;background:#f6f9fb}
+  h1{font-size:24px;margin-bottom:4px}
+  h2{font-size:17px;margin-top:28px;color:#0e5f73}
+  .sub{color:#6b7a8d;font-size:13px}
+  ul{padding-left:20px}
+  a{color:#17A8C4}
+  .en{margin-top:40px;padding-top:20px;border-top:1px solid #dde3ec;color:#3d4b5c;font-size:14px}
+</style>
+</head>
+<body>
+<h1>Нууцлалын бодлого</h1>
+<div class="sub">ХСТИ Гүйцэтгэлийн систем · Сүүлд шинэчилсэн: 2026-11-04</div>
+
+<h2>1. Энэ апп юу хийдэг вэ</h2>
+<p>ХСТИ Гүйцэтгэлийн систем нь хэрэглэгч өөрийн ажлын тэмдэглэл, жилийн гүйцэтгэлийн төлөвлөгөөний заалтын биелэлт, даалгавар, тэмдэглэлийг хөтөлж, тайлан гаргахад зориулсан хувийн хэрэгсэл юм.</p>
+
+<h2>2. Ямар өгөгдөл, хаана хадгалагддаг вэ</h2>
+<ul>
+  <li><b>Таны өөрийн Google Drive:</b> Бүх ажлын бүртгэл, тэмдэглэл, даалгавар нь таны Google Drive-ийн "ХСТИ Систем" хавтсанд JSON файлаар хадгалагдана. Апп нь <code>drive.file</code> эрхээр зөвхөн өөрийн үүсгэсэн файлд хандана. Таны Drive дээрх бусад файлыг харах, өөрчлөх боломжгүй.</li>
+  <li><b>Таны хөтөч (localStorage):</b> Офлайн ажиллахад зориулж өгөгдлийн хуулбар таны төхөөрөмж дээр хадгалагдана.</li>
+  <li><b>Нууц үгийн сан:</b> Таны master нууц үгээр (AES-256-GCM) шифрлэгдэнэ. Master нууц үгийг хэн ч, тэр дундаа апп хөгжүүлэгч ч мэдэх, сэргээх боломжгүй.</li>
+</ul>
+<p>Апп хөгжүүлэгч өөрийн сервер дээр таны ажлын өгөгдлийг <b>хадгалдаггүй</b>.</p>
+
+<h2>3. Google-ийн ямар эрх ашигладаг вэ</h2>
+<ul>
+  <li><b>Google Drive (drive.file):</b> Өгөгдөл хадгалах, синк хийх.</li>
+  <li><b>Google Calendar:</b> Хуанли хэсэгт таны үйл явдлыг харуулах, таны хүсэлтээр шинэ үйл явдал нэмэх.</li>
+  <li><b>Профайл (userinfo.profile):</b> Нэр, зураг харуулах, акаунт тодорхойлох.</li>
+</ul>
+<p>Google API-аас авсан мэдээллийг зөвхөн дээрх зорилгоор ашиглах ба Google API Services User Data Policy, түүний дотор Limited Use шаардлагыг мөрдөнө.</p>
+
+<h2>4. Гуравдагч үйлчилгээ</h2>
+<ul>
+  <li><b>Cloudflare Workers (AI ноорог):</b> Та "Ноорог гаргах" товч дарахад зөвхөн тухайн заалтын ажлын текст тайлангийн догол мөр найруулахаар Cloudflare Workers AI руу илгээгдэнэ. Хадгалагдахгүй.</li>
+  <li><b>Нэвтрэлт хадгалах (Cloudflare Worker):</b> Дахин дахин нэвтрэхгүйн тулд Google refresh token шифрлэгдсэн хэлбэрээр зөвхөн таны хөтөчид хадгалагдана. Worker нь токеныг өөр дээрээ хадгалдаггүй.</li>
+  <li><b>Sentry (алдааны хяналт):</b> Апп-ын техникийн алдааг илрүүлэхэд ашиглана. Хувийн мэдээлэл, токен, нууц үгийг илгээхгүйгээр цэвэрлэдэг.</li>
+</ul>
+<p>Таны өгөгдлийг худалдах, зар сурталчилгаанд ашиглах, гуравдагч этгээдэд шилжүүлэх зүйл <b>хийгддэггүй</b>.</p>
+
+<h2>5. Өгөгдлөө удирдах, устгах</h2>
+<ul>
+  <li>Апп доторх <b>Тохиргоо → Гарах</b> дарахад нэвтрэлтийн эрх цуцлагдана.</li>
+  <li>Google акаунтын <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Third-party access</a> хэсгээс энэ апп-ын эрхийг хүссэн үедээ цуцлах боломжтой.</li>
+  <li>Өгөгдөл таны Google Drive-д байгаа тул "ХСТИ Систем" хавтсыг устгавал бүрмөсөн устна.</li>
+</ul>
+
+<h2>6. Холбоо барих</h2>
+<p>Асуулт байвал: <a href="mailto:examples.code@gmail.com">examples.code@gmail.com</a></p>
+
+<div class="en">
+<h2>Privacy Policy (English summary)</h2>
+<p>HSTI Performance System is a personal work-log and reporting tool. All your data is stored in <b>your own Google Drive</b> (using the <code>drive.file</code> scope, which only grants access to files the app created) and in your browser's local storage. The developer does not store your data on any server. Google Calendar access is used only to display and, at your request, create events. Profile information is used to identify your account.</p>
+<p>When you request an AI draft, only the selected work text is sent to Cloudflare Workers AI and is not stored. An encrypted refresh token is kept only in your browser. Sentry is used for error monitoring with personal data and tokens scrubbed. Use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements. Your data is never sold or shared with third parties.</p>
+<p>You can revoke access at any time via <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google Account → Third-party access</a>. Contact: <a href="mailto:examples.code@gmail.com">examples.code@gmail.com</a></p>
+</div>
+</body>
+</html>
