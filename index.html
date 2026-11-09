@@ -6463,7 +6463,11 @@ function vaultCommit(metaStr,dataStr){
   const okD=safeSetItem('vault_data_hsti',dataStr);
   const okM=okD&&(metaStr==null||safeSetItem('vault_meta_hsti',metaStr));
   if(okD&&okM){try{localStorage.removeItem(VAULT_PENDING_KEY);}catch(_){}return true;}
-  // Буцаах — хуучин бүтэн хос
+  // Буцаах — хуучин бүтэн хос.
+  // ЗОРИУДЫН шууд localStorage: энэ нь шинэ өгөгдөл биш, ХУУЧИН хосыг сэргээх зам. safeSetItem нь
+  // давхар "зай дүүрсэн" мэдэгдэл гаргаж, quota/archive хоригоор сэргээлтийг өөрөө саатуулж болзошгүй.
+  // Акаунт солих хоригийг энд тусад нь шалгана.
+  if(accountSwitching)return false;
   let restored=false;
   try{
     if(oldD==null)localStorage.removeItem('vault_data_hsti');else localStorage.setItem('vault_data_hsti',oldD);
@@ -6475,15 +6479,24 @@ function vaultCommit(metaStr,dataStr){
   return false;
 }
 // Тасарсан бичилтийг сэргээх — ачаалах үед, vault унших бүрийн өмнө
+// ЗОРИУДЫН шууд localStorage (vaultCommit-ийн буцаах хэсгийн адил шалтгаантай).
+// Буцаах: true — сэргээсэн эсвэл сэргээх юм алга; false — сэргээж чадсангүй (pending хэвээр, дахин оролдоно)
 function vaultRecoverPending(){
+  if(accountSwitching)return false; // акаунт солих үед хуучин хэрэглэгчийн сан буцаж бичигдэхгүй
   let p;try{p=JSON.parse(localStorage.getItem(VAULT_PENDING_KEY)||'null');}catch(_){p=null;}
-  if(!p||!p.d){try{localStorage.removeItem(VAULT_PENDING_KEY);}catch(_){}return;}
+  if(!p||!p.d){try{localStorage.removeItem(VAULT_PENDING_KEY);}catch(_){}return true;}
   try{
     localStorage.setItem('vault_data_hsti',p.d);
     if(p.m!=null)localStorage.setItem('vault_meta_hsti',p.m);
     localStorage.removeItem(VAULT_PENDING_KEY);
     console.warn('[Vault] Тасарсан хадгалалтыг сэргээлээ');
-  }catch(e){console.error('[Vault] pending сэргээж чадсангүй:',e);}
+    return true;
+  }catch(e){
+    console.error('[Vault] pending сэргээж чадсангүй:',e);
+    // Урьд нь зөвхөн Console-д бичдэг байсан — хэрэглэгч мэдэх ёстой
+    if(typeof showAlert==='function')showAlert('Нууц үгийн санг сэргээж чадсангүй — хөтчийн хадгалах зай дүүрсэн байж магадгүй. Зай чөлөөлөөд хуудсыг дахин ачаална уу.','error');
+    return false;
+  }
 }
 function vaultPendingExists(){try{return !!localStorage.getItem(VAULT_PENDING_KEY);}catch(_){return false;}}
 
