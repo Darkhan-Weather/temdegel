@@ -1625,6 +1625,8 @@ let ZAALT_LIST=(function(){
     if(saved){
       const {list,changed}=normalizeZaaltList(JSON.parse(saved));
       if(list){
+        // ЗОРИУДЫН шууд localStorage: энэ IIFE скрипт ачаалагдах үед (init-ээс өмнө) ажилладаг тул
+        // safeSetItem-ийн хамаарал (showAlert, viewingOldYear) бэлэн биш. Бүтэлгүйтвэл дараагийн ачаалалд дахин хөрвүүлнэ.
         if(changed){try{localStorage.setItem('zaalt_list_hsti',JSON.stringify(list));}catch(e){}}
         return list;
       }
@@ -2281,6 +2283,7 @@ function showRtOffer(){
     else if(r==='fail')showAlert('Идэвхжүүлж чадсангүй, дараа дахин оролдоно уу','info');
   });
   document.getElementById('rt-offer-x').addEventListener('click',()=>{
+    // sessionStorage: зөвхөн энэ табын UI туг (хэрэглэгчийн өгөгдөл биш) — хадгалагдахгүй бол banner дахин гарахаас өөр нөлөөгүй
     try{sessionStorage.setItem('rt_offer_dismissed','1');}catch(_){}
     hideRtOffer();
   });
@@ -6657,7 +6660,12 @@ function genVaultPassword(){
 function copyVaultField(text){
   navigator.clipboard.writeText(text).then(()=>showAlert('Хуулагдлаа!','success'));
 }
-function getInitial(name){return name?name[0].toUpperCase():'?';}
+// Нэрийн эхний тэмдэгт (дүрс). escapeHtml — "<", "&" зэргээр эхэлсэн нэр HTML-ийг эвдэхгүй.
+// Array.from — эмодзи (2 UTF-16 нэгж) хагасаараа тасрахгүй.
+function getInitial(name){
+  const ch=Array.from(String(name||'').trim())[0];
+  return ch?escapeHtml(ch.toUpperCase()):'?';
+}
 
 // ── Vault grid event delegation ──────────────────────────────
 // Өмнө нь: onclick="copyVaultField('${pw.replace(/'/g,"\\'")}'"
